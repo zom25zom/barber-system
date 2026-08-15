@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "barber-system",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "barber-db",
+      "database_id": "5562b2f0-fbcd-4e15-a096-d16f6f91c13e"
+    }
+  ]
+}

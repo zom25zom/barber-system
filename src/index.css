@@ -1197,6 +1197,16 @@ select option {
   .admin-hamburger { display: flex !important; }
   .logout-label { display: none !important; }
 
+  /* Notifications panel: pin to viewport so it never gets cropped off-screen */
+  .admin-notif-dropdown {
+    position: fixed !important;
+    top: 68px !important;
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
   .main-container { padding: 0 var(--sp-2); }
   .admin-main { padding: var(--sp-2) var(--sp-2) 80px; }
 

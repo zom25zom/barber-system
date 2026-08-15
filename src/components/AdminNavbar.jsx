@@ -107,7 +107,9 @@ export default function AdminNavbar() {
               </button>
 
               {showNotif && (
-                <div style={{
+                <div
+                  className="admin-notif-dropdown"
+                  style={{
                   position: 'absolute', left: 0, top: 'calc(100% + 0.5rem)',
                   width: 300, maxWidth: 'calc(100vw - 2rem)',
                   background: '#12141c', border: '1px solid rgba(194, 112, 61, 0.15)',

@@ -1,6 +1,6 @@
 // Cloudflare Pages Functions API Handler
-// Note: BarberHubDO lives in workers/barber-hub/ (a separate Worker).
-// Pages binds to it via script_name "barber-hub-worker" in wrangler.jsonc.
+// Re-export the Durable Object class so Cloudflare's runtime can register it.
+export { BarberHubDO } from './durable-objects/BarberHubDO.js';
 
 // ─── Internal helper: fan-out an event to all connected WebSocket clients ──────
 // Called after every D1 mutation so browsers receive push events instantly.

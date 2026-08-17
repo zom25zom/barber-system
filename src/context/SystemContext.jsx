@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { 
+import {
   getBarbers, saveBarber, deleteBarber,
   getServices, saveService, deleteService,
   getBookings, createBooking, updateBookingStatus, rescheduleBooking,
@@ -40,9 +40,6 @@ export function SystemProvider({ children }) {
   useEffect(() => {
     // Initial full fetch (ONLY on mount, not on re-render)
     refreshData();
-
-    // Subscribe to real-time events pushed from the server via WebSocket
-    const unsubscribe = realtime.subscribe((event) => {
 
     // Subscribe to real-time events pushed from the server via WebSocket
     const unsubscribe = realtime.subscribe((event) => {

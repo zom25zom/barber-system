@@ -8,17 +8,31 @@
 // ─── Broadcast helper ─────────────────────────────────────────────────────
 // Sends an event to the Durable Object, which pushes it to all WS clients.
 // Non-fatal: broadcast failure must never break the REST response.
-function broadcastEvent(env, type, payload) {
+async function broadcastEvent(env, type, payload) {
   try {
     const id = env.HUB.idFromName('barber-hub');
     const stub = env.HUB.get(id);
-    stub.fetch(new Request('https://hub/broadcast', {
+    const resp = await stub.fetch(new Request('https://hub/broadcast', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, payload }),
     }));
+    const result = await resp.text();
+    console.log(`broadcastEvent(${type}) → ${resp.status}: ${result}`);
   } catch (err) {
     console.warn('broadcastEvent failed:', err.message);
+  }
+}
+
+// ─── Hub diagnostic ───────────────────────────────────────────────────────
+async function getHubStats(env) {
+  try {
+    const id = env.HUB.idFromName('barber-hub');
+    const stub = env.HUB.get(id);
+    const resp = await stub.fetch(new Request('https://hub/stats'));
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message };
   }
 }
 
@@ -61,6 +75,12 @@ export async function onRequest(context) {
         headers,
       });
     }
+  }
+
+  // ─── DIAGNOSTIC: hub stats ──────────────────────────────────────────────
+  if (path === '/hub-stats') {
+    const stats = await getHubStats(env);
+    return new Response(JSON.stringify(stats), { headers });
   }
 
 

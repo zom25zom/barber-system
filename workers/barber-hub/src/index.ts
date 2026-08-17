@@ -1,23 +1,16 @@
 /**
  * BarberHubDO — Durable Object for real-time WebSocket broadcasting.
  *
- * Lifecycle:
- *   1. Pages Function receives request → routes /api/ws to this DO via binding.
- *   2. DO accepts the WebSocket, stores it, sends CONNECTED welcome.
- *   3. Pages Function POSTs to /broadcast after every D1 mutation.
- *   4. DO pushes the event to every open WebSocket instantly.
- *
- * D1 remains the source of truth — this DO only relays notifications.
+ * Uses Cloudflare's Hibernation API so the DO can sleep between events
+ * without dropping connections. All state lives in the storage-backed
+ * WebSocket set managed by this.state — no in-memory array needed.
  */
 
 export class BarberHubDO {
   private state: DurableObjectState;
-  private connections: WebSocket[] = [];
 
   constructor(state: DurableObjectState) {
     this.state = state;
-    // Restore any WebSocket connections that survived a hibernation event
-    this.connections = this.state.getWebSockets();
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -33,10 +26,8 @@ export class BarberHubDO {
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
 
-      // Accept with hibernation API so the DO can sleep between events
       this.state.acceptWebSocket(server);
 
-      // Welcome message
       try {
         server.send(JSON.stringify({ type: 'CONNECTED', timestamp: Date.now() }));
       } catch (_) {}
@@ -59,7 +50,8 @@ export class BarberHubDO {
 
     // ── Stats (diagnostic) ────────────────────────────────────────────────
     if (url.pathname === '/stats') {
-      return new Response(JSON.stringify({ connections: this.connections.length }), {
+      const sockets = this.state.getWebSockets();
+      return new Response(JSON.stringify({ connections: sockets.length }), {
         headers: { 'Content-Type': 'application/json' },
       });
     }
@@ -67,7 +59,7 @@ export class BarberHubDO {
     return new Response('Not found', { status: 404 });
   }
 
-  // ── WebSocket event handlers (hibernation-compatible) ────────────────────
+  // ── WebSocket hibernation handlers ───────────────────────────────────────
 
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
     try {
@@ -78,34 +70,31 @@ export class BarberHubDO {
     } catch (_) {}
   }
 
-  async webSocketClose(ws: WebSocket, _code: number, _reason: string, _wasClean: boolean) {
-    this.connections = this.connections.filter((s) => s !== ws);
+  async webSocketClose(_ws: WebSocket, _code: number, _reason: string, _wasClean: boolean) {
+    // Connection removed automatically by runtime — nothing to do.
   }
 
-  async webSocketError(ws: WebSocket, _error: unknown) {
-    this.connections = this.connections.filter((s) => s !== ws);
+  async webSocketError(_ws: WebSocket, _error: unknown) {
+    // Connection removed automatically by runtime — nothing to do.
   }
 
   // ── Broadcast helper ────────────────────────────────────────────────────
 
   broadcast(type: string, payload: unknown) {
     const message = JSON.stringify({ type, payload, timestamp: Date.now() });
-    this.connections = this.connections.filter((ws) => {
+    const sockets = this.state.getWebSockets();
+    for (const ws of sockets) {
       try {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(message);
-          return true;
         }
-        return false;
       } catch (_) {
-        return false;
+        // Stale socket — runtime will clean it up.
       }
-    });
+    }
   }
 }
 
-// Default export required for ES module worker format.
-// This worker only serves Durable Objects — no standalone routes.
 export default {
   fetch() {
     return new Response('Not found', { status: 404 });

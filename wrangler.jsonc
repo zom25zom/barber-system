@@ -19,11 +19,5 @@
         "script_name": "barber-system"
       }
     ]
-  },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_classes": ["BarberHubDO"]
-    }
-  ]
+  }
 }

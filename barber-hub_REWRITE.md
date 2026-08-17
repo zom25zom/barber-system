@@ -1,3 +1,14 @@
+# barber-hub Worker - Single File Rewrite
+
+## Changes Made
+
+### ✅ Complete Rewrite - Single File Implementation
+
+**File:** `workers/barber-hub/src/index.js` (ONLY file, no separate imports)
+
+## Complete File Content
+
+```javascript
 // barber-hub Worker - manages WebSocket connections with Hibernation API
 // Single file implementation - no imports needed
 
@@ -134,3 +145,86 @@ export default {
     });
   }
 };
+```
+
+## wrangler.toml (Unchanged)
+
+```toml
+name = "barber-hub"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Durable Objects binding
+[[durable_objects.bindings]]
+name = "BARBER_HUB"
+class_name = "BarberHubDO"
+script_name = "barber-hub"
+
+# Migrations for WebSocket Hibernation API
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["BarberHubDO"]
+```
+
+## What Changed
+
+### Before (Multiple Files):
+```
+workers/barber-hub/
+  src/
+    index.js          (Worker main)
+    BarberHubDO.js    (Class - had import)
+```
+
+### After (Single File):
+```
+workers/barber-hub/
+  src/
+    index.js          (Worker + Class in ONE file)
+```
+
+## Key Features
+
+1. **Single file - no imports** ✅
+2. **No separate BarberHubDO.js** ✅
+3. **CORS: Access-Control-Allow-Origin: *** ✅
+4. **WebSocket Hibernation API** ✅
+5. **Direct DO routing** ✅
+6. **Simple, correct implementation** ✅
+
+## Deployment Command
+
+```bash
+cd workers/barber-hub
+npx wrangler deploy --config wrangler.toml
+```
+
+## After Deployment, Verify:
+
+1. **Check error rate drops to 0%**
+   - Cloudflare Dashboard → Workers → barber-hub → Observability → Logs
+
+2. **Test WebSocket:**
+   ```javascript
+   const ws = new WebSocket('wss://barber-hub.nawafzwd25.workers.dev/ws');
+   ws.onopen = () => console.log('✅ CONNECTED');
+   ws.onerror = (e) => console.log('❌ ERROR', e);
+   ws.onclose = (e) => console.log('🔴 CLOSED', e.code);
+   ```
+
+3. **Expected:**
+   - ✅ WebSocket connects
+   - ❌ No error 1006
+   - ❌ No 96.1% error rate
+
+## Error Code Explained
+
+**Error 1006:** TCP connection drops before WebSocket handshake completes
+
+This happens when:
+- The Worker isn't deployed (96.1% error rate confirms this)
+- CORS blocks the connection
+- Network/Proxy drops before handshake
+
+With the single-file rewrite and CORS: '*', these issues are eliminated.

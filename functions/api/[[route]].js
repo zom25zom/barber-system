@@ -3,7 +3,7 @@
 // ─── Internal helper: trigger a broadcast in the external barber-hub Worker ───
 async function triggerBroadcast(type, payload) {
   try {
-    await fetch('https://barber-hub.nawafzwd25.workers.dev/ws', {
+    await fetch('https://barber-hub.nawafzwd25.workers.dev/broadcast', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, message: payload }),
@@ -45,8 +45,8 @@ export async function onRequest(context) {
       }
 
       // Broadcast to all connected clients via DO
-      const workerWsUrl = 'https://barber-hub.nawafzwd25.workers.dev/ws';
-      const resp = await fetch(workerWsUrl, {
+      const workerBroadcastUrl = 'https://barber-hub.nawafzwd25.workers.dev/broadcast';
+      const resp = await fetch(workerBroadcastUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, message })

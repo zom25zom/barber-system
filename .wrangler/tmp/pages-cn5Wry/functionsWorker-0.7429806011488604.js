@@ -929,6 +929,21 @@ var process_default = _process;
 globalThis.process = process_default;
 
 // api/[[route]].js
+async function broadcastEvent(env2, type, payload) {
+  try {
+    if (!env2.BARBER_HUB) return;
+    const id = env2.BARBER_HUB.idFromName("GLOBAL");
+    const stub = env2.BARBER_HUB.get(id);
+    await stub.fetch("https://internal/broadcast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, payload, timestamp: Date.now() })
+    });
+  } catch (err) {
+    console.warn("broadcastEvent failed:", err.message);
+  }
+}
+__name(broadcastEvent, "broadcastEvent");
 async function onRequest(context2) {
   const { request, env: env2 } = context2;
   const url = new URL(request.url);
@@ -941,6 +956,17 @@ async function onRequest(context2) {
   };
   if (request.method === "OPTIONS") {
     return new Response(null, { headers });
+  }
+  if (path === "/ws") {
+    if (!env2.BARBER_HUB) {
+      return new Response(
+        JSON.stringify({ error: "Durable Object binding (BARBER_HUB) not configured." }),
+        { status: 503, headers }
+      );
+    }
+    const id = env2.BARBER_HUB.idFromName("GLOBAL");
+    const stub = env2.BARBER_HUB.get(id);
+    return stub.fetch(new Request("https://internal/ws", request));
   }
   if (!env2 || !env2.DB) {
     return new Response(JSON.stringify({
@@ -991,6 +1017,7 @@ async function onRequest(context2) {
           isOff: b.isOff === 1,
           rating: Number(b.rating)
         }));
+        await broadcastEvent(env2, "BARBERS_UPDATED", formatted);
         return new Response(JSON.stringify(formatted), { headers });
       }
       if (request.method === "DELETE") {
@@ -1006,6 +1033,7 @@ async function onRequest(context2) {
           isOff: b.isOff === 1,
           rating: Number(b.rating)
         }));
+        await broadcastEvent(env2, "BARBERS_UPDATED", formatted);
         return new Response(JSON.stringify(formatted), { headers });
       }
     }
@@ -1028,6 +1056,7 @@ async function onRequest(context2) {
           ).bind(newId, name, Number(price), Number(duration), category, description).run();
         }
         const { results } = await env2.DB.prepare("SELECT * FROM services").all();
+        await broadcastEvent(env2, "SERVICES_UPDATED", results);
         return new Response(JSON.stringify(results), { headers });
       }
       if (request.method === "DELETE") {
@@ -1037,6 +1066,7 @@ async function onRequest(context2) {
         }
         await env2.DB.prepare("DELETE FROM services WHERE id = ?").bind(serviceId).run();
         const { results } = await env2.DB.prepare("SELECT * FROM services").all();
+        await broadcastEvent(env2, "SERVICES_UPDATED", results);
         return new Response(JSON.stringify(results), { headers });
       }
     }
@@ -1088,6 +1118,7 @@ async function onRequest(context2) {
         if (created) {
           created.serviceIds = JSON.parse(created.serviceIds);
         }
+        await broadcastEvent(env2, "NEW_BOOKING", created);
         return new Response(JSON.stringify(created), { headers });
       }
       if (request.method === "PUT") {
@@ -1113,6 +1144,14 @@ async function onRequest(context2) {
           ...b,
           serviceIds: b.serviceIds ? JSON.parse(b.serviceIds) : []
         }));
+        const updatedBooking = formatted.find((b) => b.id === body.id);
+        if (updatedBooking) {
+          if (body.status && !body.date) {
+            await broadcastEvent(env2, "BOOKING_STATUS_CHANGED", { id: body.id, status: body.status, booking: updatedBooking });
+          } else {
+            await broadcastEvent(env2, "BOOKING_RESCHEDULED", updatedBooking);
+          }
+        }
         return new Response(JSON.stringify(formatted), { headers });
       }
     }
@@ -1138,6 +1177,10 @@ async function onRequest(context2) {
           ...n,
           read: n.read === 1
         }));
+        const newest = formatted[0];
+        if (newest) {
+          await broadcastEvent(env2, "NOTIFICATION_ADDED", newest);
+        }
         return new Response(JSON.stringify(formatted), { headers });
       }
     }
@@ -1185,7 +1228,7 @@ async function onRequest(context2) {
 }
 __name(onRequest, "onRequest");
 
-// ../.wrangler/tmp/pages-cOzN7F/functionsRoutes-0.5055720921725401.mjs
+// ../.wrangler/tmp/pages-cn5Wry/functionsRoutes-0.4966699543406373.mjs
 var routes = [
   {
     routePath: "/api/:route*",

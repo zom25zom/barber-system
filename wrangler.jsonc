@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "barber-system",
   "pages_build_output_dir": "./dist",
-  "compatibility_date": "2024-09-23",
+  "compatibility_date": "2024-12-01",
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
     {
@@ -10,5 +10,14 @@
       "database_name": "barber-db",
       "database_id": "5562b2f0-fbcd-4e15-a096-d16f6f91c13e"
     }
-  ]
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BARBER_HUB",
+        "class_name": "BarberHubDO",
+        "script_name": "barber-hub-worker"
+      }
+    ]
+  }
 }

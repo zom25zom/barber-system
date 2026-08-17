@@ -31,12 +31,9 @@ function playNotificationSound(type = 'new') {
   }
 }
 
-const ADMIN_REALTIME_EVENTS = new Set([
-  'NEW_BOOKING',
-  'BOOKING_STATUS_CHANGED',
-  'BOOKING_RESCHEDULED',
-  'NOTIFICATION_ADDED'
-]);
+// Fallback poll interval — used only when WebSocket is unavailable.
+// Significantly longer than the old 4s loop to reduce D1 reads.
+const FALLBACK_POLL_INTERVAL_MS = 60_000;
 
 const AdminNotificationContext = createContext({
   notifications: [],
@@ -50,13 +47,22 @@ export function AdminNotificationProvider({ children }) {
   const { isAdmin } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [toastNotif, setToastNotif] = useState(null);
-  const lastNotifCount = useRef(0);
+  const lastNotifIdRef = useRef(null); // track newest known notification ID
+  const fallbackPollRef = useRef(null);
 
+  // ── Full notification refresh ──────────────────────────────────────────────
+  // Still used on mount and as a rare fallback poll.
   const refreshNotifications = useCallback(async ({ announce = true } = {}) => {
     try {
       const notificationsData = await getNotifications();
       setNotifications(() => {
-        if (announce && notificationsData.length > lastNotifCount.current && lastNotifCount.current > 0) {
+        if (
+          announce &&
+          notificationsData.length > 0 &&
+          lastNotifIdRef.current !== null &&
+          notificationsData[0]?.id !== lastNotifIdRef.current
+        ) {
+          // A new notification appeared since last check
           const newest = notificationsData[0];
           if (newest && !newest.read) {
             playNotificationSound(newest.type === 'new_booking' ? 'new' : 'update');
@@ -67,7 +73,9 @@ export function AdminNotificationProvider({ children }) {
             });
           }
         }
-        lastNotifCount.current = notificationsData.length;
+        if (notificationsData.length > 0) {
+          lastNotifIdRef.current = notificationsData[0].id;
+        }
         return notificationsData;
       });
     } catch (err) {
@@ -75,47 +83,114 @@ export function AdminNotificationProvider({ children }) {
     }
   }, []);
 
+  // ── Fallback polling ───────────────────────────────────────────────────────
+  const startFallbackPoll = useCallback(() => {
+    if (fallbackPollRef.current) return;
+    fallbackPollRef.current = setInterval(() => {
+      refreshNotifications();
+    }, FALLBACK_POLL_INTERVAL_MS);
+  }, [refreshNotifications]);
+
+  const stopFallbackPoll = useCallback(() => {
+    if (fallbackPollRef.current) {
+      clearInterval(fallbackPollRef.current);
+      fallbackPollRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAdmin) {
       setNotifications([]);
       setToastNotif(null);
-      lastNotifCount.current = 0;
+      lastNotifIdRef.current = null;
+      stopFallbackPoll();
       return;
     }
 
+    // Initial load (silent — no toast on first load)
     refreshNotifications({ announce: false });
 
-    const intervalId = setInterval(() => {
-      refreshNotifications();
-    }, 4000);
+    // Start fallback poll immediately if WS is not yet connected
+    if (!realtime.isConnected) {
+      startFallbackPoll();
+    }
 
+    // Monitor WS state and switch between real-time and fallback
+    const connectionChecker = setInterval(() => {
+      if (realtime.isConnected) {
+        stopFallbackPoll();
+      } else {
+        startFallbackPoll();
+      }
+    }, 2000);
+
+    // ── WebSocket event handlers ───────────────────────────────────────────
+    // React to server-pushed events instead of polling every 4 seconds.
     const unsubscribe = realtime.subscribe((event) => {
-      if (!ADMIN_REALTIME_EVENTS.has(event.type)) return;
+      switch (event.type) {
+        case 'NOTIFICATION_ADDED': {
+          // Server pushed a new notification — prepend it without an API call
+          const notif = event.payload;
+          if (!notif) break;
 
-      refreshNotifications({ announce: false });
+          setNotifications((prev) => {
+            // Guard against duplicates
+            if (prev.some((n) => n.id === notif.id)) return prev;
+            // Update the "newest known" cursor
+            lastNotifIdRef.current = notif.id;
+            return [notif, ...prev.slice(0, 49)];
+          });
 
-      if (event.type === 'NEW_BOOKING') {
-        playNotificationSound('new');
-        setToastNotif({
-          title: 'حجز جديد ✨',
-          message: `عميل جديد قام بالحجز: ${event.payload.customerName}`,
-          type: 'info'
-        });
-      } else if (event.type === 'BOOKING_STATUS_CHANGED') {
-        playNotificationSound('update');
-        setToastNotif({
-          title: 'تحديث طابور الانتظار 🔄',
-          message: `تغيرت حالة أحد الحجوزات في القائمة`,
-          type: 'warning'
-        });
+          // Play sound and show toast for unread notifications
+          if (!notif.read) {
+            playNotificationSound(notif.type === 'new_booking' ? 'new' : 'update');
+            setToastNotif({
+              title: notif.title,
+              message: notif.message,
+              type: notif.type === 'new_booking' ? 'info' : 'warning'
+            });
+          }
+          break;
+        }
+
+        case 'NEW_BOOKING': {
+          // A booking was just created — the NOTIFICATION_ADDED event will
+          // carry the notification object, so we only need the booking toast here
+          // if the admin is on a page that doesn't show notifications.
+          const booking = event.payload;
+          if (booking) {
+            playNotificationSound('new');
+            setToastNotif({
+              title: 'حجز جديد ✨',
+              message: `عميل جديد قام بالحجز: ${booking.customerName}`,
+              type: 'info'
+            });
+          }
+          break;
+        }
+
+        case 'BOOKING_STATUS_CHANGED': {
+          // A booking status changed — show a quick toast
+          playNotificationSound('update');
+          setToastNotif({
+            title: 'تحديث طابور الانتظار 🔄',
+            message: 'تغيرت حالة أحد الحجوزات في القائمة',
+            type: 'warning'
+          });
+          break;
+        }
+
+        default:
+          break;
       }
     });
 
     return () => {
-      clearInterval(intervalId);
+      clearInterval(connectionChecker);
+      stopFallbackPoll();
       unsubscribe();
     };
-  }, [isAdmin, refreshNotifications]);
+  }, [isAdmin, refreshNotifications, startFallbackPoll, stopFallbackPoll]);
 
   return (
     <AdminNotificationContext.Provider value={{

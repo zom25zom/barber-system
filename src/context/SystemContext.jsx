@@ -38,11 +38,11 @@ export function SystemProvider({ children }) {
   // Each handler applies a surgical state update instead of a full re-fetch,
   // keeping the UI responsive without extra D1 reads.
   useEffect(() => {
-    // Initial full fetch (only on mount, not on re-render)
+    // Initial full fetch (ONLY on mount, not on re-render)
     refreshData();
 
-    // Monitor WS connection state
-    setWsConnected(realtime.isConnected);
+    // Subscribe to real-time events pushed from the server via WebSocket
+    const unsubscribe = realtime.subscribe((event) => {
 
     // Subscribe to real-time events pushed from the server via WebSocket
     const unsubscribe = realtime.subscribe((event) => {

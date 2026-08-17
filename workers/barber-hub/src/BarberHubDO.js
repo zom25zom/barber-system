@@ -1,8 +1,6 @@
 // BarberHub Durable Object - manages WebSocket connections with hibernation
 // DO sleeps between messages = near-zero cost when idle
-// Uses WebSocket Hibernation API: state.acceptWebSocket(ws)
-
-let clients = new Set();
+// Uses WebSocket Hibernation API: this.ctx.acceptWebSocket(webSocket)
 
 // Event type definitions
 const EVENTS = {
@@ -22,72 +20,66 @@ const EVENTS = {
 export class BarberHubDO {
   constructor(state) {
     this.state = state;
-    this.ws = null;
-    clients = new Set(); // Shared across instances
+    this.clients = new Set(); // Track all connected WebSocket clients
   }
 
   async fetch(request) {
     const url = new URL(request.url);
 
+    // WebSocket upgrade request - handle with hibernation
+    if (request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
+      // Accept the WebSocket on the stub (this is how hibernation works)
+      await this.ctx.acceptWebSocket(request.webSocket);
+
+      // DO will now sleep and wake only when messages arrive
+      return new Response(null, { status: 101 });
+    }
+
     // Broadcast endpoint for external API calls
     if (url.pathname === '/broadcast' && request.method === 'POST') {
-      const payload = await request.json();
-      const { type, message } = payload;
+      try {
+        const payload = await request.json();
+        const { type, message } = payload;
 
-      // Broadcast to all connected clients
-      this.broadcast({
-        type,
-        payload: { message },
-        timestamp: Date.now()
-      });
+        if (!type || !message) {
+          return new Response(JSON.stringify({ error: 'Missing type or message' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
 
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
+        // Broadcast to all connected clients
+        this.broadcast({
+          type,
+          payload: { message },
+          timestamp: Date.now()
+        });
+
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     return new Response('BarberHubDO', { status: 200 });
   }
 
-  async acceptWebSocket(webSocket) {
-    this.ws = webSocket;
-    clients.add(this.ws);
+  // WebSocket Hibernation API methods
+  // These are called by Cloudflare when WebSocket events occur
 
-    // Hibernation API - DO will sleep between messages
-    // Only these handlers will be called when messages arrive
-    webSocket.addEventListener('message', (event) => {
-      this.webSocketMessage(webSocket, event.data);
-    });
-
-    // Handle client PING
-    webSocket.addEventListener('ping', (event) => {
-      this.send({
-        type: EVENTS.PONG,
-        payload: {},
-        timestamp: Date.now()
-      });
-    });
-
-    webSocket.addEventListener('close', (event) => {
-      this.webSocketClose(webSocket, event.code, event.reason);
-    });
-
-    webSocket.addEventListener('error', (event) => {
-      console.error('WebSocket error:', event);
-      this.webSocketClose(webSocket, 1011, 'WebSocket error');
-    });
-
-    // DO enters hibernation - will wake up only when messages arrive
-  }
-
-  webSocketMessage(webSocket, message) {
+  webSocketMessage(webSocket, data) {
     try {
-      const data = typeof message === 'string' ? JSON.parse(message) : message;
+      const message = typeof data === 'string' ? JSON.parse(data) : data;
 
       // Handle client PING
-      if (data.type === 'PING') {
-        this.send({
+      if (message.type === 'PING') {
+        this.webSocketSend(webSocket, {
           type: EVENTS.PONG,
           payload: {},
           timestamp: Date.now()
@@ -96,10 +88,10 @@ export class BarberHubDO {
       }
 
       // Forward to all clients including sender
-      this.broadcast(data, webSocket);
+      this.broadcast(message, webSocket);
     } catch (err) {
-      console.error('Error handling message:', err);
-      this.send({
+      console.error('[BarberHubDO] Error handling message:', err);
+      this.webSocketSend(webSocket, {
         type: EVENTS.ERROR,
         payload: { message: 'Invalid message format' },
         timestamp: Date.now()
@@ -108,27 +100,29 @@ export class BarberHubDO {
   }
 
   webSocketClose(webSocket, code, reason) {
-    clients.delete(webSocket);
-    console.log(`WebSocket closed: ${code} - ${reason}`);
+    this.clients.delete(webSocket);
+    console.log(`[BarberHubDO] WebSocket closed: ${code} - ${reason}`);
   }
 
+  // Broadcast message to all connected clients (except excluded one)
   broadcast(message, excludeWebSocket = null) {
     const messageStr = JSON.stringify(message);
-    clients.forEach(client => {
+    this.clients.forEach(client => {
       if (client !== excludeWebSocket && client.readyState === WebSocket.OPEN) {
         try {
           client.send(messageStr);
         } catch (err) {
-          console.error('Error sending to client:', err);
-          clients.delete(client);
+          console.error('[BarberHubDO] Error sending to client:', err);
+          this.clients.delete(client);
         }
       }
     });
   }
 
-  send(message) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
+  // Send message to the current WebSocket connection
+  webSocketSend(webSocket, message) {
+    if (webSocket && webSocket.readyState === WebSocket.OPEN) {
+      webSocket.send(JSON.stringify(message));
     }
   }
 }

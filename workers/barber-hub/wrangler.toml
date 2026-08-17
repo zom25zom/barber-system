@@ -1,9 +1,15 @@
 name = "barber-hub"
 main = "src/index.js"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
 
-# Durable Object for WebSocket management
+# Durable Objects binding
 [[durable_objects.bindings]]
 name = "BARBER_HUB"
 class_name = "BarberHubDO"
 script_name = "barber-hub"
+
+# Migrations for WebSocket Hibernation API
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["BarberHubDO"]

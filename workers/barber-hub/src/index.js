@@ -1,5 +1,6 @@
 // barber-hub Worker - manages WebSocket connections using Hibernation API
 // Hosts BarberHubDO Durable Object which sleeps between messages (near-zero cost)
+// Direct WebSocket endpoint: wss://barber-hub.nawafzwd25.workers.dev/ws
 
 import { BarberHubDO } from './BarberHubDO.js';
 
@@ -12,9 +13,11 @@ export default {
       // Create a WebSocket pair for this client
       const { 0: clientWebSocket, 1: serverWebSocket } = new WebSocketPair();
 
-      // Hand over the server side to the Durable Object
+      // Hand over the server side to the Durable Object stub
       const id = env.BARBER_HUB.idFromName('global');
       const stub = env.BARBER_HUB.get(id);
+
+      // Accept the WebSocket on the stub (this enables hibernation)
       await stub.acceptWebSocket(serverWebSocket);
 
       // Return the client side to the browser

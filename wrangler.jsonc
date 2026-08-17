@@ -22,7 +22,9 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["BarberHubDO"]
+      "new_classes": [
+        "BarberHubDO"
+      ]
     }
   ]
 }

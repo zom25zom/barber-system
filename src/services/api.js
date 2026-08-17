@@ -52,6 +52,7 @@ export function notifyStateChange(eventType, payload) {
 async function apiCall(endpoint, options = {}) {
   const response = await fetch(endpoint, {
     ...options,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,

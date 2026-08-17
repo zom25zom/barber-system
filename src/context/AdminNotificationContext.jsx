@@ -32,8 +32,7 @@ function playNotificationSound(type = 'new') {
 }
 
 // Fallback poll interval — used only when WebSocket is unavailable.
-// Significantly longer than the old 4s loop to reduce D1 reads.
-const FALLBACK_POLL_INTERVAL_MS = 60_000;
+const FALLBACK_POLL_INTERVAL_MS = 4000;
 
 const AdminNotificationContext = createContext({
   notifications: [],
@@ -110,14 +109,19 @@ export function AdminNotificationProvider({ children }) {
     // Initial load (silent — no toast on first load)
     refreshNotifications({ announce: false });
 
-    // React instantly to WebSocket connect/disconnect — no polling needed
-    const unsubscribeConnection = realtime.onConnectionChange((connected) => {
-      if (connected) {
+    // Start fallback poll immediately if WS is not yet connected
+    if (!realtime.isConnected) {
+      startFallbackPoll();
+    }
+
+    // Monitor WS state and switch between real-time and fallback
+    const connectionChecker = setInterval(() => {
+      if (realtime.isConnected) {
         stopFallbackPoll();
       } else {
         startFallbackPoll();
       }
-    });
+    }, 2000);
 
     // ── WebSocket event handlers ───────────────────────────────────────────
     // React to server-pushed events instead of polling every 4 seconds.
@@ -181,7 +185,7 @@ export function AdminNotificationProvider({ children }) {
     });
 
     return () => {
-      unsubscribeConnection();
+      clearInterval(connectionChecker);
       stopFallbackPoll();
       unsubscribe();
     };

@@ -10,8 +10,7 @@ import { realtime } from '../services/realtime';
 const SystemContext = createContext();
 
 // Polling interval used ONLY as a fallback when the WebSocket is unavailable.
-// Much less aggressive than the old 4s loop — reduces D1 reads significantly.
-const FALLBACK_POLL_INTERVAL_MS = 30_000;
+const FALLBACK_POLL_INTERVAL_MS = 4000;
 
 export function SystemProvider({ children }) {
   const [barbers, setBarbers] = useState([]);
@@ -62,15 +61,25 @@ export function SystemProvider({ children }) {
     // Initial full fetch
     refreshData();
 
-    // React instantly to WebSocket connect/disconnect — no polling needed
-    const unsubscribeConnection = realtime.onConnectionChange((connected) => {
-      setWsConnected(connected);
-      if (connected) {
-        stopFallbackPoll();
-      } else {
-        startFallbackPoll();
-      }
-    });
+    // Monitor WS connection state — switch between real-time and fallback poll
+    const connectionChecker = setInterval(() => {
+      const connected = realtime.isConnected;
+      setWsConnected((prev) => {
+        if (prev !== connected) {
+          if (connected) {
+            stopFallbackPoll();
+          } else {
+            startFallbackPoll();
+          }
+        }
+        return connected;
+      });
+    }, 2000);
+
+    // Start fallback poll immediately if WS is not yet connected
+    if (!realtime.isConnected) {
+      startFallbackPoll();
+    }
 
     // Subscribe to real-time events pushed from the server via WebSocket
     const unsubscribe = realtime.subscribe((event) => {
@@ -134,7 +143,7 @@ export function SystemProvider({ children }) {
     });
 
     return () => {
-      unsubscribeConnection();
+      clearInterval(connectionChecker);
       stopFallbackPoll();
       unsubscribe();
     };

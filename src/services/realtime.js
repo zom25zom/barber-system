@@ -1,14 +1,13 @@
 /**
  * RealtimeService — WebSocket-first real-time client
  *
- * Opens a persistent WebSocket connection to the Pages Function's built-in
- * WebSocket hub at /api/ws. When the server pushes an event, all subscribers
- * are notified instantly (< 200ms), eliminating polling overhead.
+ * Opens a persistent WebSocket connection to the BarberHubDO Durable Object
+ * via /api/ws. When the server pushes an event, all subscribers are notified
+ * instantly (< 200ms), eliminating polling overhead.
  *
  * Fallback strategy:
- *   - If the WebSocket cannot connect (local dev without Functions, network
- *     error, etc.) `isConnected` stays false and SystemContext/AdminContext
- *     fall back to slow polling (30s/60s).
+ *   - If the WebSocket cannot connect (local dev without DO, network error, etc.)
+ *     `isConnected` stays false and SystemContext falls back to 30s polling.
  *   - Auto-reconnect with exponential backoff (1s → 2s → 4s … up to 30s max).
  *
  * Cross-tab sync (same device):

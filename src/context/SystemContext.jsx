@@ -62,25 +62,15 @@ export function SystemProvider({ children }) {
     // Initial full fetch
     refreshData();
 
-    // Monitor WS connection state — switch between real-time and fallback poll
-    const connectionChecker = setInterval(() => {
-      const connected = realtime.isConnected;
-      setWsConnected((prev) => {
-        if (prev !== connected) {
-          if (connected) {
-            stopFallbackPoll();
-          } else {
-            startFallbackPoll();
-          }
-        }
-        return connected;
-      });
-    }, 2000);
-
-    // Start fallback poll immediately if WS is not yet connected
-    if (!realtime.isConnected) {
-      startFallbackPoll();
-    }
+    // React instantly to WebSocket connect/disconnect — no polling needed
+    const unsubscribeConnection = realtime.onConnectionChange((connected) => {
+      setWsConnected(connected);
+      if (connected) {
+        stopFallbackPoll();
+      } else {
+        startFallbackPoll();
+      }
+    });
 
     // Subscribe to real-time events pushed from the server via WebSocket
     const unsubscribe = realtime.subscribe((event) => {
@@ -144,7 +134,7 @@ export function SystemProvider({ children }) {
     });
 
     return () => {
-      clearInterval(connectionChecker);
+      unsubscribeConnection();
       stopFallbackPoll();
       unsubscribe();
     };

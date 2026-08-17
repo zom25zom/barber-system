@@ -2,6 +2,11 @@
 // Re-export the Durable Object class so Cloudflare's runtime can register it.
 export { BarberHubDO } from './durable-objects/BarberHubDO.js';
 
+// Push an event to every connected browser without blocking the REST response.
+function scheduleBroadcast(context, type, payload) {
+  context.waitUntil(broadcastEvent(context.env, type, payload));
+}
+
 // ─── Internal helper: fan-out an event to all connected WebSocket clients ──────
 // Called after every D1 mutation so browsers receive push events instantly.
 async function broadcastEvent(env, type, payload) {
@@ -21,7 +26,7 @@ async function broadcastEvent(env, type, payload) {
 }
 
 export async function onRequest(context) {
-  const { request, env } = context;
+  const { request, env, waitUntil } = context;
   const url = new URL(request.url);
   const path = url.pathname.replace('/api', '');
 
@@ -49,7 +54,7 @@ export async function onRequest(context) {
     const id = env.BARBER_HUB.idFromName('GLOBAL');
     const stub = env.BARBER_HUB.get(id);
     // Forward the raw WebSocket upgrade request directly to the DO
-    return stub.fetch(new Request('https://internal/ws', request));
+    return stub.fetch(request);
   }
 
   // Check if D1 database binding is present
@@ -113,7 +118,7 @@ export async function onRequest(context) {
           rating: Number(b.rating)
         }));
         // Broadcast barber update to all connected clients
-        await broadcastEvent(env, 'BARBERS_UPDATED', formatted);
+        scheduleBroadcast(context, 'BARBERS_UPDATED', formatted);
         return new Response(JSON.stringify(formatted), { headers });
       }
 
@@ -131,7 +136,7 @@ export async function onRequest(context) {
           rating: Number(b.rating)
         }));
         // Broadcast barber deletion to all connected clients
-        await broadcastEvent(env, 'BARBERS_UPDATED', formatted);
+        scheduleBroadcast(context, 'BARBERS_UPDATED', formatted);
         return new Response(JSON.stringify(formatted), { headers });
       }
     }
@@ -161,7 +166,7 @@ export async function onRequest(context) {
 
         const { results } = await env.DB.prepare('SELECT * FROM services').all();
         // Broadcast service update to all connected clients
-        await broadcastEvent(env, 'SERVICES_UPDATED', results);
+        scheduleBroadcast(context, 'SERVICES_UPDATED', results);
         return new Response(JSON.stringify(results), { headers });
       }
 
@@ -173,7 +178,7 @@ export async function onRequest(context) {
         await env.DB.prepare('DELETE FROM services WHERE id = ?').bind(serviceId).run();
         const { results } = await env.DB.prepare('SELECT * FROM services').all();
         // Broadcast service deletion to all connected clients
-        await broadcastEvent(env, 'SERVICES_UPDATED', results);
+        scheduleBroadcast(context, 'SERVICES_UPDATED', results);
         return new Response(JSON.stringify(results), { headers });
       }
     }
@@ -212,7 +217,7 @@ export async function onRequest(context) {
           created.serviceIds = JSON.parse(created.serviceIds);
         }
         // Broadcast new booking to all connected clients
-        await broadcastEvent(env, 'NEW_BOOKING', created);
+        scheduleBroadcast(context, 'NEW_BOOKING', created);
         return new Response(JSON.stringify(created), { headers });
       }
 
@@ -249,10 +254,10 @@ export async function onRequest(context) {
         if (updatedBooking) {
           if (body.status && !body.date) {
             // Pure status change
-            await broadcastEvent(env, 'BOOKING_STATUS_CHANGED', { id: body.id, status: body.status, booking: updatedBooking });
+            scheduleBroadcast(context, 'BOOKING_STATUS_CHANGED', { id: body.id, status: body.status, booking: updatedBooking });
           } else {
             // Reschedule (with or without status)
-            await broadcastEvent(env, 'BOOKING_RESCHEDULED', updatedBooking);
+            scheduleBroadcast(context, 'BOOKING_RESCHEDULED', updatedBooking);
           }
         }
         return new Response(JSON.stringify(formatted), { headers });
@@ -288,7 +293,7 @@ export async function onRequest(context) {
         // Broadcast the newest notification to all connected clients
         const newest = formatted[0];
         if (newest) {
-          await broadcastEvent(env, 'NOTIFICATION_ADDED', newest);
+          scheduleBroadcast(context, 'NOTIFICATION_ADDED', newest);
         }
         return new Response(JSON.stringify(formatted), { headers });
       }

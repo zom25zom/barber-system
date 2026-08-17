@@ -110,19 +110,14 @@ export function AdminNotificationProvider({ children }) {
     // Initial load (silent — no toast on first load)
     refreshNotifications({ announce: false });
 
-    // Start fallback poll immediately if WS is not yet connected
-    if (!realtime.isConnected) {
-      startFallbackPoll();
-    }
-
-    // Monitor WS state and switch between real-time and fallback
-    const connectionChecker = setInterval(() => {
-      if (realtime.isConnected) {
+    // React instantly to WebSocket connect/disconnect — no polling needed
+    const unsubscribeConnection = realtime.onConnectionChange((connected) => {
+      if (connected) {
         stopFallbackPoll();
       } else {
         startFallbackPoll();
       }
-    }, 2000);
+    });
 
     // ── WebSocket event handlers ───────────────────────────────────────────
     // React to server-pushed events instead of polling every 4 seconds.
@@ -186,7 +181,7 @@ export function AdminNotificationProvider({ children }) {
     });
 
     return () => {
-      clearInterval(connectionChecker);
+      unsubscribeConnection();
       stopFallbackPoll();
       unsubscribe();
     };

@@ -31,31 +31,7 @@ export async function onRequest(context) {
     return new Response(null, { headers });
   }
 
-// ─── ROUTE: WebSocket Proxy to external Worker ──────────────────────────
-  if (path === '/ws') {
-    // Use transparent WebSocket proxying to ensure ONE connection per client
-    // This creates a direct WebSocket tunnel without any fetch() per message
-    const workerWsUrl = 'https://barber-hub.nawafzwd25.workers.dev/ws';
-    const upgradeHeader = request.headers.get('Upgrade');
-
-    if (upgradeHeader?.toLowerCase() === 'websocket') {
-      // Fetch with Upgrade header returns a Response with a WebSocket object
-      // We return it directly to the client with status 101 (Switching Protocols)
-      const resp = await fetch(workerWsUrl, {
-        headers: { Upgrade: 'websocket' }
-      });
-      // resp.webSocket will be available in the response body
-      return new Response(null, {
-        status: 101,
-        webSocket: resp.webSocket
-      });
-    }
-
-    // Non-WS request to /ws route — return the error response from the external worker
-    return fetch(workerWsUrl, request);
-  }
-
-  // ─── ROUTE: Broadcast via Durable Object ────────────────────────────────────
+// ─── ROUTE: Broadcast via Durable Object ────────────────────────────────────
   if (path === '/broadcast' && request.method === 'POST') {
     try {
       const payload = await request.json();
@@ -94,6 +70,9 @@ export async function onRequest(context) {
       });
     }
   }
+
+  // WebSocket proxy removed - frontend connects directly to barber-hub Worker
+  // Direct URL: wss://barber-hub.nawafzwd25.workers.dev/ws
 
   // Check if D1 database binding is present
   if (!env || !env.DB) {

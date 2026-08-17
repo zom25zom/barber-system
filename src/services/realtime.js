@@ -105,7 +105,7 @@ class RealtimeService {
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/api/ws`;
-      this._ws = new WebSocket(wsUrl);
+      this._ws = new WebSocket(`wss://barber-hub.nawafzwd25.workers.dev/ws`);
 
       this._ws.onopen = () => {
         this._connected = true;

@@ -48,12 +48,18 @@ export default {
 
         return new Response(JSON.stringify({ success: true }), {
           status: 200,
-          headers: { 'Content-Type': 'application/json' }
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': 'https://barber-system.pages.dev'
+          }
         });
       } catch (err) {
         return new Response(JSON.stringify({ error: err.message }), {
           status: 500,
-          headers: { 'Content-Type': 'application/json' }
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': 'https://barber-system.pages.dev'
+          }
         });
       }
     }
@@ -64,7 +70,10 @@ export default {
       service: 'BarberHub WebSocket Server',
       timestamp: new Date().toISOString()
     }), {
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': 'https://barber-system.pages.dev'
+      }
     });
   },
 };

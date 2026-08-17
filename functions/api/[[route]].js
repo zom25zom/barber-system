@@ -3,10 +3,10 @@
 // ─── Internal helper: trigger a broadcast in the external barber-hub Worker ───
 async function triggerBroadcast(type, payload) {
   try {
-    await fetch('https://barber-hub.nawafzwd25.workers.dev/broadcast', {
+    await fetch('https://barber-hub.nawafzwd25.workers.dev/ws', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, payload, timestamp: Date.now() }),
+      body: JSON.stringify({ type, message: payload }),
     });
   } catch (err) {
     console.warn('triggerBroadcast failed:', err.message);
@@ -31,9 +31,68 @@ export async function onRequest(context) {
     return new Response(null, { headers });
   }
 
-  // ─── ROUTE: WebSocket Proxy to external Worker ──────────────────────────
+// ─── ROUTE: WebSocket Proxy to external Worker ──────────────────────────
   if (path === '/ws') {
-    return fetch('https://barber-hub.nawafzwd25.workers.dev/ws', request);
+    // Use transparent WebSocket proxying to ensure ONE connection per client
+    // This creates a direct WebSocket tunnel without any fetch() per message
+    const workerWsUrl = 'https://barber-hub.nawafzwd25.workers.dev/ws';
+    const upgradeHeader = request.headers.get('Upgrade');
+
+    if (upgradeHeader?.toLowerCase() === 'websocket') {
+      // Fetch with Upgrade header returns a Response with a WebSocket object
+      // We return it directly to the client with status 101 (Switching Protocols)
+      const resp = await fetch(workerWsUrl, {
+        headers: { Upgrade: 'websocket' }
+      });
+      // resp.webSocket will be available in the response body
+      return new Response(null, {
+        status: 101,
+        webSocket: resp.webSocket
+      });
+    }
+
+    // Non-WS request to /ws route — return the error response from the external worker
+    return fetch(workerWsUrl, request);
+  }
+
+  // ─── ROUTE: Broadcast via Durable Object ────────────────────────────────────
+  if (path === '/broadcast' && request.method === 'POST') {
+    try {
+      const payload = await request.json();
+      const { type, message } = payload;
+
+      if (!type || !message) {
+        return new Response(JSON.stringify({ error: 'Missing type or message' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Broadcast to all connected clients via DO
+      const workerWsUrl = 'https://barber-hub.nawafzwd25.workers.dev/ws';
+      const resp = await fetch(workerWsUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, message })
+      });
+
+      if (resp.ok) {
+        return new Response(JSON.stringify({ success: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } else {
+        return new Response(JSON.stringify({ error: resp.statusText }), {
+          status: resp.status,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    } catch (err) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   }
 
   // Check if D1 database binding is present

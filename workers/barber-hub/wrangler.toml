@@ -1,0 +1,9 @@
+name = "barber-hub"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# Durable Object for WebSocket management
+[[durable_objects.bindings]]
+name = "BARBER_HUB"
+class_name = "BarberHubDO"
+script_name = "barber-hub"

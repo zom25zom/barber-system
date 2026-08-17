@@ -9,19 +9,16 @@ import { realtime } from '../services/realtime';
 
 const SystemContext = createContext();
 
-// Polling interval used ONLY as a fallback when the WebSocket is unavailable.
-const FALLBACK_POLL_INTERVAL_MS = 4000;
-
+// No polling needed - WebSocket provides instant updates
 export function SystemProvider({ children }) {
   const [barbers, setBarbers] = useState([]);
   const [services, setServices] = useState([]);
   const [bookings, setBookings] = useState([]);
 
-  // Track whether WS is up so we can decide polling frequency
+  // Track whether WS is up
   const [wsConnected, setWsConnected] = useState(realtime.isConnected);
-  const fallbackPollRef = useRef(null);
 
-  // ── Full refresh (used on mount and as fallback poll) ──────────────────────
+  // ── Full refresh (used on mount only) ─────────────────────────────────────
   const refreshData = useCallback(async () => {
     try {
       const [barbersData, servicesData, bookingsData] = await Promise.all([
@@ -37,49 +34,15 @@ export function SystemProvider({ children }) {
     }
   }, []);
 
-  // ── Fallback polling management ────────────────────────────────────────────
-  // Runs only when the WebSocket is unavailable.  Stops automatically once WS
-  // reconnects.  Interval is 30s (was 4s) — much kinder to D1 quotas.
-  const startFallbackPoll = useCallback(() => {
-    if (fallbackPollRef.current) return; // already running
-    fallbackPollRef.current = setInterval(() => {
-      refreshData();
-    }, FALLBACK_POLL_INTERVAL_MS);
-  }, [refreshData]);
-
-  const stopFallbackPoll = useCallback(() => {
-    if (fallbackPollRef.current) {
-      clearInterval(fallbackPollRef.current);
-      fallbackPollRef.current = null;
-    }
-  }, []);
-
   // ── Real-time WebSocket event handlers ────────────────────────────────────
   // Each handler applies a surgical state update instead of a full re-fetch,
   // keeping the UI responsive without extra D1 reads.
   useEffect(() => {
-    // Initial full fetch
+    // Initial full fetch (only on mount, not on re-render)
     refreshData();
 
-    // Monitor WS connection state — switch between real-time and fallback poll
-    const connectionChecker = setInterval(() => {
-      const connected = realtime.isConnected;
-      setWsConnected((prev) => {
-        if (prev !== connected) {
-          if (connected) {
-            stopFallbackPoll();
-          } else {
-            startFallbackPoll();
-          }
-        }
-        return connected;
-      });
-    }, 2000);
-
-    // Start fallback poll immediately if WS is not yet connected
-    if (!realtime.isConnected) {
-      startFallbackPoll();
-    }
+    // Monitor WS connection state
+    setWsConnected(realtime.isConnected);
 
     // Subscribe to real-time events pushed from the server via WebSocket
     const unsubscribe = realtime.subscribe((event) => {
@@ -143,11 +106,9 @@ export function SystemProvider({ children }) {
     });
 
     return () => {
-      clearInterval(connectionChecker);
-      stopFallbackPoll();
       unsubscribe();
     };
-  }, [refreshData, startFallbackPoll, stopFallbackPoll]);
+  }, [refreshData]);
 
   // ── Barber Actions ─────────────────────────────────────────────────────────
   const handleSaveBarber = async (barberData) => {

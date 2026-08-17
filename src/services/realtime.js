@@ -119,7 +119,16 @@ class RealtimeService {
           const data = JSON.parse(event.data);
 
           // Ignore infrastructure messages
-          if (data.type === 'CONNECTED' || data.type === 'PONG') return;
+          if (data.type === 'WS_CONNECTED') return;
+          if (data.type === 'PING') {
+            // Respond to client ping
+            if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+              try {
+                this._ws.send(JSON.stringify({ type: 'PONG' }));
+              } catch (_) {}
+            }
+            return;
+          }
 
           // Tag the event so BroadcastChannel re-broadcasts don't loop
           const tagged = { ...data, _source: 'ws' };

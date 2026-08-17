@@ -31,8 +31,7 @@ function playNotificationSound(type = 'new') {
   }
 }
 
-// Fallback poll interval — used only when WebSocket is unavailable.
-const FALLBACK_POLL_INTERVAL_MS = 4000;
+// Fallback poll interval removed to eliminate unnecessary requests.
 
 const AdminNotificationContext = createContext({
   notifications: [],
@@ -47,10 +46,9 @@ export function AdminNotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [toastNotif, setToastNotif] = useState(null);
   const lastNotifIdRef = useRef(null); // track newest known notification ID
-  const fallbackPollRef = useRef(null);
 
   // ── Full notification refresh ──────────────────────────────────────────────
-  // Still used on mount and as a rare fallback poll.
+  // Used on mount only (no polling)
   const refreshNotifications = useCallback(async ({ announce = true } = {}) => {
     try {
       const notificationsData = await getNotifications();
@@ -82,49 +80,19 @@ export function AdminNotificationProvider({ children }) {
     }
   }, []);
 
-  // ── Fallback polling ───────────────────────────────────────────────────────
-  const startFallbackPoll = useCallback(() => {
-    if (fallbackPollRef.current) return;
-    fallbackPollRef.current = setInterval(() => {
-      refreshNotifications();
-    }, FALLBACK_POLL_INTERVAL_MS);
-  }, [refreshNotifications]);
-
-  const stopFallbackPoll = useCallback(() => {
-    if (fallbackPollRef.current) {
-      clearInterval(fallbackPollRef.current);
-      fallbackPollRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
+    useEffect(() => {
     if (!isAdmin) {
       setNotifications([]);
       setToastNotif(null);
       lastNotifIdRef.current = null;
-      stopFallbackPoll();
       return;
     }
 
     // Initial load (silent — no toast on first load)
     refreshNotifications({ announce: false });
 
-    // Start fallback poll immediately if WS is not yet connected
-    if (!realtime.isConnected) {
-      startFallbackPoll();
-    }
-
-    // Monitor WS state and switch between real-time and fallback
-    const connectionChecker = setInterval(() => {
-      if (realtime.isConnected) {
-        stopFallbackPoll();
-      } else {
-        startFallbackPoll();
-      }
-    }, 2000);
-
     // ── WebSocket event handlers ───────────────────────────────────────────
-    // React to server-pushed events instead of polling every 4 seconds.
+    // React to server-pushed events only (no polling)
     const unsubscribe = realtime.subscribe((event) => {
       switch (event.type) {
         case 'NOTIFICATION_ADDED': {
@@ -185,11 +153,9 @@ export function AdminNotificationProvider({ children }) {
     });
 
     return () => {
-      clearInterval(connectionChecker);
-      stopFallbackPoll();
       unsubscribe();
     };
-  }, [isAdmin, refreshNotifications, startFallbackPoll, stopFallbackPoll]);
+  }, [isAdmin, refreshNotifications]);
 
   return (
     <AdminNotificationContext.Provider value={{

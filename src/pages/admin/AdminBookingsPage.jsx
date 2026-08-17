@@ -213,7 +213,11 @@ export default function AdminBookingsPage() {
               </div>
               <div className="form-field">
                 <label className="form-label">التوقيت</label>
-                <input type="time" required value={newTime} onChange={e => setNewTime(e.target.value)} />
+                <select required value={newTime} onChange={e => setNewTime(e.target.value)}>
+                  {['14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30','20:00','20:30','21:00','21:30','22:00','22:30','23:00'].map(t => (
+                    <option key={t} value={t}>{formatTimeTo12h(t)}</option>
+                  ))}
+                </select>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem' }}>
                 <button type="submit" className="gold-gradient-bg flex-1" style={{ padding: '0.875rem' }}>

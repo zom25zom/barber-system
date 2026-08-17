@@ -175,14 +175,14 @@ export const DEFAULT_NOTIFICATIONS = [
   {
     id: "n-1",
     title: "حجز جديد",
-    message: "قام محمد الشمري بحجز موعد لدى مصطفى حسن الساعة 17:15",
+    message: "قام محمد الشمري بحجز موعد لدى مصطفى حسن الساعة 05:15 م",
     timestamp: new Date(Date.now() - 1800000).toISOString(),
     type: "new_booking"
   },
   {
     id: "n-2",
     title: "حجز جديد",
-    message: "قام فهد الدوسري بحجز موعد لدى مصطفى حسن الساعة 16:30",
+    message: "قام فهد الدوسري بحجز موعد لدى مصطفى حسن الساعة 04:30 م",
     timestamp: new Date(Date.now() - 3600000).toISOString(),
     type: "new_booking"
   }

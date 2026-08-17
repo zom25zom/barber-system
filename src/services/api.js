@@ -226,7 +226,7 @@ export async function createBooking(bookingInput) {
 
     await addNotification({
       title: 'حجز جديد ✨',
-      message: `قام العميل ${bookingInput.customerName} (${bookingInput.customerPhone}) بحجز موعد عند ${barberName} الساعة ${bookingInput.time}`,
+      message: `قام العميل ${bookingInput.customerName} (${bookingInput.customerPhone}) بحجز موعد عند ${barberName} الساعة ${formatTimeTo12h(bookingInput.time)}`,
       type: 'new_booking',
       bookingId: newBooking.id
     });
@@ -252,7 +252,7 @@ export async function createBooking(bookingInput) {
 
     addNotification({
       title: 'حجز جديد ✨',
-      message: `قام العميل ${bookingInput.customerName} (${bookingInput.customerPhone}) بحجز موعد عند ${barberName} الساعة ${bookingInput.time}`,
+      message: `قام العميل ${bookingInput.customerName} (${bookingInput.customerPhone}) بحجز موعد عند ${barberName} الساعة ${formatTimeTo12h(bookingInput.time)}`,
       type: 'new_booking',
       bookingId: newBooking.id
     });
@@ -320,7 +320,7 @@ export async function rescheduleBooking(id, newDate, newTime) {
     if (updatedBooking) {
       await addNotification({
         title: 'تعديل موعد 📅',
-        message: `قام العميل ${updatedBooking.customerName} بتعديل موعده إلى ${newDate} الساعة ${newTime}`,
+        message: `قام العميل ${updatedBooking.customerName} بتعديل موعده إلى ${newDate} الساعة ${formatTimeTo12h(newTime)}`,
         type: 'reschedule',
         bookingId: id
       });
@@ -344,7 +344,7 @@ export async function rescheduleBooking(id, newDate, newTime) {
     if (updatedBooking) {
       addNotification({
         title: 'تعديل موعد 📅',
-        message: `قام العميل ${updatedBooking.customerName} بتعديل موعده إلى ${newDate} الساعة ${newTime}`,
+        message: `قام العميل ${updatedBooking.customerName} بتعديل موعده إلى ${newDate} الساعة ${formatTimeTo12h(newTime)}`,
         type: 'reschedule',
         bookingId: id
       });

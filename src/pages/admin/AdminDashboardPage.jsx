@@ -229,7 +229,7 @@ export default function AdminDashboardPage() {
                     <p style={{ color: 'var(--text-muted)' }}>{n.message}</p>
                   </div>
                   <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginRight: '1rem' }} dir="ltr">
-                    {new Date(n.timestamp).toLocaleTimeString('ar-SA')}
+                    {new Date(n.timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true })}
                   </span>
                 </div>
               ))

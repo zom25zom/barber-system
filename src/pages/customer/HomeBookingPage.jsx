@@ -1,8 +1,9 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Star, Clock, Users, Sparkles, ArrowLeft } from 'lucide-react';
 import { useSystem } from '../../context/SystemContext';
 import CustomerNavbar from '../../components/CustomerNavbar';
+import { formatTimeTo12h } from '../../services/api';
 
 export default function HomeBookingPage() {
   const navigate = useNavigate();
@@ -73,7 +74,7 @@ export default function HomeBookingPage() {
                   
                   <div className="barber-meta-item">
                     <Clock className="barber-meta-icon" />
-                    <span>ساعات العمل: {barber.workStart} - {barber.workEnd}</span>
+                    <span>ساعات العمل: {formatTimeTo12h(barber.workStart)} - {formatTimeTo12h(barber.workEnd)}</span>
                   </div>
 
                   <div className="barber-queue-box">

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Clock, Users, CheckCircle2, XCircle, RotateCcw, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -274,7 +274,7 @@ export default function LiveQueueTrackerPage() {
                 <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '0.5rem' }}>التوقيت الجديد</label>
                 <select value={newTime} onChange={e => setNewTime(e.target.value)}>
                   {['14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'].map(t => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t}>{formatTimeTo12h(t)}</option>
                   ))}
                 </select>
               </div>

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, CalendarCheck, Users, Scissors, 
@@ -128,7 +128,7 @@ export default function AdminNavbar() {
                       <div key={n.id} style={{ padding: '0.75rem', borderRadius: 10, marginBottom: '0.4rem', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
                           <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--accent)' }}>{n.title}</span>
-                          <span style={{ fontSize: '0.62rem', color: '#64748b' }} dir="ltr">{new Date(n.timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span style={{ fontSize: '0.62rem', color: '#64748b' }} dir="ltr">{new Date(n.timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
                         </div>
                         <p style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{n.message}</p>
                       </div>

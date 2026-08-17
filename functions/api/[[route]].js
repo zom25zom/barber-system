@@ -1,34 +1,22 @@
 // Cloudflare Pages Functions API Handler
 //
-// Real-time transport: this Function hosts an in-memory WebSocket hub directly.
-// Pages Functions run on the Workers runtime, which supports the standard
-// WebSocket API (WebSocketPair). Every D1 mutation below pushes an event to the
-// connected browsers instantly — no polling required. D1 remains the source of
-// truth; the hub only relays change notifications and holds no authoritative data.
+// Real-time transport: WebSocket connections are managed by a Durable Object
+// (BarberHubDO) via the HUB binding. Every D1 mutation below pushes an event
+// through the DO, which broadcasts it to all connected browsers instantly.
+// D1 remains the source of truth; the hub only relays change notifications.
 
-// ─── WebSocket hub (module-scoped) ────────────────────────────────────────────
-// Tracks the live WebSocket connections served by this instance. On a mutation
-// we iterate it and push a JSON event to every connected client.
-const wsConnections = new Set();
-
-function wsBroadcast(type, payload) {
-  if (wsConnections.size === 0) return;
-  const message = JSON.stringify({ type, payload, timestamp: Date.now() });
-  for (const ws of wsConnections) {
-    try {
-      if (ws.readyState === WebSocket.OPEN) ws.send(message);
-    } catch (_) {
-      wsConnections.delete(ws); // stale socket — drop it silently
-    }
-  }
-}
-
-// Fan out an event to every connected WebSocket client.
-// Called after every D1 mutation so browsers receive push events instantly.
-// Non-fatal: a broadcast failure must never break the REST response.
-function broadcastEvent(type, payload) {
+// ─── Broadcast helper ─────────────────────────────────────────────────────
+// Sends an event to the Durable Object, which pushes it to all WS clients.
+// Non-fatal: broadcast failure must never break the REST response.
+function broadcastEvent(env, type, payload) {
   try {
-    wsBroadcast(type, payload);
+    const id = env.HUB.idFromName('barber-hub');
+    const stub = env.HUB.get(id);
+    stub.fetch(new Request('https://hub/broadcast', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, payload }),
+    }));
   } catch (err) {
     console.warn('broadcastEvent failed:', err.message);
   }
@@ -51,41 +39,28 @@ export async function onRequest(context) {
     return new Response(null, { headers });
   }
 
-  // ─── ROUTE: WebSocket Upgrade (Real-time hub) ─────────────────────────────
-  // The browser connects here. We accept the upgrade and register the socket so
-  // future broadcasts reach it instantly.
+  // ─── ROUTE: WebSocket Upgrade (via Durable Object) ──────────────────────
+  // Forward the upgrade request to the DO which accepts the connection and
+  // manages its lifecycle (hibernation-compatible).
   if (path === '/ws') {
     const upgradeHeader = request.headers.get('Upgrade');
     if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
       return new Response('Expected Upgrade: websocket', { status: 426, headers });
     }
 
-    const [client, server] = Object.values(new WebSocketPair());
-    server.accept();
-    wsConnections.add(server);
-
-    // Send a welcome CONNECTED message immediately (client ignores it)
     try {
-      server.send(JSON.stringify({ type: 'CONNECTED', timestamp: Date.now() }));
-    } catch (_) {}
-
-    // Keep-alive: answer client PING so the connection survives proxy idle timeouts
-    server.addEventListener('message', (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'PING') {
-          server.send(JSON.stringify({ type: 'PONG', timestamp: Date.now() }));
-        }
-      } catch (_) {}
-    });
-
-    // Clean up on close
-    server.addEventListener('close', () => {
-      wsConnections.delete(server);
-      try { server.close(1000, 'closed'); } catch (_) {}
-    });
-
-    return new Response(null, { status: 101, webSocket: client });
+      const id = env.HUB.idFromName('barber-hub');
+      const stub = env.HUB.get(id);
+      return await stub.fetch(new Request('https://hub/connect', {
+        method: request.method,
+        headers: request.headers,
+      }));
+    } catch (err) {
+      return new Response(JSON.stringify({ error: 'WebSocket hub unavailable: ' + err.message }), {
+        status: 503,
+        headers,
+      });
+    }
   }
 
 
@@ -150,8 +125,7 @@ export async function onRequest(context) {
           isOff: b.isOff === 1,
           rating: Number(b.rating)
         }));
-        // Broadcast barber update to all connected clients
-        broadcastEvent('BARBERS_UPDATED', formatted);
+        broadcastEvent(env, 'BARBERS_UPDATED', formatted);
         return new Response(JSON.stringify(formatted), { headers });
       }
 
@@ -168,8 +142,7 @@ export async function onRequest(context) {
           isOff: b.isOff === 1,
           rating: Number(b.rating)
         }));
-        // Broadcast barber deletion to all connected clients
-        broadcastEvent('BARBERS_UPDATED', formatted);
+        broadcastEvent(env, 'BARBERS_UPDATED', formatted);
         return new Response(JSON.stringify(formatted), { headers });
       }
     }
@@ -198,8 +171,7 @@ export async function onRequest(context) {
         }
 
         const { results } = await env.DB.prepare('SELECT * FROM services').all();
-        // Broadcast service update to all connected clients
-        broadcastEvent('SERVICES_UPDATED', results);
+        broadcastEvent(env, 'SERVICES_UPDATED', results);
         return new Response(JSON.stringify(results), { headers });
       }
 
@@ -210,8 +182,7 @@ export async function onRequest(context) {
         }
         await env.DB.prepare('DELETE FROM services WHERE id = ?').bind(serviceId).run();
         const { results } = await env.DB.prepare('SELECT * FROM services').all();
-        // Broadcast service deletion to all connected clients
-        broadcastEvent('SERVICES_UPDATED', results);
+        broadcastEvent(env, 'SERVICES_UPDATED', results);
         return new Response(JSON.stringify(results), { headers });
       }
     }
@@ -249,8 +220,7 @@ export async function onRequest(context) {
         if (created) {
           created.serviceIds = JSON.parse(created.serviceIds);
         }
-        // Broadcast new booking to all connected clients
-        broadcastEvent('NEW_BOOKING', created);
+        broadcastEvent(env, 'NEW_BOOKING', created);
         return new Response(JSON.stringify(created), { headers });
       }
 
@@ -261,17 +231,14 @@ export async function onRequest(context) {
         }
 
         if (status && date && time) {
-          // Reschedule + status update
           await env.DB.prepare(
             'UPDATE bookings SET status = ?, date = ?, time = ? WHERE id = ?'
           ).bind(status, date, time, id).run();
         } else if (status) {
-          // Simple status update
           await env.DB.prepare(
             'UPDATE bookings SET status = ? WHERE id = ?'
           ).bind(status, id).run();
         } else if (date && time) {
-          // Simple reschedule
           await env.DB.prepare(
             'UPDATE bookings SET date = ?, time = ?, status = "Rescheduled" WHERE id = ?'
           ).bind(date, time, id).run();
@@ -282,15 +249,12 @@ export async function onRequest(context) {
           ...b,
           serviceIds: b.serviceIds ? JSON.parse(b.serviceIds) : []
         }));
-        // Find the updated booking and broadcast the targeted event
         const updatedBooking = formatted.find(b => b.id === body.id);
         if (updatedBooking) {
           if (body.status && !body.date) {
-            // Pure status change
-            broadcastEvent('BOOKING_STATUS_CHANGED', { id: body.id, status: body.status, booking: updatedBooking });
+            broadcastEvent(env, 'BOOKING_STATUS_CHANGED', { id: body.id, status: body.status, booking: updatedBooking });
           } else {
-            // Reschedule (with or without status)
-            broadcastEvent('BOOKING_RESCHEDULED', updatedBooking);
+            broadcastEvent(env, 'BOOKING_RESCHEDULED', updatedBooking);
           }
         }
         return new Response(JSON.stringify(formatted), { headers });
@@ -323,10 +287,9 @@ export async function onRequest(context) {
           ...n,
           read: n.read === 1
         }));
-        // Broadcast the newest notification to all connected clients
         const newest = formatted[0];
         if (newest) {
-          broadcastEvent('NOTIFICATION_ADDED', newest);
+          broadcastEvent(env, 'NOTIFICATION_ADDED', newest);
         }
         return new Response(JSON.stringify(formatted), { headers });
       }
@@ -381,4 +344,3 @@ export async function onRequest(context) {
     }), { status: 500, headers });
   }
 }
-

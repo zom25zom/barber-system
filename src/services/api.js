@@ -221,7 +221,7 @@ export async function createBooking(bookingInput) {
     // We also register a notification for this booking
     const barbers = await getBarbers();
     const barber = barbers.find(b => b.id === bookingInput.barberId);
-    const barberName = barber ? barber.name : 'أي حلاق متاح';
+    const barberName = barber ? barber.name : 'غير محدد';
 
     await addNotification({
       title: 'حجز جديد ✨',
@@ -247,7 +247,7 @@ export async function createBooking(bookingInput) {
 
     const barbers = getBarbersLocal();
     const barber = barbers.find(b => b.id === bookingInput.barberId);
-    const barberName = barber ? barber.name : 'أي حلاق متاح';
+    const barberName = barber ? barber.name : 'غير محدد';
 
     addNotification({
       title: 'حجز جديد ✨',
@@ -362,7 +362,6 @@ export function getBarberQueueState(bookings, barberId, targetBookingId = null) 
   // Filter pending/active bookings for this barber for today (or specified date)
   let queue = bookings.filter(b => {
     const isPending = b.status === 'Pending' || b.status === 'Rescheduled';
-    if (barberId === 'any') return isPending;
     return isPending && b.barberId === barberId;
   });
 

@@ -86,7 +86,7 @@ export default function MyBookingsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
             {customerBookings.map((b) => {
               const barber = barbers.find(item => item.id === b.barberId);
-              const barberName = barber ? barber.name : 'أي حلاق متاح';
+              const barberName = barber ? barber.name : 'غير محدد';
               const isPending = b.status === 'Pending' || b.status === 'Rescheduled';
               return (
                 <div key={b.id} style={{

@@ -1,9 +1,9 @@
 ﻿import React, { useEffect } from 'react';
 import { Sparkles, X } from 'lucide-react';
-import { useSystem } from '../context/SystemContext';
+import { useAdminNotifications } from '../context/AdminNotificationContext';
 
 export default function NotificationToast() {
-  const { toastNotif, setToastNotif } = useSystem();
+  const { toastNotif, setToastNotif } = useAdminNotifications();
 
   useEffect(() => {
     if (toastNotif) {

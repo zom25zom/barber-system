@@ -8,7 +8,7 @@ import { formatTimeTo12h, getLocalDateStr } from '../../services/api';
 export default function TimeSelectPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const barberId = searchParams.get('barberId') || 'any';
+  const barberId = searchParams.get('barberId') || '';
   const serviceIdsStr = searchParams.get('services') || '';
 
   const { barbers } = useSystem();
@@ -41,7 +41,7 @@ export default function TimeSelectPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', paddingBottom: '1.25rem', borderBottom: '1px solid var(--border)' }}>
           <div>
             <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
-              الحلاق: {barber ? barber.name : 'أي حلاق متاح'}
+              الحلاق: {barber ? barber.name : 'غير محدد'}
             </span>
             <h2 className="step-number">
               <Calendar className="logo-icon text-amber-400" />

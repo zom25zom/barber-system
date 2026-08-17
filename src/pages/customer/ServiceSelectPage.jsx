@@ -7,14 +7,14 @@ import CustomerNavbar from '../../components/CustomerNavbar';
 export default function ServiceSelectPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const barberId = searchParams.get('barberId') || 'any';
+  const barberId = searchParams.get('barberId') || '';
 
   const { services, barbers } = useSystem();
   const [selectedServiceIds, setSelectedServiceIds] = useState([]);
   const [activeCategory, setActiveCategory] = useState('الكل');
 
   const barber = barbers.find(b => b.id === barberId);
-  const barberName = barber ? barber.name : 'أي حلاق متاح';
+  const barberName = barber ? barber.name : 'غير محدد';
 
   const categories = ['الكل', ...new Set(services.map(s => s.category))];
 

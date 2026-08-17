@@ -5,13 +5,14 @@ import {
   UserCheck, TrendingUp, Bell, LogOut, ShieldAlert, Menu, X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useSystem } from '../context/SystemContext';
+import { useAdminNotifications } from '../context/AdminNotificationContext';
+import NotificationToast from './NotificationToast';
 
 export default function AdminNavbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { adminLogout } = useAuth();
-  const { notifications } = useSystem();
+  const { notifications } = useAdminNotifications();
   const [showNotif, setShowNotif] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -42,6 +43,7 @@ export default function AdminNavbar() {
   };
 
   return (
+    <>
     <header style={{
       position: 'sticky', top: 0, zIndex: 40,
       background: 'rgba(8, 9, 12, 0.96)',
@@ -220,5 +222,9 @@ export default function AdminNavbar() {
         )}
       </div>
     </header>
+
+    {/* Admin-only toast notifications (new bookings, status changes) */}
+    <NotificationToast />
+    </>
   );
 }

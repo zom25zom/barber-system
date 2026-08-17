@@ -51,7 +51,7 @@ export default function LiveQueueTrackerPage() {
   }
 
   const barber = barbers.find(b => b.id === booking.barberId);
-  const barberName = barber ? barber.name : 'أي حلاق متاح';
+  const barberName = barber ? barber.name : 'غير محدد';
   const selectedServices = services.filter(s => booking.serviceIds && booking.serviceIds.includes(s.id));
   const queueState = getQueueState(booking.barberId, booking.id);
 

@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Scissors, Star, Clock, Users, Sparkles, ArrowLeft } from 'lucide-react';
+import { User, Star, Clock, Users, Sparkles, ArrowLeft } from 'lucide-react';
 import { useSystem } from '../../context/SystemContext';
 import CustomerNavbar from '../../components/CustomerNavbar';
 
@@ -41,36 +41,11 @@ export default function HomeBookingPage() {
             <User className="logo-icon text-amber-400" />
             الخطوة 1: اختيار الحلاق
           </h2>
-          <p className="step-desc">يمكنك اختيار مصفف معين أو اختيار أول حلاق متاح لبدء أسرع</p>
+          <p className="step-desc">اختر مصفف الشعر المفضل لديك من الحلاقين المتاحين في الصالون</p>
         </div>
 
         {/* Barbers Grid */}
         <div className="barber-cards-grid">
-          {/* Any Available Barber Option */}
-          <div
-            onClick={() => handleSelect('any')}
-            className={`barber-card any-barber-card ${selectedBarberId === 'any' ? 'barber-card-selected' : ''}`}
-          >
-            <div>
-              <div className="any-barber-icon-box">
-                <Scissors className="any-barber-icon" />
-              </div>
-              <h3 className="barber-name">أول حلاق متاح ⚡</h3>
-              <p className="barber-title">الحجز السريع لتوفير الوقت</p>
-              
-              <div className="barber-meta-item">
-                <Clock className="barber-meta-icon" />
-                <span>يبدأ العمل مباشرة عند توفر أول كرسي</span>
-              </div>
-            </div>
-
-            <button className="btn-barber-select">
-              <span>اختيار أول حلاق متاح</span>
-              <ArrowLeft className="logo-icon" />
-            </button>
-          </div>
-
-          {/* Specific Barbers */}
           {barbers.map((barber) => {
             const queueState = getQueueState(barber.id);
             const isSelected = selectedBarberId === barber.id;

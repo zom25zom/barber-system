@@ -11,7 +11,7 @@ import { formatTimeTo12h, getLocalDateStr } from '../../services/api';
 export default function ConfirmationPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const barberId = searchParams.get('barberId') || 'any';
+  const barberId = searchParams.get('barberId') || '';
   const serviceIdsStr = searchParams.get('services') || '';
   const date = searchParams.get('date') || getLocalDateStr();
   const time = searchParams.get('time') || '17:00';
@@ -22,7 +22,7 @@ export default function ConfirmationPage() {
   const [showOtpModal, setShowOtpModal] = useState(false);
 
   const barber = barbers.find(b => b.id === barberId);
-  const barberName = barber ? barber.name : 'أي حلاق متاح';
+  const barberName = barber ? barber.name : 'غير محدد';
   const selectedServices = services.filter(s => serviceIds.includes(s.id));
   const totalPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
   const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);

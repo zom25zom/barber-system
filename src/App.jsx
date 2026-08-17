@@ -1,8 +1,8 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SystemProvider } from './context/SystemContext';
-import NotificationToast from './components/NotificationToast';
+import { AdminNotificationProvider } from './context/AdminNotificationContext';
 
 // Customer Pages
 import HomeBookingPage from './pages/customer/HomeBookingPage';
@@ -26,7 +26,6 @@ export default function App() {
     <AuthProvider>
       <SystemProvider>
         <BrowserRouter>
-          <NotificationToast />
           <Routes>
             {/* Customer Routes */}
             <Route path="/" element={<HomeBookingPage />} />
@@ -36,14 +35,16 @@ export default function App() {
             <Route path="/queue/:bookingId" element={<LiveQueueTrackerPage />} />
             <Route path="/my-bookings" element={<MyBookingsPage />} />
 
-            {/* Owner/Admin Routes */}
+            {/* Owner/Admin Routes — salon notifications only mount inside this layout */}
             <Route path="/admin/login" element={<AdminLoginPage />} />
-            <Route path="/admin" element={<AdminDashboardPage />} />
-            <Route path="/admin/bookings" element={<AdminBookingsPage />} />
-            <Route path="/admin/barbers" element={<AdminBarbersPage />} />
-            <Route path="/admin/services" element={<AdminServicesPage />} />
-            <Route path="/admin/customers" element={<AdminCustomersPage />} />
-            <Route path="/admin/reports" element={<AdminReportsPage />} />
+            <Route element={<AdminNotificationProvider><Outlet /></AdminNotificationProvider>}>
+              <Route path="/admin" element={<AdminDashboardPage />} />
+              <Route path="/admin/bookings" element={<AdminBookingsPage />} />
+              <Route path="/admin/barbers" element={<AdminBarbersPage />} />
+              <Route path="/admin/services" element={<AdminServicesPage />} />
+              <Route path="/admin/customers" element={<AdminCustomersPage />} />
+              <Route path="/admin/reports" element={<AdminReportsPage />} />
+            </Route>
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

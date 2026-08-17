@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useSystem } from '../../context/SystemContext';
 import { useAuth } from '../../context/AuthContext';
+import { useAdminNotifications } from '../../context/AdminNotificationContext';
 import AdminNavbar from '../../components/AdminNavbar';
 import { formatTimeTo12h, getLocalDateStr } from '../../services/api';
 
@@ -33,7 +34,8 @@ function StatCard({ title, value, subtitle, icon: Icon, color }) {
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
-  const { bookings, barbers, notifications, getQueueState, updateBookingStatus } = useSystem();
+  const { bookings, barbers, getQueueState, updateBookingStatus } = useSystem();
+  const { notifications } = useAdminNotifications();
 
   if (!isAdmin) {
     navigate('/admin/login');

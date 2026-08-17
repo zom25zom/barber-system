@@ -137,7 +137,7 @@ export default function AdminBookingsPage() {
               ) : (
                 filteredBookings.map((b) => {
                   const barber = barbers.find(item => item.id === b.barberId);
-                  const barberName = barber ? barber.name : 'أي حلاق متاح';
+                  const barberName = barber ? barber.name : 'غير محدد';
                   return (
                     <tr key={b.id}>
                       <td>

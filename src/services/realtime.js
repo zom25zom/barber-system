@@ -23,7 +23,6 @@
 class RealtimeService {
   constructor() {
     this._listeners = new Set();
-    this._connectionListeners = new Set();
     this._ws = null;
     this._reconnectDelay = 1000;   // starts at 1s, doubles up to MAX
     this._maxDelay = 30000;         // 30 second ceiling
@@ -62,13 +61,6 @@ class RealtimeService {
   subscribe(callback) {
     this._listeners.add(callback);
     return () => this._listeners.delete(callback);
-  }
-
-  /** Fires immediately with current state, then on every connect/disconnect. */
-  onConnectionChange(callback) {
-    this._connectionListeners.add(callback);
-    callback(this._connected);
-    return () => this._connectionListeners.delete(callback);
   }
 
   /**
@@ -116,7 +108,7 @@ class RealtimeService {
       this._ws = new WebSocket(wsUrl);
 
       this._ws.onopen = () => {
-        this._setConnected(true);
+        this._connected = true;
         this._reconnectDelay = 1000; // reset backoff on success
         this._startPing();
         console.debug('[Realtime] WebSocket connected');
@@ -149,7 +141,7 @@ class RealtimeService {
       };
 
       this._ws.onclose = (event) => {
-        this._setConnected(false);
+        this._connected = false;
         this._stopPing();
         this._ws = null;
 
@@ -199,18 +191,6 @@ class RealtimeService {
   }
 
   // ── Internal ────────────────────────────────────────────────────────────────
-
-  _setConnected(connected) {
-    if (this._connected === connected) return;
-    this._connected = connected;
-    this._connectionListeners.forEach((cb) => {
-      try {
-        cb(connected);
-      } catch (err) {
-        console.error('[Realtime] Connection listener error:', err);
-      }
-    });
-  }
 
   _notifyListeners(data) {
     this._listeners.forEach((cb) => {

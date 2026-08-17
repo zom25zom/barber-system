@@ -27,10 +27,9 @@ export class BarberHubDO {
   // ─── Main entry point ────────────────────────────────────────────────────────
   async fetch(request) {
     const url = new URL(request.url);
-    const upgradeHeader = request.headers.get('Upgrade');
 
-    // WebSocket upgrade: browser clients connect here (any path with Upgrade header)
-    if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
+    // WebSocket upgrade: browser clients connect here
+    if (url.pathname === '/ws') {
       return this._handleWebSocketUpgrade(request);
     }
 
@@ -44,6 +43,11 @@ export class BarberHubDO {
 
   // ─── WebSocket Upgrade ────────────────────────────────────────────────────────
   _handleWebSocketUpgrade(request) {
+    const upgradeHeader = request.headers.get('Upgrade');
+    if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
+      return new Response('Expected WebSocket upgrade', { status: 426 });
+    }
+
     // Create a WebSocket pair and accept via Hibernation API
     const [client, server] = Object.values(new WebSocketPair());
     this.state.acceptWebSocket(server);

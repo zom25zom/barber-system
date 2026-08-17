@@ -1859,11 +1859,6 @@ var _process2 = {
 };
 var process_default2 = _process2;
 globalThis.process = process_default2;
-function scheduleBroadcast(context22, type, payload) {
-  context22.waitUntil(broadcastEvent(context22.env, type, payload));
-}
-__name(scheduleBroadcast, "scheduleBroadcast");
-__name2(scheduleBroadcast, "scheduleBroadcast");
 async function broadcastEvent(env22, type, payload) {
   try {
     if (!env22.BARBER_HUB) return;
@@ -1881,7 +1876,7 @@ async function broadcastEvent(env22, type, payload) {
 __name(broadcastEvent, "broadcastEvent");
 __name2(broadcastEvent, "broadcastEvent");
 async function onRequest(context22) {
-  const { request, env: env22, waitUntil } = context22;
+  const { request, env: env22 } = context22;
   const url = new URL(request.url);
   const path = url.pathname.replace("/api", "");
   const headers = {
@@ -1902,7 +1897,7 @@ async function onRequest(context22) {
     }
     const id = env22.BARBER_HUB.idFromName("GLOBAL");
     const stub = env22.BARBER_HUB.get(id);
-    return stub.fetch(request);
+    return stub.fetch(new Request("https://internal/ws", request));
   }
   if (!env22 || !env22.DB) {
     return new Response(JSON.stringify({
@@ -1953,7 +1948,7 @@ async function onRequest(context22) {
           isOff: b.isOff === 1,
           rating: Number(b.rating)
         }));
-        scheduleBroadcast(context22, "BARBERS_UPDATED", formatted);
+        await broadcastEvent(env22, "BARBERS_UPDATED", formatted);
         return new Response(JSON.stringify(formatted), { headers });
       }
       if (request.method === "DELETE") {
@@ -1969,7 +1964,7 @@ async function onRequest(context22) {
           isOff: b.isOff === 1,
           rating: Number(b.rating)
         }));
-        scheduleBroadcast(context22, "BARBERS_UPDATED", formatted);
+        await broadcastEvent(env22, "BARBERS_UPDATED", formatted);
         return new Response(JSON.stringify(formatted), { headers });
       }
     }
@@ -1992,7 +1987,7 @@ async function onRequest(context22) {
           ).bind(newId, name, Number(price), Number(duration), category, description).run();
         }
         const { results } = await env22.DB.prepare("SELECT * FROM services").all();
-        scheduleBroadcast(context22, "SERVICES_UPDATED", results);
+        await broadcastEvent(env22, "SERVICES_UPDATED", results);
         return new Response(JSON.stringify(results), { headers });
       }
       if (request.method === "DELETE") {
@@ -2002,7 +1997,7 @@ async function onRequest(context22) {
         }
         await env22.DB.prepare("DELETE FROM services WHERE id = ?").bind(serviceId).run();
         const { results } = await env22.DB.prepare("SELECT * FROM services").all();
-        scheduleBroadcast(context22, "SERVICES_UPDATED", results);
+        await broadcastEvent(env22, "SERVICES_UPDATED", results);
         return new Response(JSON.stringify(results), { headers });
       }
     }
@@ -2054,7 +2049,7 @@ async function onRequest(context22) {
         if (created) {
           created.serviceIds = JSON.parse(created.serviceIds);
         }
-        scheduleBroadcast(context22, "NEW_BOOKING", created);
+        await broadcastEvent(env22, "NEW_BOOKING", created);
         return new Response(JSON.stringify(created), { headers });
       }
       if (request.method === "PUT") {
@@ -2083,9 +2078,9 @@ async function onRequest(context22) {
         const updatedBooking = formatted.find((b) => b.id === body.id);
         if (updatedBooking) {
           if (body.status && !body.date) {
-            scheduleBroadcast(context22, "BOOKING_STATUS_CHANGED", { id: body.id, status: body.status, booking: updatedBooking });
+            await broadcastEvent(env22, "BOOKING_STATUS_CHANGED", { id: body.id, status: body.status, booking: updatedBooking });
           } else {
-            scheduleBroadcast(context22, "BOOKING_RESCHEDULED", updatedBooking);
+            await broadcastEvent(env22, "BOOKING_RESCHEDULED", updatedBooking);
           }
         }
         return new Response(JSON.stringify(formatted), { headers });
@@ -2115,7 +2110,7 @@ async function onRequest(context22) {
         }));
         const newest = formatted[0];
         if (newest) {
-          scheduleBroadcast(context22, "NOTIFICATION_ADDED", newest);
+          await broadcastEvent(env22, "NOTIFICATION_ADDED", newest);
         }
         return new Response(JSON.stringify(formatted), { headers });
       }

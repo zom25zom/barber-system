@@ -256,6 +256,126 @@ ownerRoutes.put('/barbers/:id/schedule', async (c) => {
   return c.json({ ok: true });
 });
 
+// ---------- Specific Date Time Off (الإجازات المحددة بالتاريخ) ----------
+
+ownerRoutes.get('/barbers/:id/time-off', async (c) => {
+  const idRaw = c.req.param('id');
+  if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
+  const barberId = Number(idRaw);
+
+  const { results } = await c.env.DB.prepare(
+    'SELECT * FROM barber_time_off WHERE barber_id = ? AND salon_id = ? ORDER BY date ASC',
+  )
+    .bind(barberId, SALON_ID)
+    .all();
+  return c.json({ time_off: results });
+});
+
+ownerRoutes.post('/barbers/:id/time-off', async (c) => {
+  const idRaw = c.req.param('id');
+  if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
+  const barberId = Number(idRaw);
+
+  const { date, reason } = await c.req.json().catch(() => ({} as any));
+  if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return c.json({ error: 'تاريخ الإجازة غير صالح (YYYY-MM-DD)' }, 400);
+  }
+
+  // Check barber exists
+  const barber = await c.env.DB.prepare('SELECT id FROM barbers WHERE id = ? AND salon_id = ?')
+    .bind(barberId, SALON_ID)
+    .first();
+  if (!barber) return c.json({ error: 'الحلاق غير موجود' }, 404);
+
+  try {
+    const res = await c.env.DB.prepare(
+      'INSERT INTO barber_time_off (barber_id, date, reason, salon_id) VALUES (?, ?, ?, ?) RETURNING id',
+    )
+      .bind(barberId, date, reason ? String(reason).trim() : null, SALON_ID)
+      .first<{ id: number }>();
+    return c.json({ id: res!.id, ok: true }, 201);
+  } catch {
+    return c.json({ error: 'هذا التاريخ مسجل مسبقاً كإجازة لهذا الحلاق' }, 409);
+  }
+});
+
+ownerRoutes.delete('/barbers/:id/time-off/:timeOffId', async (c) => {
+  const barberId = Number(c.req.param('id'));
+  const timeOffId = Number(c.req.param('timeOffId'));
+  if (!isPositiveInt(barberId) || !isPositiveInt(timeOffId)) {
+    return c.json({ error: 'معرّف غير صالح' }, 400);
+  }
+
+  const res = await c.env.DB.prepare(
+    'DELETE FROM barber_time_off WHERE id = ? AND barber_id = ? AND salon_id = ?',
+  )
+    .bind(timeOffId, barberId, SALON_ID)
+    .run();
+  if (res.meta.changes === 0) return c.json({ error: 'سجل الإجازة غير موجود' }, 404);
+  return c.json({ ok: true });
+});
+
+// ---------- Daily Breaks (فترات الاستراحة اليومية المتعددة) ----------
+
+ownerRoutes.get('/barbers/:id/breaks', async (c) => {
+  const idRaw = c.req.param('id');
+  if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
+  const barberId = Number(idRaw);
+
+  const { results } = await c.env.DB.prepare(
+    'SELECT * FROM barber_breaks WHERE barber_id = ? AND salon_id = ? ORDER BY day_of_week ASC, start_time ASC',
+  )
+    .bind(barberId, SALON_ID)
+    .all();
+  return c.json({ breaks: results });
+});
+
+ownerRoutes.post('/barbers/:id/breaks', async (c) => {
+  const idRaw = c.req.param('id');
+  if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
+  const barberId = Number(idRaw);
+
+  const { day_of_week, start_time, end_time } = await c.req.json().catch(() => ({} as any));
+  const dow = Number(day_of_week);
+
+  if (!Number.isInteger(dow) || dow < 0 || dow > 6) {
+    return c.json({ error: 'يوم الأسبوع غير صالح (0-6)' }, 400);
+  }
+  if (!isValidTime(start_time) || !isValidTime(end_time) || start_time >= end_time) {
+    return c.json({ error: 'وقت الاستراحة غير صالح (يجب أن يكون وقت البداية قبل وقت النهاية)' }, 400);
+  }
+
+  // Check barber exists
+  const barber = await c.env.DB.prepare('SELECT id FROM barbers WHERE id = ? AND salon_id = ?')
+    .bind(barberId, SALON_ID)
+    .first();
+  if (!barber) return c.json({ error: 'الحلاق غير موجود' }, 404);
+
+  const res = await c.env.DB.prepare(
+    'INSERT INTO barber_breaks (barber_id, day_of_week, start_time, end_time, salon_id) VALUES (?, ?, ?, ?, ?) RETURNING id',
+  )
+    .bind(barberId, dow, start_time, end_time, SALON_ID)
+    .first<{ id: number }>();
+
+  return c.json({ id: res!.id, ok: true }, 201);
+});
+
+ownerRoutes.delete('/barbers/:id/breaks/:breakId', async (c) => {
+  const barberId = Number(c.req.param('id'));
+  const breakId = Number(c.req.param('breakId'));
+  if (!isPositiveInt(barberId) || !isPositiveInt(breakId)) {
+    return c.json({ error: 'معرّف غير صالح' }, 400);
+  }
+
+  const res = await c.env.DB.prepare(
+    'DELETE FROM barber_breaks WHERE id = ? AND barber_id = ? AND salon_id = ?',
+  )
+    .bind(breakId, barberId, SALON_ID)
+    .run();
+  if (res.meta.changes === 0) return c.json({ error: 'سجل الاستراحة غير موجود' }, 404);
+  return c.json({ ok: true });
+});
+
 // ---------- Bookings management — PRD 3.6 / 3.7 / 3.10 ----------
 
 ownerRoutes.get('/bookings', async (c) => {
@@ -436,6 +556,146 @@ ownerRoutes.get('/stats', async (c) => {
     top_services: topServices.results,
     no_shows: noShows.results,
     totals: totals.results,
+  });
+});
+
+// ---------- Financial & Peak Hours Analytics Reports ----------
+
+ownerRoutes.get('/reports', async (c) => {
+  const db = c.env.DB;
+  const { period = 'month', from: qFrom, to: qTo } = c.req.query();
+  const today = new Date().toISOString().slice(0, 10);
+
+  let startDate = today;
+  let endDate = today;
+
+  if (period === 'today') {
+    startDate = today;
+    endDate = today;
+  } else if (period === 'week') {
+    startDate = new Date(Date.now() - 6 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    endDate = today;
+  } else if (period === 'month') {
+    startDate = new Date(Date.now() - 29 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    endDate = today;
+  } else if (period === 'custom') {
+    startDate = qFrom && /^\d{4}-\d{2}-\d{2}$/.test(qFrom) ? qFrom : today;
+    endDate = qTo && /^\d{4}-\d{2}-\d{2}$/.test(qTo) ? qTo : today;
+    if (startDate > endDate) {
+      const tmp = startDate;
+      startDate = endDate;
+      endDate = tmp;
+    }
+  }
+
+  // 1. Overall Summary
+  const summary = await db.prepare(
+    `SELECT 
+       COALESCE(SUM(CASE WHEN status IN ('confirmed', 'completed') THEN total_price ELSE 0 END), 0) AS total_revenue,
+       COALESCE(SUM(CASE WHEN status = 'completed' THEN total_price ELSE 0 END), 0) AS completed_revenue,
+       COUNT(*) AS total_bookings,
+       COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_count,
+       COALESCE(SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END), 0) AS confirmed_count,
+       COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) AS cancelled_count,
+       COALESCE(SUM(CASE WHEN status = 'no_show' THEN 1 ELSE 0 END), 0) AS no_show_count
+     FROM bookings
+     WHERE salon_id = ? AND booking_date BETWEEN ? AND ?`,
+  )
+    .bind(SALON_ID, startDate, endDate)
+    .first<{
+      total_revenue: number;
+      completed_revenue: number;
+      total_bookings: number;
+      completed_count: number;
+      confirmed_count: number;
+      cancelled_count: number;
+      no_show_count: number;
+    }>();
+
+  // 2. Revenue & bookings per barber
+  const { results: revenueByBarber } = await db.prepare(
+    `SELECT 
+       br.id AS barber_id,
+       br.name AS barber_name,
+       br.photo_url,
+       COALESCE(SUM(CASE WHEN bk.status IN ('confirmed', 'completed') THEN bk.total_price ELSE 0 END), 0) AS revenue,
+       COALESCE(SUM(CASE WHEN bk.status IN ('confirmed', 'completed') THEN 1 ELSE 0 END), 0) AS bookings_count,
+       COALESCE(SUM(CASE WHEN bk.status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_count
+     FROM barbers br
+     LEFT JOIN bookings bk ON bk.barber_id = br.id AND bk.salon_id = br.salon_id AND bk.booking_date BETWEEN ? AND ?
+     WHERE br.salon_id = ?
+     GROUP BY br.id, br.name, br.photo_url
+     ORDER BY revenue DESC`,
+  )
+    .bind(startDate, endDate, SALON_ID)
+    .all();
+
+  // 3. Revenue & count per service
+  const { results: revenueByService } = await db.prepare(
+    `SELECT 
+       bs.name AS service_name,
+       COUNT(*) AS count,
+       COALESCE(SUM(bs.price), 0) AS revenue
+     FROM booking_services bs
+     JOIN bookings bk ON bk.id = bs.booking_id
+     WHERE bk.salon_id = ? AND bk.status IN ('confirmed', 'completed') AND bk.booking_date BETWEEN ? AND ?
+     GROUP BY bs.name
+     ORDER BY revenue DESC`,
+  )
+    .bind(SALON_ID, startDate, endDate)
+    .all();
+
+  // 4. Daily Trend
+  const { results: dailyTrend } = await db.prepare(
+    `SELECT 
+       booking_date AS date,
+       COUNT(*) AS bookings_count,
+       COALESCE(SUM(CASE WHEN status IN ('confirmed', 'completed') THEN total_price ELSE 0 END), 0) AS revenue
+     FROM bookings
+     WHERE salon_id = ? AND booking_date BETWEEN ? AND ? AND status != 'cancelled'
+     GROUP BY booking_date
+     ORDER BY booking_date ASC`,
+  )
+    .bind(SALON_ID, startDate, endDate)
+    .all();
+
+  // 5. Peak Hours Heatmap Matrix (Days 0..6 x Hours)
+  const { results: peakHours } = await db.prepare(
+    `SELECT 
+       CAST(strftime('%w', booking_date) AS INTEGER) AS day_of_week,
+       CAST(substr(start_time, 1, 2) AS INTEGER) AS hour,
+       COUNT(*) AS count
+     FROM bookings
+     WHERE salon_id = ? AND status != 'cancelled' AND booking_date BETWEEN ? AND ?
+     GROUP BY day_of_week, hour
+     ORDER BY day_of_week, hour`,
+  )
+    .bind(SALON_ID, startDate, endDate)
+    .all();
+
+  const completedAndConfirmed = (summary?.completed_count || 0) + (summary?.confirmed_count || 0);
+  const avgTicket = completedAndConfirmed > 0
+    ? Number(((summary?.total_revenue || 0) / completedAndConfirmed).toFixed(2))
+    : 0;
+
+  return c.json({
+    period,
+    from: startDate,
+    to: endDate,
+    summary: {
+      total_revenue: summary?.total_revenue ?? 0,
+      completed_revenue: summary?.completed_revenue ?? 0,
+      total_bookings: summary?.total_bookings ?? 0,
+      completed_count: summary?.completed_count ?? 0,
+      confirmed_count: summary?.confirmed_count ?? 0,
+      cancelled_count: summary?.cancelled_count ?? 0,
+      no_show_count: summary?.no_show_count ?? 0,
+      avg_ticket: avgTicket,
+    },
+    revenue_by_barber: revenueByBarber,
+    revenue_by_service: revenueByService,
+    daily_trend: dailyTrend,
+    peak_hours: peakHours,
   });
 });
 

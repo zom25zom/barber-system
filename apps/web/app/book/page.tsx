@@ -34,6 +34,8 @@ function BookContent() {
   const [error, setError] = useState<string | null>(null);
   const [activeBooking, setActiveBooking] = useState<Booking | null>(null);
   const [cancellingActive, setCancellingActive] = useState(false);
+  const [isTimeOff, setIsTimeOff] = useState(false);
+  const [timeOffReason, setTimeOffReason] = useState<string | null>(null);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
   /* ── redirect if not logged in ── */
@@ -83,18 +85,24 @@ function BookContent() {
     if (!selectedBarber || !selectedDate || selectedServices.length === 0) return;
     setSlotsLoading(true);
     setSelectedSlot(null);
+    setIsTimeOff(false);
+    setTimeOffReason(null);
     const ids = selectedServices.map((s) => s.id).join(",");
     const now = new Date();
     const currentHH = String(now.getHours()).padStart(2, "0");
     const currentMM = String(now.getMinutes()).padStart(2, "0");
     const clientTime = `${currentHH}:${currentMM}`;
 
-    apiFetch<{ slots: Slot[]; total_duration: number }>(
+    apiFetch<{ slots: Slot[]; total_duration: number; is_time_off?: boolean; reason?: string | null }>(
       `/api/barbers/${selectedBarber.id}/availability?date=${selectedDate}&serviceIds=${ids}&clientTime=${clientTime}`
     )
       .then((d) => {
         setSlots(d.slots);
         setTotalDuration(d.total_duration);
+        if (d.is_time_off) {
+          setIsTimeOff(true);
+          setTimeOffReason(d.reason ?? null);
+        }
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setSlotsLoading(false));
@@ -422,7 +430,19 @@ function BookContent() {
                 </div>
               )}
               {!slotsLoading && slots.length === 0 && (
-                <p className="text-zinc-500 text-sm py-2">لا توجد مواعيد متاحة في هذا اليوم (قد يكون الحلاق في إجازة أو محجوز بالكامل).</p>
+                <div className="py-3 text-center">
+                  {isTimeOff ? (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-1">
+                      <p className="text-amber-400 font-bold text-sm">🏖️ الحلاق في إجازة هذا اليوم</p>
+                      {timeOffReason && (
+                        <p className="text-xs text-zinc-400">السبب: {timeOffReason}</p>
+                      )}
+                      <p className="text-xs text-zinc-500 pt-1">يرجى اختيار يوم آخر.</p>
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500 text-sm py-2">لا توجد مواعيد متاحة في هذا اليوم (قد يكون الحلاق في إجازة أو محجوز بالكامل).</p>
+                  )}
+                </div>
               )}
               {!slotsLoading && slots.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">

@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api";
 import { getOwnerToken } from "@/lib/auth";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
+import ImageUploader from "@/components/ImageUploader";
 import type { OwnerBarber } from "@/lib/types";
 
 export default function AdminBarbersPage() {
@@ -175,17 +176,13 @@ export default function AdminBarbersPage() {
                 className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 outline-none focus:border-amber-500"
               />
             </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">رابط الصورة (اختياري)</label>
-              <input
-                type="url"
-                dir="ltr"
-                value={formPhoto}
-                onChange={(e) => setFormPhoto(e.target.value)}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-left text-zinc-100 outline-none focus:border-amber-500"
-                placeholder="https://example.com/photo.jpg"
-              />
-            </div>
+            <ImageUploader
+              label="صورة الحلاق"
+              value={formPhoto}
+              onChange={setFormPhoto}
+              shape="circle"
+              helperText="رفع صورة شخصية للحلاق تظهر للزبائن عند حجز الموعد."
+            />
             <div className="flex gap-3 pt-2">
               <button
                 type="submit"

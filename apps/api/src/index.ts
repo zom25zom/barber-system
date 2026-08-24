@@ -6,7 +6,8 @@ import { publicRoutes } from './routes/public';
 import { ownerRoutes } from './routes/owner';
 import { customerRoutes } from './routes/customer';
 import { pushRoutes } from './routes/push';
-import { SALON_ID } from './utils';
+import { uploadRoutes } from './routes/upload';
+import { SALON_ID, logRouteError } from './utils';
 
 export { NotificationHub } from './durable';
 
@@ -21,9 +22,80 @@ app.use(
   }),
 );
 
-app.get('/api/health', (c) => c.json({ ok: true }));
+// Comprehensive Health & Diagnostics endpoint for monitoring
+app.get('/api/health', async (c) => {
+  const start = Date.now();
+  let d1Status = 'disconnected';
+  let d1LatencyMs = 0;
+  let tablesCount = 0;
+
+  try {
+    const d1Start = Date.now();
+    const result = await c.env.DB.prepare(
+      "SELECT count(*) as count FROM sqlite_master WHERE type='table'",
+    ).first<{ count: number }>();
+    d1LatencyMs = Date.now() - d1Start;
+    d1Status = 'connected';
+    tablesCount = result?.count ?? 0;
+  } catch (err) {
+    logRouteError('/api/health', 'D1_CONNECTION_ERROR', err);
+    d1Status = 'error';
+  }
+
+  let pushStatus = 'disabled';
+  let pushLatencyMs = 0;
+  try {
+    if (c.env.NOTIFICATION_HUB) {
+      const pStart = Date.now();
+      const hub = c.env.NOTIFICATION_HUB.get(
+        c.env.NOTIFICATION_HUB.idFromName(`salon-${SALON_ID}`),
+      );
+      const res = await hub.fetch('https://hub/rate-limit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'health_check', limit: 100, windowSeconds: 60 }),
+      });
+      pushLatencyMs = Date.now() - pStart;
+      pushStatus = res.ok ? 'connected' : 'degraded';
+    }
+  } catch (err) {
+    logRouteError('/api/health', 'PUSH_HUB_ERROR', err);
+    pushStatus = 'error';
+  }
+
+  const isHealthy = d1Status === 'connected' && pushStatus !== 'error';
+
+  return c.json(
+    {
+      ok: isHealthy,
+      status: isHealthy ? 'healthy' : 'degraded',
+      timestamp: new Date().toISOString(),
+      totalLatencyMs: Date.now() - start,
+      services: {
+        database: {
+          name: 'Cloudflare D1 (barber_db)',
+          status: d1Status,
+          latencyMs: d1LatencyMs,
+          tablesCount,
+        },
+        pushService: {
+          name: 'Durable Objects & WebSockets',
+          status: pushStatus,
+          latencyMs: pushLatencyMs,
+        },
+        storage: {
+          name: 'Image Uploads (R2 / D1 Fallback)',
+          status: 'ready',
+          r2Bound: !!c.env.BUCKET,
+        },
+      },
+    },
+    isHealthy ? 200 : 503,
+  );
+});
 
 app.route('/api/auth', authRoutes);
+app.route('/api', uploadRoutes);
 app.route('/api', publicRoutes);
 app.route('/api/owner', ownerRoutes);
 app.route('/api/customer', customerRoutes);
@@ -85,7 +157,7 @@ app.get('/manifest-admin.json', async (c) => {
     short_name: `إدارة ${name}`,
     description: `لوحة تحكم وإدارة ${name} والحجوزات والإشعارات`,
     start_url: '/admin',
-    scope: '/admin',
+    scope: '/',
     id: '/admin',
     display: 'standalone',
     orientation: 'portrait',
@@ -159,7 +231,25 @@ app.notFound(async (c) => {
   return c.text('Not found', 404);
 });
 app.onError((err, c) => {
-  console.error(err);
+  const timestamp = new Date().toISOString();
+  const endpoint = `${c.req.method} ${c.req.url}`;
+  const clientIp =
+    c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || '127.0.0.1';
+
+  console.error(
+    `[WORKER_ERROR] [${timestamp}] [${endpoint}] [${err.name || 'InternalError'}]`,
+    JSON.stringify({
+      timestamp,
+      endpoint,
+      method: c.req.method,
+      url: c.req.url,
+      clientIp,
+      errorName: err.name || 'Error',
+      errorMessage: err.message,
+      stack: err.stack,
+    }),
+  );
+
   return c.json({ error: 'خطأ داخلي في الخادم' }, 500);
 });
 

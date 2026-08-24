@@ -10,6 +10,7 @@ import { useSalonSettings } from "@/lib/salon";
 
 const nav = [
   { href: "/admin", label: "الرئيسية", icon: "📊" },
+  { href: "/admin/reports", label: "التقارير المالية", icon: "📈" },
   { href: "/admin/barbers", label: "الحلاقين", icon: "💈" },
   { href: "/admin/bookings", label: "الحجوزات", icon: "📅" },
   { href: "/admin/notifications", label: "الإشعارات", icon: "🔔" },
@@ -53,47 +54,88 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
   if (pathname === "/admin/login") return <>{children}</>;
   if (!token) return null;
 
-  const linkCls = (href: string) => {
-    const active = pathname === href || (href !== "/admin" && pathname.startsWith(href));
-    return `flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
-      active ? "bg-amber-500/15 text-amber-400" : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+  const isItemActive = (href: string) => {
+    return pathname === href || (href !== "/admin" && pathname.startsWith(href));
+  };
+
+  const desktopLinkCls = (href: string) => {
+    const active = isItemActive(href);
+    return `flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
+      active
+        ? "bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20 font-bold"
+        : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
     }`;
   };
 
   return (
     <div className="mx-auto max-w-7xl lg:flex lg:gap-6">
-      {/* ── mobile toggle ── */}
-      <button
-        onClick={() => setMobileMenu(!mobileMenu)}
-        className="mb-4 flex items-center gap-2 rounded-lg border border-zinc-800 px-4 py-2 text-sm text-zinc-400 lg:hidden"
-      >
-        <span>☰</span> القائمة
-      </button>
-
-      {/* ── sidebar ── */}
-      <aside
-        className={`shrink-0 space-y-1 lg:w-56 lg:block ${mobileMenu ? "block" : "hidden"} mb-6 lg:mb-0`}
-      >
-        {nav.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setMobileMenu(false)}
-            className={linkCls(item.href)}
-          >
-            <span>{item.icon}</span>
-            <span>{item.label}</span>
-            {item.href === "/admin/notifications" && unread > 0 && (
-              <span className="mr-auto rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-zinc-950">
-                {unread}
-              </span>
-            )}
-          </Link>
-        ))}
+      {/* ── Desktop Sidebar (Visible only on lg screens) ── */}
+      <aside className="hidden lg:block shrink-0 space-y-1.5 lg:w-60 sticky top-20 h-fit">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-3 shadow-xl space-y-1">
+          {nav.map((item) => {
+            const active = isItemActive(item.href);
+            return (
+              <Link key={item.href} href={item.href} className={desktopLinkCls(item.href)}>
+                <span className="text-lg">{item.icon}</span>
+                <span>{item.label}</span>
+                {item.href === "/admin/notifications" && unread > 0 && (
+                  <span
+                    className={`mr-auto rounded-full px-2 py-0.5 text-xs font-black ${
+                      active ? "bg-zinc-950 text-amber-400" : "bg-amber-500 text-zinc-950"
+                    }`}
+                  >
+                    {unread}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
       </aside>
 
-      {/* ── main content ── */}
-      <div className="min-w-0 flex-1">{children}</div>
+      {/* ── Main Content (Extra bottom padding on mobile for the fixed nav bar) ── */}
+      <div className="min-w-0 flex-1 pb-24 lg:pb-8">{children}</div>
+
+      {/* ── Persistent Bottom Navigation Bar for Mobile (Visible on < lg screens) ── */}
+      <nav
+        aria-label="التنقل السفلي للهاتف"
+        className="fixed bottom-0 inset-x-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-lg px-2 py-1.5 shadow-2xl lg:hidden safe-area-pb"
+      >
+        <div className="mx-auto flex max-w-md items-center justify-around">
+          {nav.map((item) => {
+            const active = isItemActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`relative flex flex-1 flex-col items-center justify-center py-1 text-center transition-all ${
+                  active ? "text-amber-400 scale-105 font-bold" : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {/* Icon with notification badge */}
+                <div className="relative">
+                  <span className="text-xl leading-none">{item.icon}</span>
+                  {item.href === "/admin/notifications" && unread > 0 && (
+                    <span className="absolute -top-1 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-black text-zinc-950 ring-2 ring-zinc-950 animate-pulse">
+                      {unread > 9 ? "9+" : unread}
+                    </span>
+                  )}
+                </div>
+
+                {/* Short label */}
+                <span className="mt-1 text-[10px] sm:text-[11px] leading-tight tracking-tight">
+                  {item.label}
+                </span>
+
+                {/* Active indicator bar */}
+                {active && (
+                  <span className="mt-0.5 h-1 w-5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50" />
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

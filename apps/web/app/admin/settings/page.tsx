@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { getOwnerToken } from "@/lib/auth";
 import { useSalonSettings, updateSalonSettingsClient, type SalonSettings } from "@/lib/salon";
 import { useToast } from "@/components/Toaster";
+import ImageUploader from "@/components/ImageUploader";
 
 const PRESET_COLORS = [
   { name: "ذهبي كهرماني", hex: "#f59e0b", label: "Amber" },
@@ -29,7 +30,6 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Password Change Form State
   const [currentPassword, setCurrentPassword] = useState("");
@@ -45,30 +45,6 @@ export default function AdminSettingsPage() {
     setPrimaryColor(initialSettings.primary_color || "#f59e0b");
     setLogoUrl(initialSettings.logo_url || "");
   }, [initialSettings]);
-
-  // Handle local image file upload & convert to optimized base64
-  const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setError("يرجى اختيار ملف صورة صالح (PNG, JPG, SVG, WebP)");
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      setError("حجم الصورة كبير جداً. يرجى اختيار صورة أقل من 2 ميغابايت");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setLogoUrl(base64);
-      setError(null);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleSaveBranding = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -272,62 +248,13 @@ export default function AdminSettingsPage() {
             </div>
 
             {/* 4. Salon Logo */}
-            <div>
-              <label className="block text-sm font-semibold text-zinc-200 mb-2">شعار الصالون (Logo)</label>
-
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                {/* Logo Preview box */}
-                <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-2 border-dashed border-zinc-700 bg-zinc-950 overflow-hidden shadow-inner">
-                  {logoUrl ? (
-                    <img src={logoUrl} alt="شعار الصالون" className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="text-3xl">💈</span>
-                  )}
-                </div>
-
-                <div className="flex-1 space-y-2 w-full">
-                  <div className="flex flex-wrap gap-2">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleImageFile}
-                      accept="image/*"
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 hover:text-white transition"
-                    >
-                      📁 رفع صورة من الجهاز
-                    </button>
-
-                    {logoUrl && (
-                      <button
-                        type="button"
-                        onClick={() => setLogoUrl("")}
-                        className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400 hover:bg-red-500/20 transition"
-                      >
-                        🗑 حذف الشعار
-                      </button>
-                    )}
-                  </div>
-
-                  {/* URL alternative */}
-                  <input
-                    type="url"
-                    dir="ltr"
-                    value={logoUrl.startsWith("data:") ? "" : logoUrl}
-                    onChange={(e) => setLogoUrl(e.target.value)}
-                    placeholder={logoUrl.startsWith("data:") ? "تم اختيار ملف من الجهاز" : "أو ضع رابط الشعار المباشر https://..."}
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-950/70 px-3.5 py-2 text-xs text-left text-zinc-300 placeholder-zinc-500 outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-              <p className="mt-2 text-xs text-zinc-400">
-                يدعم صيغ PNG و JPG و SVG و WebP. يظهر الشعار في الشريط العلوي وأيقونة التطبيق.
-              </p>
-            </div>
+            <ImageUploader
+              label="شعار الصالون (Logo)"
+              value={logoUrl}
+              onChange={setLogoUrl}
+              shape="rounded"
+              helperText="يتم حفظ الشعار في التخزين السحابي ويظهر في الشريط العلوي وأيقونة التطبيق (PWA)."
+            />
 
             {/* Submit button */}
             <div className="pt-4 border-t border-zinc-800 flex items-center justify-end">

@@ -24,6 +24,31 @@ export function randomToken(): string {
   return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// ---------- Structured Error Logging ----------
+
+export function logRouteError(
+  endpoint: string,
+  errorType: string,
+  err: unknown,
+  details?: Record<string, unknown>,
+) {
+  const timestamp = new Date().toISOString();
+  const errorMessage = err instanceof Error ? err.message : String(err);
+  const stack = err instanceof Error ? err.stack : undefined;
+
+  console.error(
+    `[ROUTE_ERROR] [${timestamp}] [${endpoint}] [${errorType}]`,
+    JSON.stringify({
+      timestamp,
+      endpoint,
+      errorType,
+      errorMessage,
+      stack,
+      ...details,
+    }),
+  );
+}
+
 // ---------- IP Extraction & Distributed Rate Limiting ----------
 
 /** Extract real client IP behind Cloudflare or proxies */

@@ -131,7 +131,7 @@ publicRoutes.get('/manifest-admin.json', async (c) => {
     short_name: `إدارة ${name}`,
     description: `لوحة تحكم وإدارة ${name} والحجوزات والإشعارات`,
     start_url: '/admin',
-    scope: '/admin',
+    scope: '/',
     id: '/admin',
     display: 'standalone',
     orientation: 'portrait',
@@ -224,6 +224,18 @@ publicRoutes.get('/barbers/:id/availability', async (c) => {
   const totalDuration = await servicesDuration(c.env.DB, barberId, serviceIds);
   if (totalDuration == null) return c.json({ error: 'خدمات غير صالحة لهذا الحلاق' }, 400);
 
+  // 1. Check specific date time-off (إجازة مخصصة بتاريخ محدد)
+  const timeOff = await c.env.DB.prepare(
+    'SELECT id, reason FROM barber_time_off WHERE barber_id = ? AND date = ? AND salon_id = ?',
+  )
+    .bind(barberId, date, SALON_ID)
+    .first<{ id: number; reason: string | null }>();
+
+  if (timeOff) {
+    return c.json({ date, slots: [], total_duration: totalDuration, is_time_off: true, reason: timeOff.reason });
+  }
+
+  // 2. Check weekly schedule
   const schedule = await c.env.DB.prepare(
     'SELECT start_time, end_time, is_day_off FROM work_schedules WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
   )
@@ -232,6 +244,7 @@ publicRoutes.get('/barbers/:id/availability', async (c) => {
 
   if (!schedule || schedule.is_day_off) return c.json({ date, slots: [], total_duration: totalDuration });
 
+  // 3. Get existing bookings for that date
   const { results: bookings } = await c.env.DB.prepare(
     `SELECT start_time, end_time FROM bookings
      WHERE barber_id = ? AND booking_date = ? AND status = 'confirmed' AND salon_id = ?`,
@@ -239,7 +252,18 @@ publicRoutes.get('/barbers/:id/availability', async (c) => {
     .bind(barberId, date, SALON_ID)
     .all<{ start_time: string; end_time: string }>();
 
-  const busy = (bookings as any[]).map((b) => [toMinutes(b.start_time), toMinutes(b.end_time)] as const);
+  // 4. Get breaks for that day of week (فترات الاستراحة)
+  const { results: breaks } = await c.env.DB.prepare(
+    'SELECT start_time, end_time FROM barber_breaks WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
+  )
+    .bind(barberId, dayOfWeek(date), SALON_ID)
+    .all<{ start_time: string; end_time: string }>();
+
+  const busy = [
+    ...(bookings as any[]).map((b) => [toMinutes(b.start_time), toMinutes(b.end_time)] as const),
+    ...(breaks as any[]).map((br) => [toMinutes(br.start_time), toMinutes(br.end_time)] as const),
+  ];
+
   const open = toMinutes(schedule.start_time);
   const close = toMinutes(schedule.end_time);
 

@@ -78,6 +78,23 @@ export type ScheduleDay = {
   is_day_off: boolean;
 };
 
+export type BarberTimeOff = {
+  id: number;
+  barber_id: number;
+  date: string;
+  reason: string | null;
+  created_at?: string;
+};
+
+export type BarberBreak = {
+  id: number;
+  barber_id: number;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  created_at?: string;
+};
+
 export type OwnerStats = {
   daily: { date: string; count: number }[];
   week: { expected_revenue: number; bookings: number };

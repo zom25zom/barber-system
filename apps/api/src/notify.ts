@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import type { Bindings } from './types';
 import { dispatchWebPush } from './webpush';
-import { SALON_ID } from './utils';
+import { SALON_ID, logRouteError } from './utils';
 
 type RecipientType = 'owner' | 'customer';
 type NotificationType = 'new_booking' | 'cancellation' | 'waitlist_available';
@@ -64,6 +64,6 @@ export async function sendNotification(
     const successCount = results.filter((r) => r.success).length;
     console.log(`[Notify] Web Push dispatch done: ${successCount}/${results.length} delivered`);
   } catch (err) {
-    console.error('Failed to dispatch Web Push:', err);
+    logRouteError('/notify', 'WEB_PUSH_DISPATCH_ERROR', err, { recipientType, recipientId, type });
   }
 }

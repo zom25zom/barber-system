@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { setOwnerToken } from "@/lib/auth";
 import Spinner from "@/components/Spinner";
+import { useToast } from "@/components/Toaster";
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const toast = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -23,9 +25,12 @@ export default function AdminLoginPage() {
         body: { username, password },
       });
       setOwnerToken(d.token);
+      toast.success("مرحباً بك! تم تسجيل الدخول بنجاح ✓");
       router.push("/admin");
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message || "اسم المستخدم أو كلمة المرور غير صحيحة";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

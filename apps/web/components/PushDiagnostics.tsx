@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import { getCustomerToken, getOwnerToken } from "@/lib/auth";
+import { formatDateTime } from "@/lib/time";
 
 interface DiagnosticState {
   notificationPermission: NotificationPermission | "unsupported";
@@ -294,7 +295,7 @@ export default function PushDiagnostics({ role }: { role: "customer" | "owner" }
                   <div style={{ marginTop: "0.5rem" }}>
                     {testResult.subscriptions.map((s) => (
                       <div key={s.id} style={{ fontSize: "0.75rem", color: "#71717a", marginBottom: "0.25rem" }}>
-                        #{s.id} | {s.user_type} | cust_id: {s.customer_id ?? "—"} | {s.created_at}
+                        #{s.id} | {s.user_type} | cust_id: {s.customer_id ?? "—"} | {formatDateTime(s.created_at)}
                       </div>
                     ))}
                   </div>

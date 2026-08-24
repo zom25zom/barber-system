@@ -9,6 +9,11 @@ export type SalonSettings = {
   phone: string | null;
   logo_url: string | null;
   primary_color: string;
+  social_facebook?: string | null;
+  social_instagram?: string | null;
+  social_tiktok?: string | null;
+  social_whatsapp?: string | null;
+  maps_url?: string | null;
 };
 
 const DEFAULT_SETTINGS: SalonSettings = {
@@ -17,6 +22,11 @@ const DEFAULT_SETTINGS: SalonSettings = {
   phone: null,
   logo_url: null,
   primary_color: "#f59e0b",
+  social_facebook: null,
+  social_instagram: null,
+  social_tiktok: null,
+  social_whatsapp: null,
+  maps_url: null,
 };
 
 const STORAGE_KEY = "salon_settings_v1";

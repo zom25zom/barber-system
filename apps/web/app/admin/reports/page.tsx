@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import { getOwnerToken } from "@/lib/auth";
-import { WEEKDAYS_AR } from "@/lib/time";
+import { WEEKDAYS_AR, formatTime12 } from "@/lib/time";
 import Spinner from "@/components/Spinner";
+import { useToast } from "@/components/Toaster";
 
 interface ReportSummary {
   total_revenue: number;
@@ -59,6 +60,7 @@ const HOURS_RANGE = Array.from({ length: 14 }, (_, i) => i + 9); // 09:00 to 22:
 
 export default function AdminReportsPage() {
   const token = getOwnerToken();
+  const toast = useToast();
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = new Date(Date.now() - 6 * 24 * 3600 * 1000).toISOString().slice(0, 10);
 
@@ -83,11 +85,13 @@ export default function AdminReportsPage() {
       const res = await apiFetch<ReportsData>(query, { token });
       setData(res);
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء تحميل التقارير";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
-  }, [token, period, fromDate, toDate]);
+  }, [token, period, fromDate, toDate, toast]);
 
   useEffect(() => {
     loadReports();
@@ -138,13 +142,14 @@ export default function AdminReportsPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.success("تم تصدير التقرير المالي (Excel) بنجاح ✓");
   };
 
   // Export Peak Hours Matrix to CSV
   const exportPeakHoursCSV = () => {
     if (!data) return;
 
-    const header = ["اليوم", ...HOURS_RANGE.map((h) => `${h}:00`)];
+    const header = ["اليوم", ...HOURS_RANGE.map((h) => formatTime12(h))];
     const rows = [
       ["تقرير خريطة ساعات الذروة والكثافة"],
       [`الفترة: من ${data.from} إلى ${data.to}`],
@@ -169,6 +174,7 @@ export default function AdminReportsPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.success("تم تصدير خريطة ساعات الذروة (CSV) بنجاح ✓");
   };
 
   // Calculate heatmap max count for dynamic color scaling
@@ -505,7 +511,7 @@ export default function AdminReportsPage() {
                   <div className="w-24 shrink-0 font-sans font-bold text-zinc-300">اليوم / الساعة</div>
                   {HOURS_RANGE.map((h) => (
                     <div key={h} className="flex-1 text-center font-medium">
-                      {h}:00
+                      {formatTime12(h)}
                     </div>
                   ))}
                 </div>
@@ -525,14 +531,14 @@ export default function AdminReportsPage() {
                       return (
                         <div
                           key={h}
-                          title={`${dayName} الساعة ${h}:00 — ${count} حجز`}
+                          title={`${dayName} الساعة ${formatTime12(h)} — ${count} حجز`}
                           className={`group relative flex-1 flex h-10 items-center justify-center rounded-xl border text-xs font-mono transition-all hover:scale-105 cursor-default ${cellColor}`}
                         >
                           <span>{count > 0 ? count : ""}</span>
 
                           {/* Hover Tooltip */}
                           <div className="pointer-events-none absolute -top-8 z-30 hidden rounded-md bg-zinc-950 border border-zinc-700 px-2 py-1 text-[10px] text-zinc-100 whitespace-nowrap shadow-xl group-hover:block">
-                            {count} {count === 1 ? "حجز" : "حجوزات"} ({dayName} {h}:00)
+                            {count} {count === 1 ? "حجز" : "حجوزات"} ({dayName} {formatTime12(h)})
                           </div>
                         </div>
                       );

@@ -86,6 +86,16 @@ export default function Navbar() {
 
         {/* Desktop and Tablet Navigation */}
         <nav className="hidden md:flex items-center gap-2">
+          {salon.phone && (
+            <a
+              href={`tel:${salon.phone}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition"
+              dir="ltr"
+            >
+              <span>📞</span>
+              <span>{salon.phone}</span>
+            </a>
+          )}
           <Link href="/" className={linkCls("/")}>
             الخدمات
           </Link>
@@ -122,6 +132,15 @@ export default function Navbar() {
 
         {/* Mobile Hamburger / Quick Links */}
         <div className="flex md:hidden items-center gap-2">
+          {salon.phone && (
+            <a
+              href={`tel:${salon.phone}`}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-sm hover:bg-emerald-500/20"
+              aria-label="اتصل بالصالون"
+            >
+              📞
+            </a>
+          )}
           <Link
             href="/book"
             className="rounded-lg bg-amber-500 px-3 py-1 text-xs font-bold text-zinc-950 shadow-sm hover:bg-amber-400"
@@ -168,6 +187,16 @@ export default function Navbar() {
             </p>
           )}
           <div className="flex flex-col gap-1.5 pt-1">
+            {salon.phone && (
+              <a
+                href={`tel:${salon.phone}`}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-400"
+              >
+                <span>📞 الاتصال بالصالون</span>
+                <span dir="ltr">{salon.phone}</span>
+              </a>
+            )}
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}

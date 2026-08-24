@@ -9,11 +9,13 @@ import { useLiveNotifications } from "@/lib/useNotifications";
 import { enableWebPushNotifications } from "@/lib/push";
 import Spinner from "@/components/Spinner";
 import PushDiagnostics from "@/components/PushDiagnostics";
+import { useToast } from "@/components/Toaster";
 import type { AppNotification } from "@/lib/types";
 
 export default function AdminNotificationsPage() {
   const router = useRouter();
   const token = getOwnerToken();
+  const toast = useToast();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [pushStatus, setPushStatus] = useState<string | null>(null);
@@ -37,17 +39,26 @@ export default function AdminNotificationsPage() {
 
   async function markAllRead() {
     if (!token) return;
-    await apiFetch("/api/owner/notifications/read-all", { method: "POST", token });
-    load();
+    try {
+      await apiFetch("/api/owner/notifications/read-all", { method: "POST", token });
+      toast.success("تم تعليم جميع الإشعارات كمقروءة ✓");
+      load();
+    } catch {
+      toast.error("حدث خطأ أثناء تحديث حالة الإشعارات");
+    }
   }
 
   async function handleEnablePush() {
     setPushStatus("جاري التفعيل والاشتراك في إشعارات الهاتف…");
     const ok = await enableWebPushNotifications("owner");
     if (ok) {
-      setPushStatus("✓ تم تفعيل إشعارات هاتف الإدارة بنجاح! ستصلك إشعارات الحجوزات والإلغاء حتى لو كان المتصفح مغلقاً.");
+      const msg = "✓ تم تفعيل إشعارات هاتف الإدارة بنجاح!";
+      setPushStatus(msg);
+      toast.success(msg);
     } else {
-      setPushStatus("يرجى التأكد من السماح بالإشعارات في إعدادات المتصفح.");
+      const msg = "يرجى التأكد من السماح بالإشعارات في إعدادات المتصفح.";
+      setPushStatus(msg);
+      toast.warning(msg);
     }
   }
 

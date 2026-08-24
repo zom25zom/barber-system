@@ -21,7 +21,9 @@ export const publicRoutes = new Hono<{ Bindings: Bindings; Variables: Variables 
 
 publicRoutes.get('/salon-settings', async (c) => {
   const salon = await c.env.DB.prepare(
-    'SELECT id, name, phone, logo_url, primary_color FROM salons WHERE id = ?',
+    `SELECT id, name, phone, logo_url, primary_color, 
+            social_facebook, social_instagram, social_tiktok, social_whatsapp, maps_url 
+     FROM salons WHERE id = ?`,
   )
     .bind(SALON_ID)
     .first<SalonSettings>();
@@ -31,7 +33,17 @@ publicRoutes.get('/salon-settings', async (c) => {
 
 publicRoutes.put('/salon-settings', requireOwner, async (c) => {
   const body = await c.req.json().catch(() => ({} as any));
-  const { name, phone, primary_color, logo_url } = body;
+  const {
+    name,
+    phone,
+    primary_color,
+    logo_url,
+    social_facebook,
+    social_instagram,
+    social_tiktok,
+    social_whatsapp,
+    maps_url,
+  } = body;
 
   if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) {
     return c.json({ error: 'اسم الصالون مطلوب (بين 2 و 80 حرفاً)' }, 400);
@@ -53,17 +65,36 @@ publicRoutes.put('/salon-settings', requireOwner, async (c) => {
   const cleanPhone = phone ? String(phone).trim() : null;
   const cleanColor = primary_color ? String(primary_color).trim() : '#f59e0b';
   const cleanLogo = logo_url ? String(logo_url).trim() : null;
+  const cleanFacebook = social_facebook ? String(social_facebook).trim() : null;
+  const cleanInstagram = social_instagram ? String(social_instagram).trim() : null;
+  const cleanTiktok = social_tiktok ? String(social_tiktok).trim() : null;
+  const cleanWhatsapp = social_whatsapp ? String(social_whatsapp).trim() : null;
+  const cleanMaps = maps_url ? String(maps_url).trim() : null;
 
   await c.env.DB.prepare(
     `UPDATE salons 
-     SET name = ?, phone = ?, primary_color = ?, logo_url = ? 
+     SET name = ?, phone = ?, primary_color = ?, logo_url = ?,
+         social_facebook = ?, social_instagram = ?, social_tiktok = ?, social_whatsapp = ?, maps_url = ?
      WHERE id = ?`,
   )
-    .bind(cleanName, cleanPhone, cleanColor, cleanLogo, SALON_ID)
+    .bind(
+      cleanName,
+      cleanPhone,
+      cleanColor,
+      cleanLogo,
+      cleanFacebook,
+      cleanInstagram,
+      cleanTiktok,
+      cleanWhatsapp,
+      cleanMaps,
+      SALON_ID,
+    )
     .run();
 
   const updated = await c.env.DB.prepare(
-    'SELECT id, name, phone, logo_url, primary_color FROM salons WHERE id = ?',
+    `SELECT id, name, phone, logo_url, primary_color, 
+            social_facebook, social_instagram, social_tiktok, social_whatsapp, maps_url 
+     FROM salons WHERE id = ?`,
   )
     .bind(SALON_ID)
     .first<SalonSettings>();

@@ -21,6 +21,11 @@ export type SalonSettings = {
   phone: string | null;
   logo_url: string | null;
   primary_color: string;
+  social_facebook?: string | null;
+  social_instagram?: string | null;
+  social_tiktok?: string | null;
+  social_whatsapp?: string | null;
+  maps_url?: string | null;
 };
 
 export type BarberTimeOff = {

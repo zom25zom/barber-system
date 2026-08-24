@@ -158,16 +158,47 @@ export function toHHMM(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-/** Format internal "HH:MM" to 12-hour Arabic time (e.g. "01:30 م", "09:00 ص") */
-export function formatTime12Ar(hhmm: string): string {
-  if (!hhmm || !hhmm.includes(':')) return hhmm;
-  const [hStr, mStr] = hhmm.split(':');
-  const h = Number(hStr);
-  const m = Number(mStr);
-  if (isNaN(h) || isNaN(m)) return hhmm;
-  const period = h < 12 ? 'صباحاً' : 'مساءً';
+/** Format time to 12-hour Arabic time (e.g. "01:30 مساءً", "09:00 صباحاً" or "01:30 م", "09:00 ص") */
+export function formatTime12Ar(
+  time: string | number | Date | null | undefined,
+  shortPeriod: boolean = false,
+): string {
+  if (!time && time !== 0) return '';
+
+  let h = 0;
+  let m = 0;
+
+  if (time instanceof Date) {
+    h = time.getHours();
+    m = time.getMinutes();
+  } else if (typeof time === 'number') {
+    h = Math.floor(time);
+    m = 0;
+  } else if (typeof time === 'string') {
+    const trimmed = time.trim();
+    if (trimmed.includes('T') || (trimmed.includes('-') && trimmed.includes(':'))) {
+      const d = new Date(trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T') + (trimmed.endsWith('Z') ? '' : 'Z'));
+      if (!isNaN(d.getTime())) {
+        h = d.getHours();
+        m = d.getMinutes();
+      } else {
+        return time;
+      }
+    } else if (trimmed.includes(':')) {
+      const parts = trimmed.split(':');
+      h = Number(parts[0]);
+      m = Number(parts[1]);
+    } else {
+      h = Number(trimmed);
+      m = 0;
+    }
+  }
+
+  if (isNaN(h) || isNaN(m)) return String(time);
+
+  const period = shortPeriod ? (h < 12 ? 'ص' : 'م') : (h < 12 ? 'صباحاً' : 'مساءً');
   const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${String(h12).padStart(2, '0')}:${String(mStr).padStart(2, '0')} ${period}`;
+  return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
 }
 
 /** Today as YYYY-MM-DD in local offset-less ISO form (UTC-based; salon ops are single-tenant). */

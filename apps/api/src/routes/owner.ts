@@ -452,7 +452,7 @@ ownerRoutes.post('/bookings/:id/cancel', async (c) => {
   await c.env.DB.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?").bind(id).run();
   await sendNotification(
     c, 'customer', booking.customer_id, 'cancellation',
-    `تم إلغاء حجزك مع ${booking.barber_name} بتاريخ ${booking.booking_date} من قبل إدارة الصالون.`,
+    `تم إلغاء حجزك مع ${booking.barber_name} بتاريخ ${booking.booking_date}${booking.start_time ? ` الساعة ${formatTime12Ar(booking.start_time)}` : ''} من قبل إدارة الصالون.`,
     id,
   );
   await notifyWaitlist(c, booking);

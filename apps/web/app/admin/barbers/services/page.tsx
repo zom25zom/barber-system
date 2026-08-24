@@ -7,12 +7,14 @@ import { apiFetch } from "@/lib/api";
 import { getOwnerToken } from "@/lib/auth";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
+import { useToast } from "@/components/Toaster";
 import type { Service } from "@/lib/types";
 
 function ServicesContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
   const token = getOwnerToken();
+  const toast = useToast();
   const [services, setServices] = useState<Service[]>([]);
   const [barberName, setBarberName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -89,13 +91,17 @@ function ServicesContent() {
       };
       if (editId) {
         await apiFetch(`/api/owner/services/${editId}`, { method: "PATCH", token, body });
+        toast.success("تم تعديل الخدمة بنجاح ✓");
       } else {
         await apiFetch(`/api/owner/barbers/${id}/services`, { method: "POST", token, body });
+        toast.success("تمت إضافة الخدمة بنجاح ✓");
       }
       setShowForm(false);
       load();
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء حفظ الخدمة، يرجى المحاولة ثانية";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -113,9 +119,12 @@ function ServicesContent() {
       await apiFetch(`/api/owner/services/${serviceToDelete.id}`, { method: "DELETE", token });
       setDeleteModalOpen(false);
       setServiceToDelete(null);
+      toast.success("تم حذف الخدمة بنجاح ✓");
       load();
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء حذف الخدمة";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setDeleting(false);
     }

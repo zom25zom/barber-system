@@ -7,10 +7,12 @@ import { getOwnerToken } from "@/lib/auth";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
 import ImageUploader from "@/components/ImageUploader";
+import { useToast } from "@/components/Toaster";
 import type { OwnerBarber } from "@/lib/types";
 
 export default function AdminBarbersPage() {
   const token = getOwnerToken();
+  const toast = useToast();
   const [barbers, setBarbers] = useState<OwnerBarber[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -65,17 +67,21 @@ export default function AdminBarbersPage() {
           token,
           body: { name: formName, photo_url: formPhoto || null },
         });
+        toast.success("تم تحديث بيانات الحلاق بنجاح ✓");
       } else {
         await apiFetch("/api/owner/barbers", {
           method: "POST",
           token,
           body: { name: formName, photo_url: formPhoto || null },
         });
+        toast.success("تمت إضافة الحلاق الجديد بنجاح ✓");
       }
       setShowAdd(false);
       load();
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء حفظ بيانات الحلاق، يرجى المحاولة ثانية";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -89,9 +95,12 @@ export default function AdminBarbersPage() {
         token,
         body: { is_active: !b.is_active },
       });
+      toast.success(b.is_active ? "تم تعطيل الحلاق مؤقتاً" : "تم تفعيل الحلاق بنجاح ✓");
       load();
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء تغيير حالة الحلاق";
+      setError(msg);
+      toast.error(msg);
     }
   }
 
@@ -107,9 +116,12 @@ export default function AdminBarbersPage() {
       await apiFetch(`/api/owner/barbers/${barberToDelete.id}`, { method: "DELETE", token });
       setDeleteModalOpen(false);
       setBarberToDelete(null);
+      toast.success("تم حذف الحلاق بنجاح ✓");
       load();
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء حذف الحلاق";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setDeleting(false);
     }

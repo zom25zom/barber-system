@@ -8,13 +8,53 @@ export const WEEKDAYS_AR = [
   "السبت",
 ];
 
-/** "13:30" -> "01:30 م" */
-export function formatTime12(t: string): string {
-  const [hRaw, mRaw] = t.split(":");
-  const h = Number(hRaw);
-  const m = Number(mRaw);
-  if (Number.isNaN(h) || Number.isNaN(m)) return t;
-  const period = h < 12 ? "ص" : "م";
+/** Format time to 12-hour Arabic format ("13:30" -> "01:30 م", 14 -> "02:00 م", Date -> "07:30 ص") */
+export function formatTime12(
+  t: string | number | Date | null | undefined,
+  options?: { fullPeriod?: boolean },
+): string {
+  if (t === null || t === undefined || t === "") return "";
+
+  let h = 0;
+  let m = 0;
+
+  if (t instanceof Date) {
+    h = t.getHours();
+    m = t.getMinutes();
+  } else if (typeof t === "number") {
+    h = Math.floor(t);
+    m = 0;
+  } else if (typeof t === "string") {
+    const trimmed = t.trim();
+    if (trimmed.includes("T") || (trimmed.includes("-") && trimmed.includes(":"))) {
+      const d = new Date(trimmed.includes("T") ? trimmed : trimmed.replace(" ", "T") + (trimmed.endsWith("Z") ? "" : "Z"));
+      if (!Number.isNaN(d.getTime())) {
+        h = d.getHours();
+        m = d.getMinutes();
+      } else {
+        return t;
+      }
+    } else if (trimmed.includes(":")) {
+      const parts = trimmed.split(":");
+      h = Number(parts[0]);
+      m = Number(parts[1]);
+    } else {
+      h = Number(trimmed);
+      m = 0;
+    }
+  }
+
+  if (Number.isNaN(h) || Number.isNaN(m)) return String(t);
+
+  const fullPeriod = options?.fullPeriod ?? false;
+  const period = fullPeriod
+    ? h < 12
+      ? "صباحاً"
+      : "مساءً"
+    : h < 12
+      ? "ص"
+      : "م";
+
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
 }
@@ -67,15 +107,15 @@ export const WAITLIST_STATUS_AR: Record<string, string> = {
   cancelled: "ملغي",
 };
 
-/** SQLite UTC datetime ("YYYY-MM-DD HH:MM:SS") -> readable local Arabic-ish string */
-export function formatDateTime(dt: string): string {
+/** SQLite UTC datetime ("YYYY-MM-DD HH:MM:SS") or ISO / Date -> readable local Arabic string */
+export function formatDateTime(dt: string | Date | null | undefined): string {
   if (!dt) return "";
-  const normalized = dt.includes("T") ? dt : dt.replace(" ", "T") + "Z";
-  const d = new Date(normalized);
-  if (Number.isNaN(d.getTime())) return dt;
+  const d =
+    dt instanceof Date
+      ? dt
+      : new Date(dt.includes("T") ? dt : dt.replace(" ", "T") + (dt.endsWith("Z") ? "" : "Z"));
+  if (Number.isNaN(d.getTime())) return typeof dt === "string" ? dt : "";
   const date = toISODate(d);
-  const time = formatTime12(
-    `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`,
-  );
+  const time = formatTime12(d);
   return `${date} — ${time}`;
 }

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import Spinner from "./Spinner";
+import { useToast } from "./Toaster";
 
 interface ImageUploaderProps {
   value: string | null;
@@ -21,18 +22,23 @@ export default function ImageUploader({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      setError("يرجى اختيار ملف صورة صالح (PNG, JPG, WebP, SVG, GIF)");
+      const msg = "يرجى اختيار ملف صورة صالح (PNG, JPG, WebP, SVG, GIF)";
+      setError(msg);
+      toast.error(msg);
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setError("حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)");
+      const msg = "حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)";
+      setError(msg);
+      toast.error(msg);
       return;
     }
 
@@ -54,8 +60,11 @@ export default function ImageUploader({
       }
 
       onChange(data.url);
+      toast.success("تم رفع الصورة بنجاح ✓");
     } catch (err) {
-      setError((err as Error).message);
+      const friendlyMsg = "حدث خطأ أثناء رفع الصورة، يرجى المحاولة مرة أخرى";
+      setError(friendlyMsg);
+      toast.error(friendlyMsg);
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -67,6 +76,7 @@ export default function ImageUploader({
   const handleRemove = () => {
     onChange("");
     setError(null);
+    toast.info("تمت إزالة الصورة");
   };
 
   return (

@@ -7,6 +7,7 @@ import { formatTime12, formatDateTime, BOOKING_STATUS_AR } from "@/lib/time";
 import { useLiveNotifications } from "@/lib/useNotifications";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
+import { useToast } from "@/components/Toaster";
 import type { Booking, OwnerBarber } from "@/lib/types";
 
 const statusColor: Record<string, string> = {
@@ -18,6 +19,7 @@ const statusColor: Record<string, string> = {
 
 export default function AdminBookingsPage() {
   const token = getOwnerToken();
+  const toast = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [barbers, setBarbers] = useState<OwnerBarber[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,9 +75,12 @@ export default function AdminBookingsPage() {
       await apiFetch(`/api/owner/bookings/${bookingToCancel.id}/cancel`, { method: "POST", token });
       setCancelModalOpen(false);
       setBookingToCancel(null);
+      toast.success("تم إلغاء الحجز بنجاح وإشعار الزبون ✓");
       load();
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء إلغاء الحجز";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setCancelling(false);
     }
@@ -86,9 +91,12 @@ export default function AdminBookingsPage() {
     setActionLoadingId(id);
     try {
       await apiFetch(`/api/owner/bookings/${id}/no-show`, { method: "POST", token });
+      toast.warning("تم تسجيل حالة عدم الحضور (No-Show)");
       load();
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء تعديل حالة الحجز";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setActionLoadingId(null);
     }
@@ -99,9 +107,12 @@ export default function AdminBookingsPage() {
     setActionLoadingId(id);
     try {
       await apiFetch(`/api/owner/bookings/${id}/complete`, { method: "POST", token });
+      toast.success("تم تحديد الحجز كمكتمل بنجاح ✓");
       load();
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء إكمال الحجز";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setActionLoadingId(null);
     }

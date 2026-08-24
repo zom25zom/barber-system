@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Bindings, Variables } from '../types';
 import { VAPID_PUBLIC_KEY, dispatchWebPush } from '../webpush';
-import { SALON_ID } from '../utils';
+import { SALON_ID, formatTime12Ar } from '../utils';
 
 export const pushRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -92,7 +92,7 @@ pushRoutes.post('/test', async (c) => {
 
   const results = await dispatchWebPush(c.env.DB, userType, customerId, SALON_ID, {
     title: '🧪 إشعار تجريبي — صالون الحلاقة',
-    message: `هذا إشعار تجريبي للتحقق من عمل Web Push. الوقت: ${new Date().toLocaleTimeString('ar-JO')}`,
+    message: `هذا إشعار تجريبي للتحقق من عمل Web Push. الوقت: ${formatTime12Ar(new Date())}`,
     url: userType === 'owner' ? '/admin/bookings' : '/my-bookings',
   });
 

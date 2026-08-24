@@ -8,6 +8,7 @@ import { getOwnerToken } from "@/lib/auth";
 import { WEEKDAYS_AR, formatTime12 } from "@/lib/time";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
+import { useToast } from "@/components/Toaster";
 import type { ScheduleDay, BarberTimeOff, BarberBreak } from "@/lib/types";
 
 const defaultSchedule: ScheduleDay[] = Array.from({ length: 7 }, (_, i) => ({
@@ -23,6 +24,7 @@ function ScheduleContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
   const token = getOwnerToken();
+  const toast = useToast();
 
   /* ── Weekly Schedule State ── */
   const [days, setDays] = useState<ScheduleDay[]>(defaultSchedule);
@@ -143,8 +145,11 @@ function ScheduleContent() {
         },
       });
       setSuccess(true);
+      toast.success("تم حفظ وتحديث جدول العمل بنجاح ✓");
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء حفظ جدول العمل، يرجى المحاولة ثانية";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -165,9 +170,12 @@ function ScheduleContent() {
       });
       setTimeOffDate("");
       setTimeOffReason("");
+      toast.success("تمت إضافة الإجازة بنجاح ✓");
       loadTimeOffs();
     } catch (err) {
-      setTimeOffError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء إضافة الإجازة";
+      setTimeOffError(msg);
+      toast.error(msg);
     } finally {
       setAddingTimeOff(false);
     }
@@ -182,9 +190,12 @@ function ScheduleContent() {
         token,
       });
       setDeleteTimeOff(null);
+      toast.success("تم حذف الإجازة بنجاح ✓");
       loadTimeOffs();
     } catch (err) {
-      setTimeOffError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء حذف الإجازة";
+      setTimeOffError(msg);
+      toast.error(msg);
       setDeleteTimeOff(null);
     } finally {
       setDeletingTimeOff(false);
@@ -206,9 +217,12 @@ function ScheduleContent() {
       });
       setBreakStart("12:00");
       setBreakEnd("13:00");
+      toast.success("تمت إضافة فترة الاستراحة بنجاح ✓");
       loadBreaks();
     } catch (err) {
-      setBreakError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء إضافة فترة الاستراحة";
+      setBreakError(msg);
+      toast.error(msg);
     } finally {
       setAddingBreak(false);
     }
@@ -223,9 +237,12 @@ function ScheduleContent() {
         token,
       });
       setDeleteBreak(null);
+      toast.success("تم حذف فترة الاستراحة بنجاح ✓");
       loadBreaks();
     } catch (err) {
-      setBreakError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء حذف الاستراحة";
+      setBreakError(msg);
+      toast.error(msg);
       setDeleteBreak(null);
     } finally {
       setDeletingBreak(false);

@@ -27,6 +27,12 @@ export default function AdminSettingsPage() {
   const [phone, setPhone] = useState(initialSettings.phone || "");
   const [primaryColor, setPrimaryColor] = useState(initialSettings.primary_color || "#f59e0b");
   const [logoUrl, setLogoUrl] = useState(initialSettings.logo_url || "");
+  const [socialFacebook, setSocialFacebook] = useState(initialSettings.social_facebook || "");
+  const [socialInstagram, setSocialInstagram] = useState(initialSettings.social_instagram || "");
+  const [socialTiktok, setSocialTiktok] = useState(initialSettings.social_tiktok || "");
+  const [socialWhatsapp, setSocialWhatsapp] = useState(initialSettings.social_whatsapp || "");
+  const [mapsUrl, setMapsUrl] = useState(initialSettings.maps_url || "");
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -44,6 +50,11 @@ export default function AdminSettingsPage() {
     setPhone(initialSettings.phone || "");
     setPrimaryColor(initialSettings.primary_color || "#f59e0b");
     setLogoUrl(initialSettings.logo_url || "");
+    setSocialFacebook(initialSettings.social_facebook || "");
+    setSocialInstagram(initialSettings.social_instagram || "");
+    setSocialTiktok(initialSettings.social_tiktok || "");
+    setSocialWhatsapp(initialSettings.social_whatsapp || "");
+    setMapsUrl(initialSettings.maps_url || "");
   }, [initialSettings]);
 
   const handleSaveBranding = async (e: React.FormEvent) => {
@@ -51,7 +62,9 @@ export default function AdminSettingsPage() {
     if (!token) return;
 
     if (!name.trim() || name.trim().length < 2) {
-      setError("اسم الصالون مطلوب ويجب أن يتكون من حرفين على الأقل");
+      const msg = "اسم الصالون مطلوب ويجب أن يتكون من حرفين على الأقل";
+      setError(msg);
+      showToast.error(msg);
       return;
     }
 
@@ -68,6 +81,11 @@ export default function AdminSettingsPage() {
           phone: phone.trim() || null,
           primary_color: primaryColor.trim() || "#f59e0b",
           logo_url: logoUrl.trim() || null,
+          social_facebook: socialFacebook.trim() || null,
+          social_instagram: socialInstagram.trim() || null,
+          social_tiktok: socialTiktok.trim() || null,
+          social_whatsapp: socialWhatsapp.trim() || null,
+          maps_url: mapsUrl.trim() || null,
         },
       });
 
@@ -75,10 +93,12 @@ export default function AdminSettingsPage() {
         // Update client cache and broadcast live to all components + manifest
         updateSalonSettingsClient(res.salon);
         setSuccess(true);
-        showToast("✅ تم حفظ وتحديث إعدادات الصالون والهوية بنجاح!");
+        showToast.success("تم حفظ وتحديث إعدادات الصالون والهوية بنجاح ✓");
       }
     } catch (err) {
-      setError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ أثناء حفظ الإعدادات، يرجى المحاولة ثانية";
+      setError(msg);
+      showToast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -89,17 +109,23 @@ export default function AdminSettingsPage() {
     if (!token) return;
 
     if (!currentPassword) {
-      setPasswordError("يرجى إدخال كلمة المرور الحالية");
+      const msg = "يرجى إدخال كلمة المرور الحالية";
+      setPasswordError(msg);
+      showToast.error(msg);
       return;
     }
 
     if (newPassword.length < 6) {
-      setPasswordError("كلمة المرور الجديدة يجب أن تكون 6 أحرف أو أرقام على الأقل");
+      const msg = "كلمة المرور الجديدة يجب أن تكون 6 أحرف أو أرقام على الأقل";
+      setPasswordError(msg);
+      showToast.error(msg);
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError("كلمة المرور الجديدة وتأكيدها غير متطابقين");
+      const msg = "كلمة المرور الجديدة وتأكيدها غير متطابقين";
+      setPasswordError(msg);
+      showToast.error(msg);
       return;
     }
 
@@ -121,9 +147,11 @@ export default function AdminSettingsPage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      showToast("🔒 تم تغيير كلمة المرور بنجاح!");
+      showToast.success("تم تغيير كلمة المرور بنجاح ✓");
     } catch (err) {
-      setPasswordError((err as Error).message);
+      const msg = (err as Error).message || "حدث خطأ، يرجى التأكد من كلمة المرور الحالية والمحاولة مجدداً";
+      setPasswordError(msg);
+      showToast.error(msg);
     } finally {
       setPasswordSaving(false);
     }
@@ -255,6 +283,96 @@ export default function AdminSettingsPage() {
               shape="rounded"
               helperText="يتم حفظ الشعار في التخزين السحابي ويظهر في الشريط العلوي وأيقونة التطبيق (PWA)."
             />
+
+            {/* 5. Social Media & Maps Links */}
+            <div className="border-t border-zinc-800/80 pt-6 space-y-4">
+              <h3 className="text-base font-bold text-amber-400 flex items-center gap-2">
+                <span>🌐</span> روابط التواصل الاجتماعي وموقع الخريطة
+              </h3>
+              <p className="text-xs text-zinc-400">
+                جميع الحقول اختيارية — تظهر الروابط المُدخلة فقط في تذييل الصفحة الرئيسية (Footer) للزبائن.
+              </p>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {/* Facebook */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-200 mb-1.5 flex items-center gap-1.5">
+                    <span>📘</span> رابط صفحة فيسبوك (Facebook)
+                  </label>
+                  <input
+                    type="url"
+                    dir="ltr"
+                    value={socialFacebook}
+                    onChange={(e) => setSocialFacebook(e.target.value)}
+                    placeholder="https://facebook.com/your-salon"
+                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-xs sm:text-sm text-left text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500"
+                  />
+                </div>
+
+                {/* Instagram */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-200 mb-1.5 flex items-center gap-1.5">
+                    <span>📸</span> رابط حساب إنستغرام (Instagram)
+                  </label>
+                  <input
+                    type="url"
+                    dir="ltr"
+                    value={socialInstagram}
+                    onChange={(e) => setSocialInstagram(e.target.value)}
+                    placeholder="https://instagram.com/your-salon"
+                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-xs sm:text-sm text-left text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500"
+                  />
+                </div>
+
+                {/* TikTok */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-200 mb-1.5 flex items-center gap-1.5">
+                    <span>🎵</span> رابط حساب تيك توك (TikTok)
+                  </label>
+                  <input
+                    type="url"
+                    dir="ltr"
+                    value={socialTiktok}
+                    onChange={(e) => setSocialTiktok(e.target.value)}
+                    placeholder="https://tiktok.com/@your-salon"
+                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-xs sm:text-sm text-left text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500"
+                  />
+                </div>
+
+                {/* WhatsApp */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-200 mb-1.5 flex items-center gap-1.5">
+                    <span>💬</span> رقم أو رابط واتساب (WhatsApp)
+                  </label>
+                  <input
+                    type="text"
+                    dir="ltr"
+                    value={socialWhatsapp}
+                    onChange={(e) => setSocialWhatsapp(e.target.value)}
+                    placeholder="+962790000000 أو https://wa.me/..."
+                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-xs sm:text-sm text-left text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              {/* Google Maps Link */}
+              <div>
+                <label className="block text-xs font-semibold text-zinc-200 mb-1.5 flex items-center gap-1.5">
+                  <span>📍</span> رابط موقع الصالون على خرائط Google Maps
+                </label>
+                <input
+                  type="url"
+                  dir="ltr"
+                  value={mapsUrl}
+                  onChange={(e) => setMapsUrl(e.target.value)}
+                  placeholder="https://maps.google.com/?q=..."
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-xs sm:text-sm text-left text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500"
+                />
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  الرابط الذي سيفتح للزبائن عند الضغط على &quot;موقعنا على الخريطة&quot;.
+                </p>
+              </div>
+            </div>
 
             {/* Submit button */}
             <div className="pt-4 border-t border-zinc-800 flex items-center justify-end">
@@ -392,6 +510,17 @@ export default function AdminSettingsPage() {
                   ✂ احجز موعدك الآن
                 </button>
               </div>
+
+              {/* Social & Maps Preview Icons */}
+              {(socialFacebook || socialInstagram || socialTiktok || socialWhatsapp || mapsUrl) && (
+                <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-center gap-2 text-xs">
+                  {socialWhatsapp && <span className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg" title="WhatsApp">💬</span>}
+                  {socialInstagram && <span className="p-1.5 bg-pink-500/20 text-pink-400 rounded-lg" title="Instagram">📸</span>}
+                  {socialFacebook && <span className="p-1.5 bg-blue-500/20 text-blue-400 rounded-lg" title="Facebook">📘</span>}
+                  {socialTiktok && <span className="p-1.5 bg-zinc-800 text-zinc-300 rounded-lg" title="TikTok">🎵</span>}
+                  {mapsUrl && <span className="p-1.5 bg-amber-500/20 text-amber-400 rounded-lg" title="Maps">📍</span>}
+                </div>
+              )}
             </div>
 
             {/* Security & Rate Limiting Status Card */}

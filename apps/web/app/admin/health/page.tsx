@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Spinner from "@/components/Spinner";
+import { formatTime12 } from "@/lib/time";
+import { useToast } from "@/components/Toaster";
 
 interface ServiceHealth {
   name: string;
@@ -25,12 +27,13 @@ interface HealthResponse {
 }
 
 export default function AdminHealthPage() {
+  const toast = useToast();
   const [data, setData] = useState<HealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastChecked, setLastChecked] = useState<string | null>(null);
 
-  const checkHealth = useCallback(async () => {
+  const checkHealth = useCallback(async (isManual?: boolean) => {
     setLoading(true);
     setError(null);
 
@@ -38,13 +41,20 @@ export default function AdminHealthPage() {
       const res = await fetch("/api/health", { cache: "no-store" });
       const json = await res.json();
       setData(json as HealthResponse);
-      setLastChecked(new Date().toLocaleTimeString("ar-JO"));
+      setLastChecked(formatTime12(new Date()));
+      if (isManual) {
+        toast.success("تم فحص جميع خدمات النظام بنجاح ✓");
+      }
     } catch (err) {
-      setError((err as Error).message || "تعذر الوصول إلى نقطة فحص النظام");
+      const msg = (err as Error).message || "تعذر الوصول إلى نقطة فحص النظام";
+      setError(msg);
+      if (isManual) {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     checkHealth();
@@ -102,7 +112,7 @@ export default function AdminHealthPage() {
 
         <button
           type="button"
-          onClick={checkHealth}
+          onClick={() => checkHealth(true)}
           disabled={loading}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-zinc-950 hover:bg-amber-400 transition active:scale-95 disabled:opacity-50 shadow-md"
         >

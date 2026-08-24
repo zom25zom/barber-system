@@ -1,0 +1,175 @@
+import type { Context } from 'hono';
+import type { DurableObjectNamespace } from '@cloudflare/workers-types';
+
+// ---------- multi-tenant ----------
+
+/**
+ * Current salon ID for this deployment.
+ * Each deployed instance serves a single salon; only this constant
+ * (and the matching row in the `salons` table) differs per tenant.
+ */
+export const SALON_ID = 1;
+
+// ---------- crypto / tokens ----------
+
+export async function sha256(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export function randomToken(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ---------- IP Extraction & Distributed Rate Limiting ----------
+
+/** Extract real client IP behind Cloudflare or proxies */
+export function getClientIP(c: Context<any>): string {
+  const cfIp = c.req.header('cf-connecting-ip');
+  if (cfIp) return cfIp.trim();
+
+  const realIp = c.req.header('x-real-ip');
+  if (realIp) return realIp.trim();
+
+  const fwd = c.req.header('x-forwarded-for');
+  if (fwd) return fwd.split(',')[0].trim();
+
+  return '127.0.0.1';
+}
+
+/**
+ * Atomic distributed rate limiter powered by Durable Objects.
+ * Example: 5 attempts per 15 minutes (limit=5, windowSeconds=900)
+ */
+export async function checkRateLimit(
+  hubNamespace: DurableObjectNamespace,
+  salonId: number,
+  key: string,
+  limit: number = 5,
+  windowSeconds: number = 900,
+): Promise<{ allowed: boolean; remaining?: number; retryAfter?: number }> {
+  try {
+    const hub = hubNamespace.get(hubNamespace.idFromName(`salon-${salonId}`));
+    const res = await hub.fetch('https://hub/rate-limit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, limit, windowSeconds }),
+    });
+    const data = (await res.json()) as { allowed: boolean; remaining?: number; retryAfter?: number };
+    return data;
+  } catch (err) {
+    console.error('[RateLimiter] Check error:', err);
+    // On DO connection error, fail open to avoid service disruption
+    return { allowed: true };
+  }
+}
+
+// ---------- Strict Input Validation Helpers ----------
+
+/** Validates username: 2-50 characters, trimmed, no control characters */
+export function isValidUsername(username: unknown): username is string {
+  if (typeof username !== 'string') return false;
+  const trimmed = username.trim();
+  return trimmed.length >= 2 && trimmed.length <= 50 && !/[\u0000-\u001F\u007F]/.test(trimmed);
+}
+
+/** Validates phone numbers: digits, optional leading +, spaces, dashes; length 7-20 */
+export function isValidPhone(phone: unknown): phone is string {
+  if (typeof phone !== 'string') return false;
+  const trimmed = phone.trim();
+  return trimmed.length >= 7 && trimmed.length <= 20 && /^[+\d][\d\s-]{6,19}$/.test(trimmed);
+}
+
+/** Validates CSS hex color (#RGB, #RRGGBB) */
+export function isValidHexColor(color: unknown): color is string {
+  if (typeof color !== 'string') return false;
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color.trim());
+}
+
+/** Validates positive integer IDs (1, 2, 3...) */
+export function isPositiveInt(n: unknown): n is number {
+  const num = Number(n);
+  return Number.isInteger(num) && num > 0;
+}
+
+/** Validates positive prices (0.1 to 10000) */
+export function isPositivePrice(n: unknown): n is number {
+  const num = Number(n);
+  return Number.isFinite(num) && num > 0 && num <= 10000;
+}
+
+/** Validates service durations (5 minutes to 480 minutes / 8 hours) */
+export function isValidDuration(n: unknown): n is number {
+  const num = Number(n);
+  return Number.isInteger(num) && num >= 5 && num <= 480;
+}
+
+/** Validates URLs or Data URIs with length limits */
+export function isValidUrlOrDataUri(s: unknown): s is string {
+  if (typeof s !== 'string') return false;
+  const trimmed = s.trim();
+  if (trimmed.length > 2000000) return false; // 2MB max
+  return (
+    trimmed.startsWith('data:image/') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('/')
+  );
+}
+
+// ---------- time helpers ("HH:MM" 24h internal) ----------
+
+export function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+export function toHHMM(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/** Format internal "HH:MM" to 12-hour Arabic time (e.g. "01:30 م", "09:00 ص") */
+export function formatTime12Ar(hhmm: string): string {
+  if (!hhmm || !hhmm.includes(':')) return hhmm;
+  const [hStr, mStr] = hhmm.split(':');
+  const h = Number(hStr);
+  const m = Number(mStr);
+  if (isNaN(h) || isNaN(m)) return hhmm;
+  const period = h < 12 ? 'صباحاً' : 'مساءً';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${String(h12).padStart(2, '0')}:${String(mStr).padStart(2, '0')} ${period}`;
+}
+
+/** Today as YYYY-MM-DD in local offset-less ISO form (UTC-based; salon ops are single-tenant). */
+export function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export function addDaysISO(dateISO: string, days: number): string {
+  const d = new Date(dateISO + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** 0=Sunday .. 6=Saturday for a YYYY-MM-DD date. */
+export function dayOfWeek(dateISO: string): number {
+  return new Date(dateISO + 'T00:00:00Z').getUTCDay();
+}
+
+export function isValidDate(s: unknown): s is string {
+  return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
+}
+
+export function isValidTime(s: unknown): s is string {
+  return typeof s === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
+}
+
+export function nowMinutesLocal(): number {
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
+}

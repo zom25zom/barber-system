@@ -1,0 +1,23 @@
+name = "barber-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "barber_db"
+database_id = "f9d5777a-bc60-4849-933b-5053a9bffcea"
+migrations_dir = "migrations"
+
+[[durable_objects.bindings]]
+name = "NOTIFICATION_HUB"
+class_name = "NotificationHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["NotificationHub"]

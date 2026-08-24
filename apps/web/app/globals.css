@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #09090b;
+  color: #f4f4f5;
+  font-family: "Tajawal", "Segoe UI", system-ui, sans-serif;
+}
+
+/* ── smooth scrolling ── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── native input dark mode ── */
+input[type="date"],
+input[type="time"],
+select {
+  color-scheme: dark;
+}
+
+/* ── custom scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* ── subtle animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3); }
+  50% { box-shadow: 0 0 12px 4px rgba(245, 158, 11, 0.15); }
+}
+
+main > * {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ── focus ring ── */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+}
+
+/* ── button press effect ── */
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ── toast animation ── */
+.fixed > div {
+  animation: slideUp 0.35s ease-out;
+}
+
+/* ── checkbox styling ── */
+input[type="checkbox"] {
+  accent-color: #f59e0b;
+}
+
+/* ── gradient text util ── */
+.text-gradient {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

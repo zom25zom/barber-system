@@ -8,6 +8,8 @@ import { apiFetch } from "@/lib/api";
 import { useLiveNotifications } from "@/lib/useNotifications";
 import { useSalonSettings } from "@/lib/salon";
 import ConfirmModal from "@/components/ConfirmModal";
+import InstallPrompt from "@/components/InstallPrompt";
+import IOSInstallGuide from "@/components/IOSInstallGuide";
 
 const nav = [
   { href: "/admin", label: "الرئيسية", icon: "📊" },
@@ -122,7 +124,12 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
       </aside>
 
       {/* ── Main Content (Extra bottom padding on mobile for the fixed nav bar) ── */}
-      <div className="min-w-0 flex-1 pb-24 lg:pb-8">{children}</div>
+      <div className="min-w-0 flex-1 space-y-6 pb-24 lg:pb-8">
+        {/* PWA install (Android/Chrome) + iOS install guide */}
+        <InstallPrompt />
+        <IOSInstallGuide />
+        {children}
+      </div>
 
       {/* ── Persistent Bottom Navigation Bar for Mobile (Visible on < lg screens) ── */}
       <nav

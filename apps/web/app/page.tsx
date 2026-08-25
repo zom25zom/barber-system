@@ -13,6 +13,8 @@ import {
   IconTiktok,
   IconWhatsapp,
 } from "@/components/icons";
+import InstallPrompt from "@/components/InstallPrompt";
+import IOSInstallGuide from "@/components/IOSInstallGuide";
 
 function getWhatsappLink(wa: string): string {
   if (wa.startsWith("http://") || wa.startsWith("https://")) return wa;
@@ -108,6 +110,10 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* PWA install (Android/Chrome) + iOS install guide */}
+      <InstallPrompt />
+      <IOSInstallGuide />
 
       {/* ══════════ Barbers Section ══════════ */}
       <section>

@@ -3,6 +3,7 @@ import type { Context } from 'hono';
 import type { Bindings, Variables } from '../types';
 import { requireOwner } from './auth';
 import { sendNotification } from '../notify';
+import { scheduleBookingReminder } from '../reminders';
 import { deleteOldUpload } from '../cleanup';
 import { servicesDuration } from './public';
 import {
@@ -645,6 +646,9 @@ ownerRoutes.post('/bookings', async (c) => {
     ).bind(booking!.id, s.id, s.name, s.price, s.duration_minutes),
   );
   await c.env.DB.batch(stmts);
+
+  // Schedule a push reminder 20 minutes before the appointment (skipped for urgent bookings)
+  await scheduleBookingReminder(c.env, booking!.id, date, start_time);
 
   // Notify customer
   await sendNotification(

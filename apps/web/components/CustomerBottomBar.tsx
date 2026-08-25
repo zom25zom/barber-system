@@ -5,13 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getCustomerToken } from "@/lib/auth";
-import { useSalonSettings } from "@/lib/salon";
 import {
   IconBell,
   IconCalendarPlus,
   IconClipboardList,
   IconHome,
-  IconPhone,
 } from "@/components/icons";
 
 const items = [
@@ -22,7 +20,6 @@ const items = [
 
 export default function CustomerBottomBar() {
   const pathname = usePathname();
-  const salon = useSalonSettings();
   const [unread, setUnread] = useState(0);
 
   const loadUnread = useCallback(() => {
@@ -65,9 +62,9 @@ export default function CustomerBottomBar() {
 
       <nav
         aria-label="التنقل السفلي"
-        className="fixed bottom-0 inset-x-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-lg px-2 py-1.5 shadow-2xl safe-area-pb"
+        className="fixed bottom-0 inset-x-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-lg shadow-2xl safe-area-pb"
       >
-        <div className="mx-auto flex max-w-md items-center justify-around">
+        <div className="mx-auto flex max-w-md items-center justify-around px-2 py-1.5">
           {/* الرئيسية / الحجز / حجوزاتي */}
           {items.map((item) => {
             const active = isActive(item);
@@ -102,19 +99,27 @@ export default function CustomerBottomBar() {
             />
           </Link>
 
-          {/* اتصال بالصالون — المكان الوحيد لرقم التواصل في الصفحة */}
-          {salon.phone && (
-            <a
-              href={`tel:${salon.phone}`}
-              className="relative flex flex-1 flex-col items-center justify-center gap-1 py-1.5 text-center text-emerald-400 transition-all hover:text-emerald-300"
-              aria-label={`الاتصال بالصالون ${salon.phone}`}
+          {/* حسابي — صفحة البروفايل */}
+          <Link href="/my-profile" className={linkCls(pathname.startsWith("/my-profile"))}>
+            <span
+              className={`flex h-8 w-8 items-center justify-center rounded-xl border transition-all ${
+                pathname.startsWith("/my-profile")
+                  ? "border-amber-500/50 bg-amber-500 text-zinc-950"
+                  : "border-amber-500/30 bg-amber-500/10 text-amber-400"
+              }`}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10">
-                <IconPhone className="h-4 w-4" />
-              </div>
-              <span className="text-[10px] sm:text-[11px] leading-none">اتصال</span>
-            </a>
-          )}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7" />
+              </svg>
+            </span>
+            <span className="text-[10px] sm:text-[11px] leading-none">حسابي</span>
+            <span
+              className={`mt-0.5 h-1 w-5 rounded-full transition-all ${
+                pathname.startsWith("/my-profile") ? "bg-amber-500 shadow-sm shadow-amber-500/50" : "bg-transparent"
+              }`}
+            />
+          </Link>
         </div>
       </nav>
     </>

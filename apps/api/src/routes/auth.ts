@@ -114,13 +114,16 @@ authRoutes.post('/customer/register', async (c) => {
     );
   }
 
-  const { username, phone } = await c.req.json().catch(() => ({} as any));
+  const { username, phone, password } = await c.req.json().catch(() => ({} as any));
 
   if (!isValidUsername(username)) {
     return c.json({ error: 'اسم المستخدم مطلوب (بين 2 و 50 حرفاً بدون رموز خاصة)' }, 400);
   }
   if (!isValidPhone(phone)) {
     return c.json({ error: 'رقم هاتف غير صالح. يرجى إدخال رقم صحيح (بين 7 و 20 رقماً)' }, 400);
+  }
+  if (typeof password !== 'string' || password.length < 6 || password.length > 100) {
+    return c.json({ error: 'كلمة المرور مطلوبة (6 خانات على الأقل وبحد أقصى 100 خانة)' }, 400);
   }
 
   const cleanUsername = username.trim();
@@ -134,14 +137,16 @@ authRoutes.post('/customer/register', async (c) => {
   if (exists) return c.json({ error: 'اسم المستخدم أو رقم الهاتف مسجل مسبقاً، سجّل دخولك' }, 409);
 
   const token = randomToken();
+  const passwordHash = await sha256(password);
   const res = await c.env.DB.prepare(
-    'INSERT INTO customers (username, phone, token, salon_id) VALUES (?, ?, ?, ?) RETURNING id',
+    'INSERT INTO customers (username, phone, token, password_hash, salon_id) VALUES (?, ?, ?, ?, ?) RETURNING id',
   )
-    .bind(cleanUsername, cleanPhone, token, SALON_ID)
+    .bind(cleanUsername, cleanPhone, token, passwordHash, SALON_ID)
     .first<{ id: number }>();
 
+  // No auto-login: the customer must sign in explicitly with phone + password
   return c.json(
-    { token, customer: { id: res!.id, username: cleanUsername, phone: cleanPhone } },
+    { ok: true, customer: { id: res!.id, username: cleanUsername, phone: cleanPhone } },
     201,
   );
 });
@@ -159,19 +164,30 @@ authRoutes.post('/customer/login', async (c) => {
     );
   }
 
-  const { identifier } = await c.req.json().catch(() => ({} as any));
-  if (typeof identifier !== 'string' || identifier.trim().length < 2 || identifier.trim().length > 50) {
-    return c.json({ error: 'أدخل اسم المستخدم أو رقم الهاتف بشكل صحيح' }, 400);
+  const { phone, password } = await c.req.json().catch(() => ({} as any));
+  if (!isValidPhone(phone)) {
+    return c.json({ error: 'أدخل رقم هاتف صحيح' }, 400);
+  }
+  if (typeof password !== 'string' || password.length < 1 || password.length > 100) {
+    return c.json({ error: 'كلمة المرور مطلوبة' }, 400);
   }
 
-  const cleanIdentifier = identifier.trim();
+  const cleanPhone = phone.trim();
   const customer = await c.env.DB.prepare(
-    'SELECT id, username, phone, token FROM customers WHERE salon_id = ? AND (username = ? OR phone = ?)',
+    'SELECT id, username, phone, token, password_hash FROM customers WHERE salon_id = ? AND phone = ?',
   )
-    .bind(SALON_ID, cleanIdentifier, cleanIdentifier)
-    .first<{ id: number; username: string; phone: string; token: string }>();
+    .bind(SALON_ID, cleanPhone)
+    .first<{ id: number; username: string; phone: string; token: string; password_hash: string }>();
 
-  if (!customer) return c.json({ error: 'الحساب غير موجود، أنشئ حساباً جديداً' }, 404);
+  // Same verification mechanism as owner login: compare against the stored hash.
+  // Empty hash = legacy account created before passwords existed → reject.
+  if (
+    !customer ||
+    !customer.password_hash ||
+    customer.password_hash !== (await sha256(password))
+  ) {
+    return c.json({ error: 'رقم الهاتف أو كلمة المرور غير صحيحة' }, 401);
+  }
 
   // Rotate the token on each login to keep sessions fresh.
   const token = randomToken();

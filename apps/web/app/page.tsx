@@ -10,6 +10,7 @@ import {
   IconFacebook,
   IconInstagram,
   IconMapPin,
+  IconPhone,
   IconTiktok,
   IconWhatsapp,
 } from "@/components/icons";
@@ -254,91 +255,113 @@ export default function HomePage() {
       )}
 
       {/* ══════════ Public Footer ══════════ */}
-      <footer className="space-y-6 rounded-3xl border border-zinc-800 bg-zinc-950 p-8 text-center shadow-2xl">
-        <div className="flex flex-col items-center justify-between gap-4 border-b border-zinc-800/80 pb-6 sm:flex-row">
-          <div className="flex items-center gap-3">
-            {salon.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={salon.logo_url} alt={salon.name} className="h-10 w-10 rounded-xl border border-amber-500/40 object-cover" />
-            ) : (
-              <span className="text-2xl">💈</span>
-            )}
-            <div className="text-right">
-              <h3 className="text-base font-bold text-zinc-100">{salon.name}</h3>
+      <footer className="border-t border-zinc-800 bg-zinc-950">
+        {/* Main footer content */}
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+          {/* Brand column */}
+          <div>
+            <div className="flex items-center gap-3">
+              {salon.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={salon.logo_url} alt={salon.name} className="h-11 w-11 rounded-xl border border-amber-500/40 object-cover" />
+              ) : (
+                <span className="text-2xl">💈</span>
+              )}
+              <h3 className="text-base font-black text-zinc-100">{salon.name}</h3>
             </div>
+            <p className="mt-3 max-w-xs text-xs leading-relaxed text-zinc-500">
+              احجز موعدك بسهولة وبدون انتظار — اختر الحلاق والخدمة وتابع دورك مباشرة من هاتفك.
+            </p>
           </div>
 
-          {/* Google Maps Location Button */}
-          {salon.maps_url && (
-            <a
-              href={salon.maps_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs font-bold text-amber-400 transition active:scale-95 hover:border-amber-500/50 hover:bg-amber-500/20 sm:text-sm"
-            >
-              <IconMapPin className="h-4 w-4" />
-              <span>موقعنا على الخريطة</span>
-              <span className="text-xs opacity-70">↗</span>
-            </a>
+          {/* Contact & location column */}
+          <div>
+            <h4 className="mb-3 text-sm font-bold text-zinc-200">تواصل معنا</h4>
+            {salon.phone && (
+              <a
+                href={`tel:${salon.phone}`}
+                className="inline-flex items-center gap-2 text-sm text-emerald-400 hover:underline"
+                dir="ltr"
+              >
+                <IconPhone className="h-3.5 w-3.5" />
+                <span>{salon.phone}</span>
+              </a>
+            )}
+            {salon.maps_url && (
+              <div className="mt-3">
+                <a
+                  href={salon.maps_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-400 transition hover:bg-amber-500/20 active:scale-95"
+                >
+                  <IconMapPin className="h-3.5 w-3.5" />
+                  <span>موقعنا على الخريطة ↗</span>
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Social links column */}
+          {hasSocialLinks && (
+            <div>
+              <h4 className="mb-3 text-sm font-bold text-zinc-200">تابعنا</h4>
+              <div className="flex flex-wrap items-center gap-2.5">
+                {salon.social_whatsapp && (
+                  <a
+                    href={getWhatsappLink(salon.social_whatsapp)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-500/25 bg-emerald-500/10 text-emerald-400 transition hover:bg-emerald-500/20 hover:-translate-y-0.5 active:scale-95"
+                    aria-label="واتساب"
+                  >
+                    <IconWhatsapp className="h-4 w-4" />
+                  </a>
+                )}
+                {salon.social_instagram && (
+                  <a
+                    href={getSocialLink(salon.social_instagram, "instagram.com")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-pink-500/25 bg-pink-500/10 text-pink-400 transition hover:bg-pink-500/20 hover:-translate-y-0.5 active:scale-95"
+                    aria-label="إنستغرام"
+                  >
+                    <IconInstagram className="h-4 w-4" />
+                  </a>
+                )}
+                {salon.social_facebook && (
+                  <a
+                    href={getSocialLink(salon.social_facebook, "facebook.com")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-blue-500/25 bg-blue-500/10 text-blue-400 transition hover:bg-blue-500/20 hover:-translate-y-0.5 active:scale-95"
+                    aria-label="فيسبوك"
+                  >
+                    <IconFacebook className="h-4 w-4" />
+                  </a>
+                )}
+                {salon.social_tiktok && (
+                  <a
+                    href={getSocialLink(salon.social_tiktok, "tiktok.com")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-700 bg-zinc-900 text-zinc-300 transition hover:bg-zinc-800 hover:-translate-y-0.5 active:scale-95"
+                    aria-label="تيك توك"
+                  >
+                    <IconTiktok className="h-4 w-4" />
+                  </a>
+                )}
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Social Media Links (Only shown if filled) */}
-        {hasSocialLinks && (
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {salon.social_whatsapp && (
-              <a
-                href={getWhatsappLink(salon.social_whatsapp)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-bold text-emerald-400 transition active:scale-95 hover:bg-emerald-500/20"
-              >
-                <IconWhatsapp className="h-4 w-4" />
-                <span>واتساب</span>
-              </a>
-            )}
-
-            {salon.social_instagram && (
-              <a
-                href={getSocialLink(salon.social_instagram, "instagram.com")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl border border-pink-500/30 bg-pink-500/10 px-4 py-2 text-xs font-bold text-pink-400 transition active:scale-95 hover:bg-pink-500/20"
-              >
-                <IconInstagram className="h-4 w-4" />
-                <span>إنستغرام</span>
-              </a>
-            )}
-
-            {salon.social_facebook && (
-              <a
-                href={getSocialLink(salon.social_facebook, "facebook.com")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-xs font-bold text-blue-400 transition active:scale-95 hover:bg-blue-500/20"
-              >
-                <IconFacebook className="h-4 w-4" />
-                <span>فيسبوك</span>
-              </a>
-            )}
-
-            {salon.social_tiktok && (
-              <a
-                href={getSocialLink(salon.social_tiktok, "tiktok.com")}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-bold text-zinc-200 transition active:scale-95 hover:bg-zinc-800"
-              >
-                <IconTiktok className="h-4 w-4" />
-                <span>تيك توك</span>
-              </a>
-            )}
+        {/* Copyright strip */}
+        <div className="border-t border-zinc-900">
+          <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-4 text-[11px] text-zinc-600 sm:flex-row">
+            <p>جميع الحقوق محفوظة © {new Date().getFullYear()} {salon.name}</p>
+            <p>نظام حجز الصالونات والمواعيد الذكي</p>
           </div>
-        )}
-
-        <div className="flex flex-col items-center justify-between gap-2 border-t border-zinc-900 pt-2 text-xs text-zinc-500 sm:flex-row">
-          <p>جميع الحقوق محفوظة © {new Date().getFullYear()} {salon.name}</p>
-          <p className="text-[11px] text-zinc-600">نظام حجز الصالونات والمواعيد الذكي</p>
         </div>
       </footer>
     </div>

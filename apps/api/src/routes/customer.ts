@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
-import type { Bindings, Variables } from '../types';
+import type { Bindings, Customer, Variables } from '../types';
 import { requireCustomer } from './auth';
 import { sendNotification, formatNewBookingMessage } from '../notify';
 import { notifyWaitlist } from './owner';
 import { servicesDuration } from './public';
+import { scheduleBookingReminder } from '../reminders';
 import {
   isValidDate,
   isValidTime,
@@ -14,10 +15,112 @@ import {
   formatTime12Ar,
   SALON_ID,
   isPositiveInt,
+  sha256,
+  isValidUsername,
+  isValidPhone,
 } from '../utils';
 
 export const customerRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 customerRoutes.use('*', requireCustomer);
+
+// ---------- My profile (view / edit) ----------
+
+customerRoutes.get('/profile', async (c) => {
+  const customer = c.get('customer');
+  const row = await c.env.DB.prepare(
+    'SELECT id, username, phone FROM customers WHERE id = ? AND salon_id = ?',
+  )
+    .bind(customer.id, SALON_ID)
+    .first<Customer>();
+  if (!row) return c.json({ error: 'الحساب غير موجود' }, 404);
+  return c.json({ customer: row });
+});
+
+customerRoutes.patch('/profile', async (c) => {
+  const customer = c.get('customer');
+  const body = await c.req.json().catch(() => ({} as any));
+
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (body.username !== undefined) {
+    if (!isValidUsername(body.username)) {
+      return c.json({ error: 'الاسم مطلوب (بين 2 و 50 حرفاً بدون رموز خاصة)' }, 400);
+    }
+    const cleanUsername = body.username.trim();
+    const taken = await c.env.DB.prepare(
+      'SELECT id FROM customers WHERE salon_id = ? AND username = ? AND id != ?',
+    )
+      .bind(SALON_ID, cleanUsername, customer.id)
+      .first();
+    if (taken) return c.json({ error: 'هذا الاسم مستخدم من حساب آخر' }, 409);
+    updates.push('username = ?');
+    values.push(cleanUsername);
+  }
+
+  if (body.phone !== undefined) {
+    if (!isValidPhone(body.phone)) {
+      return c.json({ error: 'رقم هاتف غير صالح. يرجى إدخال رقم صحيح (بين 7 و 20 رقماً)' }, 400);
+    }
+    const cleanPhone = body.phone.trim();
+    const taken = await c.env.DB.prepare(
+      'SELECT id FROM customers WHERE salon_id = ? AND phone = ? AND id != ?',
+    )
+      .bind(SALON_ID, cleanPhone, customer.id)
+      .first();
+    if (taken) return c.json({ error: 'رقم الهاتف مسجل على حساب آخر' }, 409);
+    updates.push('phone = ?');
+    values.push(cleanPhone);
+  }
+
+  if (updates.length === 0) return c.json({ error: 'لا توجد بيانات للتحديث' }, 400);
+  values.push(customer.id, SALON_ID);
+
+  const updated = await c.env.DB.prepare(
+    `UPDATE customers SET ${updates.join(', ')} WHERE id = ? AND salon_id = ? RETURNING id, username, phone`,
+  )
+    .bind(...values)
+    .first<Customer>();
+
+  return c.json({ ok: true, customer: updated });
+});
+
+// ---------- Change password (requires current password) ----------
+
+customerRoutes.post('/change-password', async (c) => {
+  const customer = c.get('customer');
+  const body = await c.req.json().catch(() => ({} as any));
+  const { currentPassword, newPassword } = body;
+
+  if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
+    return c.json({ error: 'كلمة المرور الحالية والجديدة مطلوبتان' }, 400);
+  }
+  if (newPassword.length < 6 || newPassword.length > 100) {
+    return c.json({ error: 'كلمة المرور الجديدة يجب أن تكون 6 خانات على الأقل وبحد أقصى 100 خانة' }, 400);
+  }
+  if (currentPassword === newPassword) {
+    return c.json({ error: 'كلمة المرور الجديدة يجب أن تكون مختلفة عن الحالية' }, 400);
+  }
+
+  const row = await c.env.DB.prepare(
+    'SELECT password_hash FROM customers WHERE id = ? AND salon_id = ?',
+  )
+    .bind(customer.id, SALON_ID)
+    .first<{ password_hash: string }>();
+  if (!row) return c.json({ error: 'الحساب غير موجود' }, 404);
+
+  // Verify current password before allowing the change (same mechanism as owners)
+  if (!row.password_hash || row.password_hash !== (await sha256(currentPassword))) {
+    return c.json({ error: 'كلمة المرور الحالية غير صحيحة' }, 400);
+  }
+
+  const newHash = await sha256(newPassword);
+  await c.env.DB.prepare('UPDATE customers SET password_hash = ? WHERE id = ? AND salon_id = ?')
+    .bind(newHash, customer.id, SALON_ID)
+    .run();
+
+  return c.json({ ok: true, message: 'تم تغيير كلمة المرور بنجاح' });
+});
 
 // ---------- Create booking — PRD 3.5 (auto-confirmed) ----------
 
@@ -119,6 +222,9 @@ customerRoutes.post('/bookings', async (c) => {
     ).bind(booking!.id, s.id, s.name, s.price, s.duration_minutes),
   );
   await c.env.DB.batch(stmts);
+
+  // Schedule a push reminder 20 minutes before the appointment (skipped for urgent bookings)
+  await scheduleBookingReminder(c.env, booking!.id, date, start_time);
 
   // If this customer had a waitlist entry for this slot, mark it fulfilled.
   await c.env.DB.prepare(

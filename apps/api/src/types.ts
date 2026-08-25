@@ -1,11 +1,21 @@
-import type { D1Database, DurableObjectNamespace, Fetcher, R2Bucket } from '@cloudflare/workers-types';
+import type { D1Database, DurableObjectNamespace, Fetcher, MessageBatch, Queue, R2Bucket } from '@cloudflare/workers-types';
+
+/** Payload sent to the booking-reminders queue */
+export type ReminderMessage = {
+  bookingId: number;
+  bookingDate: string;
+  startTime: string;
+};
 
 export type Bindings = {
   DB: D1Database;
   NOTIFICATION_HUB: DurableObjectNamespace;
   BUCKET?: R2Bucket;
   ASSETS?: Fetcher;
+  REMINDER_QUEUE?: Queue<ReminderMessage>;
 };
+
+export type { MessageBatch };
 
 export type Owner = { id: number; username: string };
 export type Customer = { id: number; username: string; phone: string };

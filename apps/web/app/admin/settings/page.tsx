@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getOwnerToken } from "@/lib/auth";
 import { useSalonSettings, updateSalonSettingsClient, type SalonSettings } from "@/lib/salon";
@@ -8,34 +8,46 @@ import { useToast } from "@/components/Toaster";
 import ImageUploader from "@/components/ImageUploader";
 
 const PRESET_COLORS = [
-  { name: "ذهبي كهرماني", hex: "#f59e0b", label: "Amber" },
-  { name: "أخضر زمردي", hex: "#10b981", label: "Emerald" },
-  { name: "أزرق ملكي", hex: "#3b82f6", label: "Blue" },
-  { name: "بنفسجي فاخر", hex: "#8b5cf6", label: "Purple" },
-  { name: "قرمزي أنيق", hex: "#ef4444", label: "Red" },
-  { name: "برونزي دافئ", hex: "#d97706", label: "Bronze" },
-  { name: "سماوي عصري", hex: "#06b6d4", label: "Cyan" },
+  { name: "ذهبي كهرماني", hex: "#f59e0b" },
+  { name: "أخضر زمردي", hex: "#10b981" },
+  { name: "أزرق ملكي", hex: "#3b82f6" },
+  { name: "بنفسجي فاخر", hex: "#8b5cf6" },
+  { name: "قرمزي أنيق", hex: "#ef4444" },
+  { name: "برونزي دافئ", hex: "#d97706" },
+  { name: "سماوي عصري", hex: "#06b6d4" },
 ];
+
+type SectionKey = "basic" | "branding" | "social";
 
 export default function AdminSettingsPage() {
   const token = getOwnerToken();
   const showToast = useToast();
-  const initialSettings = useSalonSettings();
+  const salon = useSalonSettings();
 
-  // Branding Form State
-  const [name, setName] = useState(initialSettings.name);
-  const [phone, setPhone] = useState(initialSettings.phone || "");
-  const [primaryColor, setPrimaryColor] = useState(initialSettings.primary_color || "#f59e0b");
-  const [logoUrl, setLogoUrl] = useState(initialSettings.logo_url || "");
-  const [socialFacebook, setSocialFacebook] = useState(initialSettings.social_facebook || "");
-  const [socialInstagram, setSocialInstagram] = useState(initialSettings.social_instagram || "");
-  const [socialTiktok, setSocialTiktok] = useState(initialSettings.social_tiktok || "");
-  const [socialWhatsapp, setSocialWhatsapp] = useState(initialSettings.social_whatsapp || "");
-  const [mapsUrl, setMapsUrl] = useState(initialSettings.maps_url || "");
+  // ── Section collapse state (first section open by default) ──
+  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
+    basic: true,
+    branding: false,
+    social: false,
+  });
 
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  // ── Shared form state (all sections read from the same source) ──
+  const [name, setName] = useState(salon.name);
+  const [phone, setPhone] = useState(salon.phone || "");
+  const [primaryColor, setPrimaryColor] = useState(salon.primary_color || "#f59e0b");
+  const [logoUrl, setLogoUrl] = useState(salon.logo_url || "");
+  const [socialFacebook, setSocialFacebook] = useState(salon.social_facebook || "");
+  const [socialInstagram, setSocialInstagram] = useState(salon.social_instagram || "");
+  const [socialTiktok, setSocialTiktok] = useState(salon.social_tiktok || "");
+  const [socialWhatsapp, setSocialWhatsapp] = useState(salon.social_whatsapp || "");
+  const [mapsUrl, setMapsUrl] = useState(salon.maps_url || "");
+
+  // Per-section saving state
+  const [saving, setSaving] = useState<Record<SectionKey, boolean>>({
+    basic: false,
+    branding: false,
+    social: false,
+  });
 
   // Password Change Form State
   const [currentPassword, setCurrentPassword] = useState("");
@@ -46,32 +58,37 @@ export default function AdminSettingsPage() {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   useEffect(() => {
-    setName(initialSettings.name);
-    setPhone(initialSettings.phone || "");
-    setPrimaryColor(initialSettings.primary_color || "#f59e0b");
-    setLogoUrl(initialSettings.logo_url || "");
-    setSocialFacebook(initialSettings.social_facebook || "");
-    setSocialInstagram(initialSettings.social_instagram || "");
-    setSocialTiktok(initialSettings.social_tiktok || "");
-    setSocialWhatsapp(initialSettings.social_whatsapp || "");
-    setMapsUrl(initialSettings.maps_url || "");
-  }, [initialSettings]);
+    setName(salon.name);
+    setPhone(salon.phone || "");
+    setPrimaryColor(salon.primary_color || "#f59e0b");
+    setLogoUrl(salon.logo_url || "");
+    setSocialFacebook(salon.social_facebook || "");
+    setSocialInstagram(salon.social_instagram || "");
+    setSocialTiktok(salon.social_tiktok || "");
+    setSocialWhatsapp(salon.social_whatsapp || "");
+    setMapsUrl(salon.maps_url || "");
+  }, [salon]);
 
-  const handleSaveBranding = async (e: React.FormEvent) => {
-    e.preventDefault();
+  /**
+   * Saves one section via the existing PUT /api/salon-settings endpoint.
+   * The endpoint overwrites every column, so we always merge the edited
+   * section's fields with the current values of the untouched sections.
+   */
+  async function saveSection(
+    section: SectionKey,
+    successMsg: string,
+    validate?: () => string | null
+  ): Promise<void> {
     if (!token) return;
-
-    if (!name.trim() || name.trim().length < 2) {
-      const msg = "اسم الصالون مطلوب ويجب أن يتكون من حرفين على الأقل";
-      setError(msg);
-      showToast.error(msg);
-      return;
+    if (validate) {
+      const err = validate();
+      if (err) {
+        showToast.error(err);
+        return;
+      }
     }
 
-    setSaving(true);
-    setError(null);
-    setSuccess(false);
-
+    setSaving((s) => ({ ...s, [section]: true }));
     try {
       const res = await apiFetch<{ ok: boolean; salon: SalonSettings }>("/api/salon-settings", {
         method: "PUT",
@@ -88,70 +105,53 @@ export default function AdminSettingsPage() {
           maps_url: mapsUrl.trim() || null,
         },
       });
-
-      if (res.salon) {
-        // Update client cache and broadcast live to all components + manifest
-        updateSalonSettingsClient(res.salon);
-        setSuccess(true);
-        showToast.success("تم حفظ وتحديث إعدادات الصالون والهوية بنجاح ✓");
-      }
+      if (res.salon) updateSalonSettingsClient(res.salon);
+      showToast.success(successMsg);
     } catch (err) {
-      const msg = (err as Error).message || "حدث خطأ أثناء حفظ الإعدادات، يرجى المحاولة ثانية";
-      setError(msg);
-      showToast.error(msg);
+      showToast.error((err as Error).message || "حدث خطأ أثناء الحفظ، يرجى المحاولة ثانية");
     } finally {
-      setSaving(false);
+      setSaving((s) => ({ ...s, [section]: false }));
     }
-  };
+  }
+
+  const toggleSection = (key: SectionKey) =>
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const inputCls =
+    "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500";
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
 
     if (!currentPassword) {
-      const msg = "يرجى إدخال كلمة المرور الحالية";
-      setPasswordError(msg);
-      showToast.error(msg);
+      setPasswordError("يرجى إدخال كلمة المرور الحالية");
       return;
     }
-
     if (newPassword.length < 6) {
-      const msg = "كلمة المرور الجديدة يجب أن تكون 6 أحرف أو أرقام على الأقل";
-      setPasswordError(msg);
-      showToast.error(msg);
+      setPasswordError("كلمة المرور الجديدة يجب أن تكون 6 أحرف أو أرقام على الأقل");
       return;
     }
-
     if (newPassword !== confirmPassword) {
-      const msg = "كلمة المرور الجديدة وتأكيدها غير متطابقين";
-      setPasswordError(msg);
-      showToast.error(msg);
+      setPasswordError("كلمة المرور الجديدة وتأكيدها غير متطابقين");
       return;
     }
 
     setPasswordSaving(true);
     setPasswordError(null);
-    setPasswordSuccess(false);
-
     try {
-      await apiFetch<{ ok: boolean; message: string }>("/api/owner/change-password", {
+      await apiFetch("/api/owner/change-password", {
         method: "POST",
         token,
-        body: {
-          currentPassword,
-          newPassword,
-        },
+        body: { currentPassword, newPassword },
       });
-
       setPasswordSuccess(true);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       showToast.success("تم تغيير كلمة المرور بنجاح ✓");
     } catch (err) {
-      const msg = (err as Error).message || "حدث خطأ، يرجى التأكد من كلمة المرور الحالية والمحاولة مجدداً";
-      setPasswordError(msg);
-      showToast.error(msg);
+      setPasswordError((err as Error).message || "حدث خطأ، يرجى التأكد من كلمة المرور الحالية والمحاولة مجدداً");
     } finally {
       setPasswordSaving(false);
     }
@@ -163,46 +163,37 @@ export default function AdminSettingsPage() {
       <div>
         <div className="flex items-center gap-3">
           <span className="text-2xl">⚙️</span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-100">إعدادات الصالون والأمان</h1>
+          <h1 className="text-2xl font-extrabold text-zinc-100 sm:text-3xl">إعدادات الصالون</h1>
         </div>
         <p className="mt-1 text-sm text-zinc-400">
-          تخصيص هوية الصالون، اللون الأساسي، الشعار، وإدارة أمان حساب المدير.
+          عدّل كل قسم على حدة واضغط زر الحفظ الخاص به فقط — باقي الأقسام لن تتأثر.
         </p>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-400 flex items-center gap-2">
-          <span>⚠️</span>
-          <span>{error}</span>
-        </div>
-      )}
-
-      {success && (
-        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-400 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span>✨</span>
-            <span>تم تطبيق التغييرات بنجاح وتحديث شريط التنقل والـ Manifest فوراً دون الحاجة لإعادة النشر!</span>
-          </div>
-          <button onClick={() => setSuccess(false)} className="text-xs opacity-70 hover:opacity-100">
-            ✕
-          </button>
-        </div>
-      )}
-
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* ── Main Column: Branding & Security (2 cols) ── */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Card 1: Branding Form */}
-          <form onSubmit={handleSaveBranding} className="space-y-6 rounded-2xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-xl">
-            <div className="border-b border-zinc-800 pb-3">
-              <h2 className="text-lg font-bold text-amber-400 flex items-center gap-2">
-                <span>🎨</span> الهوية البصرية ومعلومات الصالون
-              </h2>
-            </div>
-
-            {/* 1. Salon Name */}
+      {/* ══════════ Section 1: Basic Salon Info ══════════ */}
+      <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/90 shadow-lg">
+        <button
+          type="button"
+          onClick={() => toggleSection("basic")}
+          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-right transition hover:bg-zinc-800/40"
+          aria-expanded={openSections.basic}
+        >
+          <div className="flex items-center gap-3">
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${openSections.basic ? "bg-amber-500 text-zinc-950" : "border border-amber-500/30 bg-amber-500/10 text-amber-400"}`}>
+              🏪
+            </span>
             <div>
-              <label className="block text-sm font-semibold text-zinc-200 mb-2">
+              <h2 className="text-base font-bold text-zinc-100">معلومات الصالون الأساسية</h2>
+              <p className="mt-0.5 hidden text-xs text-zinc-500 sm:block">اسم الصالون ورقم التواصل</p>
+            </div>
+          </div>
+          <span className={`shrink-0 text-zinc-500 transition-transform duration-200 ${openSections.basic ? "rotate-180" : ""}`}>▼</span>
+        </button>
+
+        {openSections.basic && (
+          <div className="space-y-4 border-t border-zinc-800 p-5 pt-5">
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">
                 اسم الصالون <span className="text-amber-400">*</span>
               </label>
               <input
@@ -211,48 +202,93 @@ export default function AdminSettingsPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="مثال: صالون الأناقة الملكي"
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                className={inputCls}
               />
               <p className="mt-1.5 text-xs text-zinc-400">
-                يظهر في رأس الصفحة (Navbar)، عنوان الموقع، وتطبيق الهاتف المحمول (PWA).
+                يظهر في رأس الصفحة، عنوان الموقع، وتطبيق الهاتف المحمول (PWA).
               </p>
             </div>
 
-            {/* 2. Contact Phone */}
             <div>
-              <label className="block text-sm font-semibold text-zinc-200 mb-2">رقم التواصل / الهاتف</label>
+              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">رقم التواصل / الهاتف</label>
               <input
                 type="tel"
                 dir="ltr"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+962 7 9000 0000"
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-left text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                className={`${inputCls} text-left`}
               />
-              <p className="mt-1.5 text-xs text-zinc-400">رقم الهاتف أو الواتساب المخصص لتواصل الزبائن والاستفسارات.</p>
+              <p className="mt-1.5 text-xs text-zinc-400">رقم الهاتف المخصص لتواصل الزبائن والاستفسارات.</p>
             </div>
 
-            {/* 3. Primary Brand Color */}
+            <div className="flex items-center justify-end border-t border-zinc-800 pt-4">
+              <SaveButton
+                onClick={() =>
+                  saveSection("basic", "تم حفظ معلومات الصالون الأساسية ✓", () =>
+                    !name.trim() || name.trim().length < 2 ? "اسم الصالون مطلوب ويجب أن يتكون من حرفين على الأقل" : null
+                  )
+                }
+                saving={saving.basic}
+                label="حفظ المعلومات الأساسية"
+                color={primaryColor}
+              />
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ══════════ Section 2: Visual Branding ══════════ */}
+      <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/90 shadow-lg">
+        <button
+          type="button"
+          onClick={() => toggleSection("branding")}
+          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-right transition hover:bg-zinc-800/40"
+          aria-expanded={openSections.branding}
+        >
+          <div className="flex items-center gap-3">
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${openSections.branding ? "bg-amber-500 text-zinc-950" : "border border-amber-500/30 bg-amber-500/10 text-amber-400"}`}>
+              🎨
+            </span>
             <div>
-              <label className="block text-sm font-semibold text-zinc-200 mb-2">اللون الأساسي للهوية</label>
+              <h2 className="text-base font-bold text-zinc-100">الهوية البصرية</h2>
+              <p className="mt-0.5 hidden text-xs text-zinc-500 sm:block">شعار الصالون واللون الأساسي</p>
+            </div>
+          </div>
+          <span className={`shrink-0 text-zinc-500 transition-transform duration-200 ${openSections.branding ? "rotate-180" : ""}`}>▼</span>
+        </button>
+
+        {openSections.branding && (
+          <div className="space-y-4 border-t border-zinc-800 p-5 pt-5">
+            {/* Logo */}
+            <ImageUploader
+              label="شعار الصالون (Logo)"
+              value={logoUrl}
+              onChange={setLogoUrl}
+              shape="rounded"
+              helperText="يظهر الشعار في الشريط العلوي وأيقونة تطبيق الهاتف (PWA)."
+            />
+
+            {/* Primary color */}
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">اللون الأساسي للهوية</label>
               <div className="flex flex-wrap items-center gap-3">
-                <div className="relative flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 p-2">
+                <div className="flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 p-2">
                   <input
                     type="color"
                     value={primaryColor}
                     onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="h-10 w-12 cursor-pointer rounded-lg border-0 bg-transparent p-0"
+                    className="h-9 w-11 cursor-pointer rounded-lg border-0 bg-transparent p-0"
                   />
                   <input
                     type="text"
                     dir="ltr"
                     value={primaryColor}
                     onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="w-24 bg-transparent text-sm font-mono text-zinc-200 outline-none uppercase"
+                    className="w-24 bg-transparent text-sm font-mono uppercase text-zinc-200 outline-none"
                   />
                 </div>
 
-                {/* Preset Palettes */}
                 <div className="flex flex-wrap items-center gap-2">
                   {PRESET_COLORS.map((c) => (
                     <button
@@ -263,7 +299,7 @@ export default function AdminSettingsPage() {
                       style={{ backgroundColor: c.hex }}
                       className={`h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 ${
                         primaryColor.toLowerCase() === c.hex.toLowerCase()
-                          ? "border-white ring-2 ring-amber-500 ring-offset-2 ring-offset-zinc-950 scale-105"
+                          ? "scale-105 border-white ring-2 ring-amber-500 ring-offset-2 ring-offset-zinc-950"
                           : "border-zinc-800 opacity-80 hover:opacity-100"
                       }`}
                     />
@@ -271,280 +307,243 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
               <p className="mt-1.5 text-xs text-zinc-400">
-                يحدد اللون الرئيسي للأزرار وشريط التطبيق وثيم شاشة الهاتف (Theme Color).
+                يحدد اللون الرئيسي للأزرار وشريط التطبيق وثيم شاشة الهاتف.
               </p>
             </div>
 
-            {/* 4. Salon Logo */}
-            <ImageUploader
-              label="شعار الصالون (Logo)"
-              value={logoUrl}
-              onChange={setLogoUrl}
-              shape="rounded"
-              helperText="يتم حفظ الشعار في التخزين السحابي ويظهر في الشريط العلوي وأيقونة التطبيق (PWA)."
-            />
+            <div className="flex items-center justify-end border-t border-zinc-800 pt-4">
+              <SaveButton
+                onClick={() => saveSection("branding", "تم حفظ الهوية البصرية وتحديث الثيم فوراً ✓")}
+                saving={saving.branding}
+                label="حفظ الهوية البصرية"
+                color={primaryColor}
+              />
+            </div>
+          </div>
+        )}
+      </section>
 
-            {/* 5. Social Media & Maps Links */}
-            <div className="border-t border-zinc-800/80 pt-6 space-y-4">
-              <h3 className="text-base font-bold text-amber-400 flex items-center gap-2">
-                <span>🌐</span> روابط التواصل الاجتماعي وموقع الخريطة
-              </h3>
-              <p className="text-xs text-zinc-400">
-                جميع الحقول اختيارية — تظهر الروابط المُدخلة فقط في تذييل الصفحة الرئيسية (Footer) للزبائن.
-              </p>
+      {/* ══════════ Section 3: Social Media & Maps ══════════ */}
+      <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/90 shadow-lg">
+        <button
+          type="button"
+          onClick={() => toggleSection("social")}
+          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-right transition hover:bg-zinc-800/40"
+          aria-expanded={openSections.social}
+        >
+          <div className="flex items-center gap-3">
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${openSections.social ? "bg-amber-500 text-zinc-950" : "border border-amber-500/30 bg-amber-500/10 text-amber-400"}`}>
+              🌐
+            </span>
+            <div>
+              <h2 className="text-base font-bold text-zinc-100">التواصل الاجتماعي والخريطة</h2>
+              <p className="mt-0.5 hidden text-xs text-zinc-500 sm:block">فيسبوك، إنستغرام، تيك توك، واتساب، خرائط Google</p>
+            </div>
+          </div>
+          <span className={`shrink-0 text-zinc-500 transition-transform duration-200 ${openSections.social ? "rotate-180" : ""}`}>▼</span>
+        </button>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                {/* Facebook */}
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-200 mb-1.5 flex items-center gap-1.5">
-                    <span>📘</span> رابط صفحة فيسبوك (Facebook)
-                  </label>
-                  <input
-                    type="url"
-                    dir="ltr"
-                    value={socialFacebook}
-                    onChange={(e) => setSocialFacebook(e.target.value)}
-                    placeholder="https://facebook.com/your-salon"
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-xs sm:text-sm text-left text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500"
-                  />
-                </div>
+        {openSections.social && (
+          <div className="space-y-4 border-t border-zinc-800 p-5 pt-5">
+            <p className="text-xs text-zinc-400">
+              جميع الحقول اختيارية — تظهر الروابط المُدخلة فقط في تذييل الصفحة الرئيسية للزبائن.
+            </p>
 
-                {/* Instagram */}
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-200 mb-1.5 flex items-center gap-1.5">
-                    <span>📸</span> رابط حساب إنستغرام (Instagram)
-                  </label>
-                  <input
-                    type="url"
-                    dir="ltr"
-                    value={socialInstagram}
-                    onChange={(e) => setSocialInstagram(e.target.value)}
-                    placeholder="https://instagram.com/your-salon"
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-xs sm:text-sm text-left text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500"
-                  />
-                </div>
-
-                {/* TikTok */}
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-200 mb-1.5 flex items-center gap-1.5">
-                    <span>🎵</span> رابط حساب تيك توك (TikTok)
-                  </label>
-                  <input
-                    type="url"
-                    dir="ltr"
-                    value={socialTiktok}
-                    onChange={(e) => setSocialTiktok(e.target.value)}
-                    placeholder="https://tiktok.com/@your-salon"
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-xs sm:text-sm text-left text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500"
-                  />
-                </div>
-
-                {/* WhatsApp */}
-                <div>
-                  <label className="block text-xs font-semibold text-zinc-200 mb-1.5 flex items-center gap-1.5">
-                    <span>💬</span> رقم أو رابط واتساب (WhatsApp)
-                  </label>
-                  <input
-                    type="text"
-                    dir="ltr"
-                    value={socialWhatsapp}
-                    onChange={(e) => setSocialWhatsapp(e.target.value)}
-                    placeholder="+962790000000 أو https://wa.me/..."
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-xs sm:text-sm text-left text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              {/* Google Maps Link */}
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-semibold text-zinc-200 mb-1.5 flex items-center gap-1.5">
-                  <span>📍</span> رابط موقع الصالون على خرائط Google Maps
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
+                  <span>📘</span> رابط صفحة فيسبوك (Facebook)
                 </label>
                 <input
                   type="url"
                   dir="ltr"
-                  value={mapsUrl}
-                  onChange={(e) => setMapsUrl(e.target.value)}
-                  placeholder="https://maps.google.com/?q=..."
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-xs sm:text-sm text-left text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500"
+                  value={socialFacebook}
+                  onChange={(e) => setSocialFacebook(e.target.value)}
+                  placeholder="https://facebook.com/your-salon"
+                  className={`${inputCls} py-2.5 text-left text-xs sm:text-sm`}
                 />
-                <p className="mt-1 text-[11px] text-zinc-500">
-                  الرابط الذي سيفتح للزبائن عند الضغط على &quot;موقعنا على الخريطة&quot;.
-                </p>
+              </div>
+
+              <div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
+                  <span>📸</span> رابط حساب إنستغرام (Instagram)
+                </label>
+                <input
+                  type="url"
+                  dir="ltr"
+                  value={socialInstagram}
+                  onChange={(e) => setSocialInstagram(e.target.value)}
+                  placeholder="https://instagram.com/your-salon"
+                  className={`${inputCls} py-2.5 text-left text-xs sm:text-sm`}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
+                  <span>🎵</span> رابط حساب تيك توك (TikTok)
+                </label>
+                <input
+                  type="url"
+                  dir="ltr"
+                  value={socialTiktok}
+                  onChange={(e) => setSocialTiktok(e.target.value)}
+                  placeholder="https://tiktok.com/@your-salon"
+                  className={`${inputCls} py-2.5 text-left text-xs sm:text-sm`}
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
+                  <span>💬</span> رقم أو رابط واتساب (WhatsApp)
+                </label>
+                <input
+                  type="text"
+                  dir="ltr"
+                  value={socialWhatsapp}
+                  onChange={(e) => setSocialWhatsapp(e.target.value)}
+                  placeholder="+962790000000 أو https://wa.me/..."
+                  className={`${inputCls} py-2.5 text-left text-xs sm:text-sm`}
+                />
               </div>
             </div>
 
-            {/* Submit button */}
-            <div className="pt-4 border-t border-zinc-800 flex items-center justify-end">
-              <button
-                type="submit"
-                disabled={saving}
-                style={{ backgroundColor: primaryColor }}
-                className="rounded-xl px-8 py-3 font-bold text-zinc-950 shadow-lg hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
-              >
-                {saving ? "جاري حفظ الإعدادات…" : "💾 حفظ بيانات الهوية"}
-              </button>
-            </div>
-          </form>
-
-          {/* Card 2: Password Change Form */}
-          <form onSubmit={handlePasswordChange} className="space-y-6 rounded-2xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-xl">
-            <div className="border-b border-zinc-800 pb-3">
-              <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
-                <span>🔒</span> تغيير كلمة مرور المدير
-              </h2>
-              <p className="text-xs text-zinc-400 mt-1">
-                لحماية حسابك، يرجى إدخال كلمة المرور الحالية أولاً قبل تعيين كلمة المرور الجديدة.
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
+                <span>📍</span> رابط موقع الصالون على خرائط Google Maps
+              </label>
+              <input
+                type="url"
+                dir="ltr"
+                value={mapsUrl}
+                onChange={(e) => setMapsUrl(e.target.value)}
+                placeholder="https://maps.google.com/?q=..."
+                className={`${inputCls} py-2.5 text-left text-xs sm:text-sm`}
+              />
+              <p className="mt-1 text-[11px] text-zinc-500">
+                الرابط الذي سيفتح للزبائن عند الضغط على &quot;موقعنا على الخريطة&quot;.
               </p>
             </div>
 
-            {passwordError && (
-              <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3.5 text-xs text-red-400 flex items-center gap-2">
-                <span>⚠️</span>
-                <span>{passwordError}</span>
-              </div>
-            )}
-
-            {passwordSuccess && (
-              <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3.5 text-xs text-emerald-400 flex items-center gap-2">
-                <span>✅</span>
-                <span>تم تحديث كلمة المرور بنجاح! استخدم كلمة المرور الجديدة في تسجيلات الدخول القادمة.</span>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-zinc-200 mb-2">كلمة المرور الحالية</label>
-                <input
-                  type="password"
-                  required
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="أدخل كلمة المرور الحالية"
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-amber-500"
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-semibold text-zinc-200 mb-2">كلمة المرور الجديدة</label>
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="6 خانات على الأقل"
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-zinc-200 mb-2">تأكيد كلمة المرور</label>
-                  <input
-                    type="password"
-                    required
-                    minLength={6}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="أعد كتابة كلمة المرور الجديدة"
-                    className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-amber-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-zinc-800 flex items-center justify-end">
-              <button
-                type="submit"
-                disabled={passwordSaving}
-                className="rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700 px-6 py-2.5 text-sm font-bold shadow-md active:scale-95 transition-all disabled:opacity-50"
-              >
-                {passwordSaving ? "جاري التحديث…" : "🔐 تحديث كلمة المرور"}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* ── Live Preview Card (1 col) ── */}
-        <div className="space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-400">معاينة حية للهوية</h2>
-
-          <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-xl sticky top-20">
-            {/* Fake Navbar Header Preview */}
-            <div className="border-b border-zinc-800 bg-zinc-950/90 px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                {logoUrl ? (
-                  <img src={logoUrl} alt="Logo" className="h-7 w-7 rounded-full object-cover border border-amber-500/40" />
-                ) : (
-                  <span className="text-lg">💈</span>
-                )}
-                <span className="font-bold text-sm" style={{ color: primaryColor }}>
-                  {name || "اسم الصالون"}
-                </span>
-              </div>
-              <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded">Navbar</span>
-            </div>
-
-            {/* Hero Card Preview */}
-            <div className="p-5 text-center space-y-3">
-              <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-zinc-700 bg-zinc-950 overflow-hidden shadow-inner mx-auto">
-                {logoUrl ? (
-                  <img src={logoUrl} alt="Logo" className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-3xl">💈</span>
-                )}
-              </div>
-
-              <div>
-                <h3 className="text-lg font-black text-zinc-100">{name || "صالون الحلاقة"}</h3>
-                {phone && <p className="text-xs text-zinc-400 mt-0.5" dir="ltr">{phone}</p>}
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="button"
-                  style={{ backgroundColor: primaryColor }}
-                  className="w-full rounded-xl py-2.5 text-xs font-bold text-zinc-950 shadow-md pointer-events-none"
-                >
-                  ✂ احجز موعدك الآن
-                </button>
-              </div>
-
-              {/* Social & Maps Preview Icons */}
-              {(socialFacebook || socialInstagram || socialTiktok || socialWhatsapp || mapsUrl) && (
-                <div className="pt-3 border-t border-zinc-800/80 flex items-center justify-center gap-2 text-xs">
-                  {socialWhatsapp && <span className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg" title="WhatsApp">💬</span>}
-                  {socialInstagram && <span className="p-1.5 bg-pink-500/20 text-pink-400 rounded-lg" title="Instagram">📸</span>}
-                  {socialFacebook && <span className="p-1.5 bg-blue-500/20 text-blue-400 rounded-lg" title="Facebook">📘</span>}
-                  {socialTiktok && <span className="p-1.5 bg-zinc-800 text-zinc-300 rounded-lg" title="TikTok">🎵</span>}
-                  {mapsUrl && <span className="p-1.5 bg-amber-500/20 text-amber-400 rounded-lg" title="Maps">📍</span>}
-                </div>
-              )}
-            </div>
-
-            {/* Security & Rate Limiting Status Card */}
-            <div className="border-t border-zinc-800 bg-zinc-950/70 p-4 space-y-2.5 text-xs">
-              <div className="flex items-center justify-between text-zinc-300 font-bold pb-1 border-b border-zinc-900">
-                <span>🛡 حالة حماية النظام</span>
-                <span className="text-emerald-400">مفعّلة</span>
-              </div>
-              <div className="flex items-center justify-between text-zinc-400">
-                <span>حماية محاولات الدخول:</span>
-                <span className="text-zinc-200">5 محاولات / 15 دقيقة</span>
-              </div>
-              <div className="flex items-center justify-between text-zinc-400">
-                <span>التحقق من المدخلات:</span>
-                <span className="text-zinc-200">فحص صارم من الخادم</span>
-              </div>
-              <div className="flex items-center justify-between text-zinc-400">
-                <span>تشفير كلمات المرور:</span>
-                <span className="text-zinc-200">SHA-256</span>
-              </div>
+            <div className="flex items-center justify-end border-t border-zinc-800 pt-4">
+              <SaveButton
+                onClick={() => saveSection("social", "تم حفظ روابط التواصل الاجتماعي والخريطة ✓")}
+                saving={saving.social}
+                label="حفظ روابط التواصل"
+                color={primaryColor}
+              />
             </div>
           </div>
+        )}
+      </section>
+
+      {/* ══════════ Section 4: Security (password) ══════════ */}
+      <form onSubmit={handlePasswordChange} className="space-y-5 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/90 shadow-lg p-5">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-lg text-emerald-400">
+            🔒
+          </span>
+          <div>
+            <h2 className="text-base font-bold text-zinc-100">تغيير كلمة مرور المدير</h2>
+            <p className="mt-0.5 text-xs text-zinc-500">أدخل كلمة المرور الحالية أولاً لتعيين كلمة مرور جديدة.</p>
+          </div>
         </div>
-      </div>
+
+        {passwordError && (
+          <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-400 sm:text-sm">
+            <span>⚠️</span>
+            <span>{passwordError}</span>
+          </div>
+        )}
+        {passwordSuccess && (
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-400 sm:text-sm">
+            <span>✅</span>
+            <span>تم تحديث كلمة المرور بنجاح!</span>
+          </div>
+        )}
+
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-zinc-200">كلمة المرور الحالية</label>
+          <input
+            type="password"
+            required
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-zinc-200">كلمة المرور الجديدة</label>
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="6 خانات على الأقل"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-zinc-200">تأكيد كلمة المرور</label>
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="أعد كتابة كلمة المرور الجديدة"
+              className={inputCls}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end border-t border-zinc-800 pt-4">
+          <button
+            type="submit"
+            disabled={passwordSaving}
+            className="rounded-xl border border-zinc-700 bg-zinc-800 px-6 py-2.5 text-sm font-bold text-zinc-100 shadow-md transition-all hover:bg-zinc-700 active:scale-95 disabled:opacity-50"
+          >
+            {passwordSaving ? "جاري التحديث…" : "🔐 تحديث كلمة المرور"}
+          </button>
+        </div>
+      </form>
     </div>
+  );
+}
+
+/** Per-section save button */
+function SaveButton({
+  onClick,
+  saving,
+  label,
+  color,
+}: {
+  onClick: () => void;
+  saving: boolean;
+  label: string;
+  color: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={saving}
+      style={{ backgroundColor: color }}
+      className="inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-zinc-950 shadow-lg transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
+    >
+      {saving ? (
+        <>
+          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
+            <path fill="currentColor" className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span>جاري الحفظ…</span>
+        </>
+      ) : (
+        <>💾 {label}</>
+      )}
+    </button>
   );
 }

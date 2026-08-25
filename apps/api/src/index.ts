@@ -7,9 +7,97 @@ import { ownerRoutes } from './routes/owner';
 import { customerRoutes } from './routes/customer';
 import { pushRoutes } from './routes/push';
 import { uploadRoutes } from './routes/upload';
-import { SALON_ID, logRouteError } from './utils';
+import { SALON_ID, logRouteError, formatTime12Ar } from './utils';
+import type { MessageBatch, ReminderMessage } from './types';
+import { dispatchWebPush } from './webpush';
 
 export { NotificationHub } from './durable';
+
+const REMINDER_LEAD_MINUTES = 20;
+const SALON_TZ_OFFSET = '+03:00'; // Jordan — fixed UTC+3 (matches reminders.ts)
+
+/**
+ * Queue consumer for booking-reminders.
+ *
+ * Fires ~20 minutes before each confirmed booking. Because delayed queue
+ * messages cannot be cancelled, the live DB state is re-verified here as the
+ * single source of truth: reminders are skipped if the booking was cancelled,
+ * or its date/time changed after scheduling (a modified booking would have a
+ * different start_time than the one captured in the message).
+ */
+async function processReminderBatch(batch: MessageBatch<ReminderMessage>, env: Bindings): Promise<void> {
+  for (const message of batch.messages) {
+    const { bookingId, bookingDate, startTime } = message.body;
+    try {
+      const booking = await env.DB.prepare(
+        `SELECT bk.id, bk.booking_date, bk.start_time, bk.status, bk.customer_id,
+                br.name AS barber_name
+         FROM bookings bk
+         JOIN barbers br ON br.id = bk.barber_id
+         WHERE bk.id = ? AND bk.salon_id = ?`,
+      )
+        .bind(bookingId, SALON_ID)
+        .first<{
+          id: number;
+          booking_date: string;
+          start_time: string;
+          status: string;
+          customer_id: number;
+          barber_name: string;
+        }>();
+
+      // Booking deleted → nothing to remind about
+      if (!booking) {
+        console.log(`[Reminder] Booking #${bookingId} no longer exists; skipping`);
+        continue;
+      }
+
+      // Cancelled / completed / no-show after scheduling → skip
+      if (booking.status !== 'confirmed') {
+        console.log(`[Reminder] Booking #${bookingId} status is '${booking.status}'; skipping`);
+        continue;
+      }
+
+      // Rescheduled to a different time after this reminder was queued → skip
+      if (booking.booking_date !== bookingDate || booking.start_time !== startTime) {
+        console.log(`[Reminder] Booking #${bookingId} moved to ${booking.booking_date} ${booking.start_time}; skipping stale reminder`);
+        continue;
+      }
+
+      // Safety net: don't remind for appointments that already started
+      const startMs = new Date(`${bookingDate}T${startTime}:00${SALON_TZ_OFFSET}`).getTime();
+      if (Date.now() >= startMs) {
+        console.log(`[Reminder] Booking #${bookingId} already started; skipping`);
+        continue;
+      }
+
+      const cleanBarber = booking.barber_name.startsWith('الحلاق') ? booking.barber_name : `الحلاق ${booking.barber_name}`;
+      const text = `موعدك مع ${cleanBarber} بعد ${REMINDER_LEAD_MINUTES} دقيقة! الساعة ${formatTime12Ar(startTime)} — نراك قريباً 💈`;
+
+      // Persist in-app notification record
+      await env.DB.prepare(
+        `INSERT INTO notifications (recipient_type, recipient_id, type, message, booking_id, salon_id)
+         VALUES ('customer', ?, 'reminder', ?, ?, ?)`,
+      )
+        .bind(booking.customer_id, text, bookingId, SALON_ID)
+        .run();
+
+      // Native Web Push — wakes the device even with the browser closed
+      const results = await dispatchWebPush(env.DB, 'customer', booking.customer_id, SALON_ID, {
+        title: 'تذكير بموعدك ⏰',
+        message: text,
+        url: '/my-bookings',
+        id: bookingId,
+      });
+      const delivered = results.filter((r) => r.success).length;
+      console.log(`[Reminder] Booking #${bookingId}: push sent (${delivered}/${results.length} devices)`);
+    } catch (err) {
+      // Throwing triggers a retry (up to max_retries in wrangler.toml)
+      console.error(`[Reminder] Failed processing booking #${bookingId}, will retry:`, err);
+      throw err;
+    }
+  }
+}
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -253,4 +341,8 @@ app.onError((err, c) => {
   return c.json({ error: 'خطأ داخلي في الخادم' }, 500);
 });
 
-export default app;
+// Combined worker entrypoint: Hono app (HTTP) + Queues consumer (reminders)
+export default {
+  fetch: (req: Request, env: Bindings, ctx: ExecutionContext) => app.fetch(req, env, ctx),
+  queue: processReminderBatch as ExportedHandler<Bindings>['queue'],
+} satisfies ExportedHandler<Bindings>;

@@ -14,6 +14,17 @@ database_name = "barber_db"
 database_id = "f9d5777a-bc60-4849-933b-5053a9bffcea"
 migrations_dir = "migrations"
 
+# Booking reminders — delayed messages (booking time − 20 min)
+[[queues.producers]]
+binding = "REMINDER_QUEUE"
+queue = "booking-reminders"
+
+[[queues.consumers]]
+queue = "booking-reminders"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 3
+
 [[durable_objects.bindings]]
 name = "NOTIFICATION_HUB"
 class_name = "NotificationHub"

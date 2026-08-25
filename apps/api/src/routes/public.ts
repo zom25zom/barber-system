@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Bindings, SalonSettings, Variables } from '../types';
 import { requireOwner } from './auth';
+import { deleteOldUpload } from '../cleanup';
 import {
   toMinutes,
   toHHMM,
@@ -65,6 +66,19 @@ publicRoutes.put('/salon-settings', requireOwner, async (c) => {
   const cleanPhone = phone ? String(phone).trim() : null;
   const cleanColor = primary_color ? String(primary_color).trim() : '#f59e0b';
   const cleanLogo = logo_url ? String(logo_url).trim() : null;
+
+  // Fetch the old logo URL before overwriting it, then delete its file from storage
+  if (cleanLogo !== undefined) {
+    const current = await c.env.DB.prepare('SELECT logo_url FROM salons WHERE id = ?')
+      .bind(SALON_ID)
+      .first<{ logo_url: string | null }>();
+
+    const cleanedUp = await deleteOldUpload(c.env.DB, c.env.BUCKET, current?.logo_url, cleanLogo);
+    if (!cleanedUp) {
+      return c.json({ error: 'تعذر حذف الشعار القديم من التخزين، لم يتم حفظ الرابط الجديد' }, 500);
+    }
+  }
+
   const cleanFacebook = social_facebook ? String(social_facebook).trim() : null;
   const cleanInstagram = social_instagram ? String(social_instagram).trim() : null;
   const cleanTiktok = social_tiktok ? String(social_tiktok).trim() : null;

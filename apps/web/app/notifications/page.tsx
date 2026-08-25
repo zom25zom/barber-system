@@ -8,7 +8,6 @@ import { formatDateTime } from "@/lib/time";
 import { useLiveNotifications } from "@/lib/useNotifications";
 import { enableWebPushNotifications } from "@/lib/push";
 import Spinner from "@/components/Spinner";
-import PushDiagnostics from "@/components/PushDiagnostics";
 import type { AppNotification } from "@/lib/types";
 
 export default function CustomerNotificationsPage() {
@@ -123,8 +122,6 @@ export default function CustomerNotificationsPage() {
           </div>
         ))}
       </div>
-
-      <PushDiagnostics role="customer" />
     </div>
   );
 }

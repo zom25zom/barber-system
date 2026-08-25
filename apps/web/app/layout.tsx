@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import CustomerBottomBar from "@/components/CustomerBottomBar";
 import { ToasterProvider } from "@/components/Toaster";
 
 export const metadata: Metadata = {
@@ -35,7 +36,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
         <ToasterProvider>
           <Navbar />
-          <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+          <main className="mx-auto max-w-6xl px-4 py-6">
+            {children}
+            <CustomerBottomBar />
+          </main>
         </ToasterProvider>
       </body>
     </html>

@@ -3,6 +3,7 @@ import type { Context } from 'hono';
 import type { Bindings, Variables } from '../types';
 import { requireOwner } from './auth';
 import { sendNotification } from '../notify';
+import { deleteOldUpload } from '../cleanup';
 import { servicesDuration } from './public';
 import {
   isValidDate,
@@ -109,8 +110,20 @@ ownerRoutes.patch('/barbers/:id', async (c) => {
     if (body.photo_url && !isValidUrlOrDataUri(body.photo_url)) {
       return c.json({ error: 'رابط صورة الحلاق غير صالح' }, 400);
     }
+
+    // Fetch the old photo URL before overwriting it, then delete its file from storage
+    const current = await c.env.DB.prepare('SELECT photo_url FROM barbers WHERE id = ? AND salon_id = ?')
+      .bind(id, SALON_ID)
+      .first<{ photo_url: string | null }>();
+
+    const newPhotoUrl = body.photo_url ? String(body.photo_url).trim() : null;
+    const cleanedUp = await deleteOldUpload(c.env.DB, c.env.BUCKET, current?.photo_url, newPhotoUrl);
+    if (!cleanedUp) {
+      return c.json({ error: 'تعذر حذف الصورة القديمة من التخزين، لم يتم حفظ الرابط الجديد' }, 500);
+    }
+
     fields.push('photo_url = ?');
-    values.push(body.photo_url ? String(body.photo_url).trim() : null);
+    values.push(newPhotoUrl);
   }
 
   if (body.is_active !== undefined) {

@@ -54,33 +54,52 @@ export async function sendNotification(
     created_at: res?.created_at ?? new Date().toISOString(),
   };
 
-  // 1. Fire-and-forget push to the WebSocket hub (for open browser tabs)
-  try {
-    const hub = c.env.NOTIFICATION_HUB.get(c.env.NOTIFICATION_HUB.idFromName(`salon-${SALON_ID}`));
-    await hub.fetch('https://hub/broadcast', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  } catch {
-    // best-effort real-time delivery
-  }
+  // 1. Live push to the WebSocket hub (for open browser tabs) — best-effort.
+  //    The DO may need a cold start on first use after idle; failures are
+  //    non-fatal and must never delay or break the Web Push below.
+  const hubBroadcastPromise = (async () => {
+    try {
+      const hub = c.env.NOTIFICATION_HUB.get(c.env.NOTIFICATION_HUB.idFromName(`salon-${SALON_ID}`));
+      await hub.fetch('https://hub/broadcast', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // best-effort real-time delivery
+    }
+  })();
 
-  // 2. Dispatch Native Web Push (wakes up mobile devices even when browser is closed)
+  // 2. Native Web Push (wakes up devices even when browser is completely closed)
   const title =
     recipientType === 'owner' ? 'صالون الحلاقة — حجز جديد أو تعديل 💈' : 'صالون الحلاقة — إشعار جديد 💈';
   const url = recipientType === 'owner' ? '/admin/bookings' : '/my-bookings';
 
-  try {
-    console.log(`[Notify] Dispatching Web Push → ${recipientType}${recipientId != null ? ` (id=${recipientId})` : ''} | type=${type} | salon=${SALON_ID}`);
-    const results = await dispatchWebPush(c.env.DB, recipientType, recipientId, SALON_ID, {
-      title,
-      message,
-      url,
-      id: res?.id,
-    });
-    const successCount = results.filter((r) => r.success).length;
-    console.log(`[Notify] Web Push dispatch done: ${successCount}/${results.length} delivered`);
-  } catch (err) {
-    logRouteError('/notify', 'WEB_PUSH_DISPATCH_ERROR', err, { recipientType, recipientId, type });
+  const webPushPromise = (async () => {
+    try {
+      console.log(`[Notify] Dispatching Web Push → ${recipientType}${recipientId != null ? ` (id=${recipientId})` : ''} | type=${type} | salon=${SALON_ID}`);
+      const results = await dispatchWebPush(c.env.DB, recipientType, recipientId, SALON_ID, {
+        title,
+        message,
+        url,
+        id: res?.id,
+      });
+      const successCount = results.filter((r) => r.success).length;
+      console.log(`[Notify] Web Push dispatch done: ${successCount}/${results.length} delivered`);
+    } catch (err) {
+      logRouteError('/notify', 'WEB_PUSH_DISPATCH_ERROR', err, { recipientType, recipientId, type });
+    }
+  })();
+
+  // Fire the real-time delivery work (DO hub + Web Push). Using waitUntil when
+  // available guarantees completion even if the HTTP response finishes early
+  // (e.g. client disconnects, or a cold-started Worker hits response streaming
+  // edge cases) — while also unblocking the booking request from push latency.
+  const deliveryWork = Promise.allSettled([hubBroadcastPromise, webPushPromise]);
+
+  const ctx = c.executionCtx;
+  if (ctx?.waitUntil) {
+    ctx.waitUntil(deliveryWork);
+  } else {
+    await deliveryWork;
   }
 }

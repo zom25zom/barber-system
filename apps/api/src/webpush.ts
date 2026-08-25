@@ -88,7 +88,9 @@ export async function dispatchWebPush(
           {
             data: payloadData,
             options: {
-              ttl: 86400,
+              // Short TTL (1h): the push must be delivered now or dropped —
+              // combined with urgency=high this discourages Doze-mode batching.
+              ttl: 3600,
               urgency: 'high',
             },
           },
@@ -107,7 +109,7 @@ export async function dispatchWebPush(
           },
         );
 
-        console.log(`[WebPush] → Sending to Push Service for sub #${sub.id}...`);
+        console.log(`[WebPush] → Sending to Push Service for sub #${sub.id} | TTL=${pushPayload.headers['ttl']} | Urgency=${pushPayload.headers['urgency'] ?? '(not set)'}`);
 
         const res = await fetch(sub.endpoint, {
           method: 'POST',

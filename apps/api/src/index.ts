@@ -64,11 +64,22 @@ async function processReminderBatch(batch: MessageBatch<ReminderMessage>, env: B
         continue;
       }
 
-      // Safety net: don't remind for appointments that already started
-      const startMs = new Date(`${bookingDate}T${startTime}:00${SALON_TZ_OFFSET}`).getTime();
-      if (Date.now() >= startMs) {
-        console.log(`[Reminder] Booking #${bookingId} already started; skipping`);
-        continue;
+      // Queue delay is capped at 24h (Cloudflare Queues rejects longer delays),
+      // so re-chain the message until the reminder window (~20 min before start).
+      const reminderTargetMs =
+        new Date(`${bookingDate}T${startTime}:00${SALON_TZ_OFFSET}`).getTime() - REMINDER_LEAD_MINUTES * 60_000;
+      const remainingSeconds = Math.floor((reminderTargetMs - Date.now()) / 1000);
+
+      if (remainingSeconds > 60 && env.REMINDER_QUEUE) {
+        const nextDelay = Math.min(remainingSeconds, 86_400);
+        try {
+          await env.REMINDER_QUEUE.send(message.body, { delaySeconds: nextDelay });
+          console.log(`[Reminder] Booking #${bookingId}: re-chained, fires in ~${nextDelay}s`);
+          continue;
+        } catch (err) {
+          console.error(`[Reminder] Re-chain failed for booking #${bookingId}, will retry:`, err);
+          throw err;
+        }
       }
 
       const cleanBarber = booking.barber_name.startsWith('الحلاق') ? booking.barber_name : `الحلاق ${booking.barber_name}`;

@@ -19,9 +19,10 @@ function salonLocalTimestamp(date: string, time: string): number {
  * Schedules a pre-appointment reminder for a confirmed booking by sending a
  * delayed message to the booking-reminders queue.
  *
- * The message fires at (booking start − 20 min). Cancellations/modifications
- * are handled at consumption time by re-checking the live DB state —
- * Cloudflare Queues cannot cancel an already-delayed message.
+ * Cloudflare Queues rejects delaySeconds above ~24h (empirically verified:
+ * 24h succeeds, 72h fails with "Bad Request"), so we cap the initial delay at
+ * QUEUE_MAX_DELAY and let the consumer re-chain the message until it fires
+ * inside the reminder window.
  *
  * Urgent bookings (< 20 min away) are intentionally skipped instead of
  * scheduling with a negative delay.
@@ -49,12 +50,16 @@ export async function scheduleBookingReminder(
       return;
     }
 
+    const cappedDelay = Math.min(delaySeconds, QUEUE_MAX_DELAY_SECONDS);
     const body: ReminderMessage = { bookingId, bookingDate, startTime };
-    await env.REMINDER_QUEUE.send(body, { delaySeconds });
-    console.log(`[Reminder] Scheduled booking #${bookingId} in ${delaySeconds}s (${bookingDate} ${startTime})`);
+    await env.REMINDER_QUEUE.send(body, { delaySeconds: cappedDelay });
+    console.log(
+      `[Reminder] Scheduled booking #${bookingId}: requested ${delaySeconds}s → queued ${cappedDelay}s (${bookingDate} ${startTime})`,
+    );
   } catch (err) {
     console.error(`[Reminder] Failed to schedule reminder for booking #${bookingId}:`, err);
   }
 }
 
+export const QUEUE_MAX_DELAY_SECONDS = 86_400; // empirically-safe maximum (24h)
 export { SALON_ID };

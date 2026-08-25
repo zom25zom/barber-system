@@ -13,11 +13,11 @@ import {
 
 export const authRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
-// ---------- Owner Login (Rate limited: 5 attempts per 15 mins per IP) ----------
+// ---------- Owner Login (Rate limited: 5 attempts per 5 mins per IP) ----------
 
 authRoutes.post('/owner/login', async (c) => {
   const ip = getClientIP(c);
-  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, SALON_ID, `owner_login:${ip}`, 5, 900);
+  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, SALON_ID, `owner_login:${ip}`, 5, 300);
   if (!rl.allowed) {
     const minutes = Math.ceil((rl.retryAfter || 60) / 60);
     return c.json(
@@ -101,11 +101,11 @@ authRoutes.post('/owner/change-password', async (c) => {
   return c.json({ ok: true, message: 'تم تغيير كلمة المرور بنجاح' });
 });
 
-// ---------- Customer Register (Rate limited: 5 attempts per 15 mins per IP) ----------
+// ---------- Customer Register (Rate limited: 5 attempts per 5 mins per IP) ----------
 
 authRoutes.post('/customer/register', async (c) => {
   const ip = getClientIP(c);
-  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, SALON_ID, `cust_register:${ip}`, 5, 900);
+  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, SALON_ID, `cust_register:${ip}`, 5, 300);
   if (!rl.allowed) {
     const minutes = Math.ceil((rl.retryAfter || 60) / 60);
     return c.json(
@@ -151,11 +151,11 @@ authRoutes.post('/customer/register', async (c) => {
   );
 });
 
-// ---------- Customer Login (Rate limited: 5 attempts per 15 mins per IP) ----------
+// ---------- Customer Login (Rate limited: 5 attempts per 5 mins per IP) ----------
 
 authRoutes.post('/customer/login', async (c) => {
   const ip = getClientIP(c);
-  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, SALON_ID, `cust_login:${ip}`, 5, 900);
+  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, SALON_ID, `cust_login:${ip}`, 5, 300);
   if (!rl.allowed) {
     const minutes = Math.ceil((rl.retryAfter || 60) / 60);
     return c.json(

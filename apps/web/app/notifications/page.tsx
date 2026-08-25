@@ -16,6 +16,10 @@ export default function CustomerNotificationsPage() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [pushStatus, setPushStatus] = useState<string | null>(null);
+  // Button only shows while push permission is not yet granted
+  const [pushEnabled, setPushEnabled] = useState<boolean>(
+    () => typeof window !== "undefined" && "Notification" in window && Notification.permission !== "granted"
+  );
 
   useEffect(() => {
     if (!token) router.replace("/login");
@@ -44,7 +48,9 @@ export default function CustomerNotificationsPage() {
     setPushStatus("جاري التفعيل والاشتراك…");
     const ok = await enableWebPushNotifications("customer");
     if (ok) {
-      setPushStatus("✓ تم تفعيل إشعارات الهاتف بنجاح! ستصلك التنبيهات حتى عند إغلاق المتصفح.");
+      // Permission granted → hide the button entirely
+      setPushEnabled(false);
+      setPushStatus("✓ تم تفعيل الإشعارات بنجاح! ستصلك التنبيهات حتى عند إغلاق المتصفح.");
     } else {
       setPushStatus("يرجى السماح بإذن الإشعارات من إعدادات المتصفح في هاتفك.");
     }
@@ -59,12 +65,14 @@ export default function CustomerNotificationsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">الإشعارات والتنبيهات</h1>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleEnablePush}
-            className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-amber-400 hover:bg-amber-500/20 transition-colors"
-          >
-            🔔 تفعيل إشعارات الهاتف
-          </button>
+          {pushEnabled && (
+            <button
+              onClick={handleEnablePush}
+              className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-amber-400 hover:bg-amber-500/20 transition-colors"
+            >
+              🔔 تفعيل الإشعارات
+            </button>
+          )}
           {unread > 0 && (
             <button
               onClick={markAllRead}

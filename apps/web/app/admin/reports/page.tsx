@@ -61,10 +61,11 @@ const HOURS_RANGE = Array.from({ length: 14 }, (_, i) => i + 9); // 09:00 to 22:
 export default function AdminReportsPage() {
   const token = getOwnerToken();
   const toast = useToast();
-  const today = new Date().toISOString().slice(0, 10);
-  const weekAgo = new Date(Date.now() - 6 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  // Salon-local dates (Jordan UTC+3) — raw toISOString() lags a day between 00:00-03:00 local
+  const today = new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
+  const weekAgo = new Date(Date.now() + 3 * 3600_000 - 6 * 24 * 3600_000).toISOString().slice(0, 10);
 
-  const [period, setPeriod] = useState<"today" | "week" | "month" | "custom">("month");
+  const [period, setPeriod] = useState<"today" | "this_week" | "this_month" | "week" | "month" | "custom">("this_month");
   const [fromDate, setFromDate] = useState(weekAgo);
   const [toDate, setToDate] = useState(today);
   const [data, setData] = useState<ReportsData | null>(null);
@@ -233,6 +234,8 @@ export default function AdminReportsPage() {
         <div className="flex flex-wrap gap-1.5">
           {[
             { key: "today", label: "اليوم" },
+            { key: "this_week", label: "هذا الأسبوع" },
+            { key: "this_month", label: "هذا الشهر" },
             { key: "week", label: "آخر 7 أيام" },
             { key: "month", label: "آخر 30 يوم" },
             { key: "custom", label: "فترة مخصصة 🗓️" },
@@ -277,11 +280,11 @@ export default function AdminReportsPage() {
         )}
 
         <div className="flex flex-wrap items-center gap-3 px-2">
-          {(period !== "month" || fromDate !== weekAgo || toDate !== today) && (
+          {(period !== "this_month" || fromDate !== weekAgo || toDate !== today) && (
             <button
               type="button"
               onClick={() => {
-                setPeriod("month");
+                setPeriod("this_month");
                 setFromDate(weekAgo);
                 setToDate(today);
                 toast.info("تمت إعادة ضبط الفلاتر للقيمة الافتراضية");

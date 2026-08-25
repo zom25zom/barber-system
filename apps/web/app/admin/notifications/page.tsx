@@ -19,6 +19,10 @@ export default function AdminNotificationsPage() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [pushStatus, setPushStatus] = useState<string | null>(null);
+  // Button only shows while push permission is not yet granted
+  const [pushEnabled, setPushEnabled] = useState<boolean>(
+    () => typeof window !== "undefined" && "Notification" in window && Notification.permission !== "granted"
+  );
 
   useEffect(() => {
     if (!token) router.replace("/admin/login");
@@ -52,7 +56,9 @@ export default function AdminNotificationsPage() {
     setPushStatus("جاري التفعيل والاشتراك في إشعارات الهاتف…");
     const ok = await enableWebPushNotifications("owner");
     if (ok) {
-      const msg = "✓ تم تفعيل إشعارات هاتف الإدارة بنجاح!";
+      // Permission granted → hide the button entirely
+      setPushEnabled(false);
+      const msg = "✓ تم تفعيل الإشعارات بنجاح!";
       setPushStatus(msg);
       toast.success(msg);
     } else {
@@ -71,12 +77,14 @@ export default function AdminNotificationsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">إشعارات وتنبيهات الإدارة</h1>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleEnablePush}
-            className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-amber-400 hover:bg-amber-500/20 transition-colors"
-          >
-            🔔 تفعيل إشعارات الهاتف
-          </button>
+          {pushEnabled && (
+            <button
+              onClick={handleEnablePush}
+              className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-amber-400 hover:bg-amber-500/20 transition-colors"
+            >
+              🔔 تفعيل الإشعارات
+            </button>
+          )}
           {unread > 0 && (
             <button
               onClick={markAllRead}

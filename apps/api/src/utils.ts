@@ -201,9 +201,17 @@ export function formatTime12Ar(
   return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`;
 }
 
-/** Today as YYYY-MM-DD in local offset-less ISO form (UTC-based; salon ops are single-tenant). */
+/** Salon timezone offset (Jordan — UTC+3 fixed, no DST since 2022). */
+export const SALON_TZ_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/** Current moment shifted into salon-local time as a real Date (use with getUTC* getters). */
+export function salonNow(): Date {
+  return new Date(Date.now() + SALON_TZ_OFFSET_MS);
+}
+
+/** Today as YYYY-MM-DD in SALON-LOCAL time (Jordan, UTC+3) — NOT raw UTC. */
 export function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return new Date(Date.now() + SALON_TZ_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 export function addDaysISO(dateISO: string, days: number): string {

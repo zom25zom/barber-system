@@ -1,13 +1,26 @@
 @import "tailwindcss";
 
+/* ── Unified app-wide font ──
+   Registers Tajawal as Tailwind v4's default sans font:
+   • Preflight applies it at <html> level (--default-font-family)
+   • Any `font-sans` utility resolves to it
+   • Every page/component inherits it unless explicitly overridden */
+@theme {
+  --font-sans: "Tajawal", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
 :root {
   color-scheme: dark;
+}
+
+html {
+  font-family: "Tajawal", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 body {
   background-color: #09090b;
   color: #f4f4f5;
-  font-family: "Tajawal", "Segoe UI", system-ui, sans-serif;
+  font-family: "Tajawal", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 /* ── smooth scrolling ── */

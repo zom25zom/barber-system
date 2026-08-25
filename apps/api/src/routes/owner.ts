@@ -19,6 +19,8 @@ import {
   isPositivePrice,
   isValidDuration,
   isValidUrlOrDataUri,
+  addDaysISO,
+  salonNow,
 } from '../utils';
 
 export const ownerRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
@@ -803,8 +805,10 @@ ownerRoutes.get('/stats', async (c) => {
 
 ownerRoutes.get('/reports', async (c) => {
   const db = c.env.DB;
-  const { period = 'month', from: qFrom, to: qTo } = c.req.query();
-  const today = new Date().toISOString().slice(0, 10);
+  const { period = 'this_month', from: qFrom, to: qTo } = c.req.query();
+  // Salon-local "today" (Jordan UTC+3) — raw UTC would lag a day between 00:00-03:00 local.
+  const now = salonNow();
+  const today = now.toISOString().slice(0, 10);
 
   let startDate = today;
   let endDate = today;
@@ -812,11 +816,23 @@ ownerRoutes.get('/reports', async (c) => {
   if (period === 'today') {
     startDate = today;
     endDate = today;
+  } else if (period === 'this_week') {
+    // Calendar week (Sunday..Saturday) in salon-local time — includes upcoming days
+    const dow = now.getUTCDay(); // 0=Sunday
+    startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dow))
+      .toISOString().slice(0, 10);
+    endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dow + 6))
+      .toISOString().slice(0, 10);
+  } else if (period === 'this_month') {
+    // Calendar month — extends to end of month so future-dated bookings
+    // (e.g. appointments already marked completed) are included.
+    startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
+    endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
   } else if (period === 'week') {
-    startDate = new Date(Date.now() - 6 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    startDate = addDaysISO(today, -6);
     endDate = today;
   } else if (period === 'month') {
-    startDate = new Date(Date.now() - 29 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    startDate = addDaysISO(today, -29);
     endDate = today;
   } else if (period === 'custom') {
     startDate = qFrom && /^\d{4}-\d{2}-\d{2}$/.test(qFrom) ? qFrom : today;
@@ -827,6 +843,9 @@ ownerRoutes.get('/reports', async (c) => {
       endDate = tmp;
     }
   }
+
+  // Diagnostic log — verifies the exact inclusive range used by all report queries
+  console.log(`[Reports] period=${period} | start_date=${startDate} | end_date=${endDate} (BETWEEN, end-day inclusive)`);
 
   // 1. Overall Summary
   const summary = await db.prepare(

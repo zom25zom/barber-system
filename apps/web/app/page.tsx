@@ -6,6 +6,14 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import type { Barber } from "@/lib/types";
 import { useSalonSettings } from "@/lib/salon";
+import {
+  IconFacebook,
+  IconInstagram,
+  IconMapPin,
+  IconPhone,
+  IconTiktok,
+  IconWhatsapp,
+} from "@/components/icons";
 
 function getWhatsappLink(wa: string): string {
   if (wa.startsWith("http://") || wa.startsWith("https://")) return wa;
@@ -192,10 +200,10 @@ export default function HomePage() {
               {salon.phone && (
                 <a
                   href={`tel:${salon.phone}`}
-                  className="text-xs text-emerald-400 hover:underline inline-flex items-center gap-1 mt-0.5"
+                  className="text-xs text-emerald-400 hover:underline inline-flex items-center gap-1.5 mt-0.5"
                   dir="ltr"
                 >
-                  <span>📞</span>
+                  <IconPhone className="h-3.5 w-3.5" />
                   <span>{salon.phone}</span>
                 </a>
               )}
@@ -210,7 +218,7 @@ export default function HomePage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs sm:text-sm font-bold text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/50 transition active:scale-95"
             >
-              <span>📍</span>
+              <IconMapPin className="h-4 w-4" />
               <span>موقعنا على الخريطة</span>
               <span className="text-xs opacity-70">↗</span>
             </a>
@@ -227,7 +235,7 @@ export default function HomePage() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20 transition active:scale-95"
               >
-                <span>💬</span>
+                <IconWhatsapp className="h-4 w-4" />
                 <span>واتساب</span>
               </a>
             )}
@@ -239,7 +247,7 @@ export default function HomePage() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-xl border border-pink-500/30 bg-pink-500/10 px-4 py-2 text-xs font-bold text-pink-400 hover:bg-pink-500/20 transition active:scale-95"
               >
-                <span>📸</span>
+                <IconInstagram className="h-4 w-4" />
                 <span>إنستغرام</span>
               </a>
             )}
@@ -251,7 +259,7 @@ export default function HomePage() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-xs font-bold text-blue-400 hover:bg-blue-500/20 transition active:scale-95"
               >
-                <span>📘</span>
+                <IconFacebook className="h-4 w-4" />
                 <span>فيسبوك</span>
               </a>
             )}
@@ -263,7 +271,7 @@ export default function HomePage() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-bold text-zinc-200 hover:bg-zinc-800 transition active:scale-95"
               >
-                <span>🎵</span>
+                <IconTiktok className="h-4 w-4" />
                 <span>تيك توك</span>
               </a>
             )}

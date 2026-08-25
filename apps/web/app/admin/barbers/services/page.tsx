@@ -81,12 +81,21 @@ function ServicesContent() {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
+
+    const parsedPrice = parseFloat(formPrice);
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      const msg = "يرجى إدخال سعر صحيح أكبر من الصفر";
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
       const body = {
-        name: formName,
-        price: Number(formPrice),
+        name: formName.trim(),
+        price: parsedPrice,
         duration_minutes: Number(formDuration),
       };
       if (editId) {
@@ -205,12 +214,12 @@ function ServicesContent() {
                 <input
                   type="number"
                   required
-                  min="0.1"
-                  step="0.5"
+                  min="0.000001"
+                  step="any"
                   value={formPrice}
                   onChange={(e) => setFormPrice(e.target.value)}
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 outline-none focus:border-amber-500"
-                  placeholder="10"
+                  placeholder="مثال: 10 أو 7.5"
                 />
               </div>
               <div>

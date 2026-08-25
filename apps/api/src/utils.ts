@@ -120,10 +120,10 @@ export function isPositiveInt(n: unknown): n is number {
   return Number.isInteger(num) && num > 0;
 }
 
-/** Validates positive prices (0.1 to 10000) */
+/** Validates positive prices (any positive decimal/integer > 0) */
 export function isPositivePrice(n: unknown): n is number {
   const num = Number(n);
-  return Number.isFinite(num) && num > 0 && num <= 10000;
+  return Number.isFinite(num) && num > 0;
 }
 
 /** Validates service durations (5 minutes to 480 minutes / 8 hours) */

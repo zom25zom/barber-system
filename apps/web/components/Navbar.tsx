@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { clearCustomerAuth, getCustomerProfile, getOwnerToken, clearOwnerToken } from "@/lib/auth";
 import { useSalonSettings } from "@/lib/salon";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -12,6 +13,8 @@ export default function Navbar() {
   const [customerName, setCustomerName] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [ownerLogoutOpen, setOwnerLogoutOpen] = useState(false);
+  const [customerLogoutOpen, setCustomerLogoutOpen] = useState(false);
   const salon = useSalonSettings();
 
   useEffect(() => {
@@ -34,6 +37,23 @@ export default function Navbar() {
   if (pathname.startsWith("/admin")) {
     return (
       <header className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur">
+        {/* Admin Logout Confirmation Modal */}
+        <ConfirmModal
+          isOpen={ownerLogoutOpen}
+          title="تأكيد تسجيل الخروج"
+          message="هل أنت متأكد من رغبتك في تسجيل الخروج من لوحة تحكم الصالون؟"
+          confirmText="نعم، تسجيل الخروج"
+          cancelText="إلغاء"
+          variant="warning"
+          icon="🚪"
+          onConfirm={() => {
+            setOwnerLogoutOpen(false);
+            clearOwnerToken();
+            router.push("/admin/login");
+          }}
+          onClose={() => setOwnerLogoutOpen(false)}
+        />
+
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link href="/admin" className="flex items-center gap-2.5">
             {salon.logo_url ? (
@@ -53,10 +73,8 @@ export default function Navbar() {
             </Link>
             {isOwner && (
               <button
-                onClick={() => {
-                  clearOwnerToken();
-                  router.push("/admin/login");
-                }}
+                type="button"
+                onClick={() => setOwnerLogoutOpen(true)}
                 className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs sm:text-sm text-red-400 hover:bg-red-500/10"
               >
                 خروج
@@ -70,6 +88,24 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur">
+      {/* Customer Logout Confirmation Modal */}
+      <ConfirmModal
+        isOpen={customerLogoutOpen}
+        title="تأكيد تسجيل الخروج"
+        message="هل أنت متأكد من رغبتك في تسجيل الخروج من حسابك؟"
+        confirmText="نعم، تسجيل الخروج"
+        cancelText="إلغاء"
+        variant="warning"
+        icon="🚪"
+        onConfirm={() => {
+          setCustomerLogoutOpen(false);
+          setMobileMenuOpen(false);
+          clearCustomerAuth();
+          router.push("/");
+        }}
+        onClose={() => setCustomerLogoutOpen(false)}
+      />
+
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
           {salon.logo_url ? (
@@ -114,10 +150,8 @@ export default function Navbar() {
                 👋 {customerName}
               </span>
               <button
-                onClick={() => {
-                  clearCustomerAuth();
-                  router.push("/");
-                }}
+                type="button"
+                onClick={() => setCustomerLogoutOpen(true)}
                 className="rounded-lg px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10"
               >
                 تسجيل خروج
@@ -228,11 +262,8 @@ export default function Navbar() {
                   🔔 الإشعارات
                 </Link>
                 <button
-                  onClick={() => {
-                    clearCustomerAuth();
-                    setMobileMenuOpen(false);
-                    router.push("/");
-                  }}
+                  type="button"
+                  onClick={() => setCustomerLogoutOpen(true)}
                   className="text-right w-full rounded-lg px-3 py-2 text-xs text-red-400 hover:bg-red-500/10"
                 >
                   🚪 تسجيل خروج

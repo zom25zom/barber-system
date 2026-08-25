@@ -3,10 +3,11 @@
 import { useEffect, useState, useCallback, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { getOwnerToken } from "@/lib/auth";
+import { getOwnerToken, clearOwnerToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { useLiveNotifications } from "@/lib/useNotifications";
 import { useSalonSettings } from "@/lib/salon";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const nav = [
   { href: "/admin", label: "الرئيسية", icon: "📊" },
@@ -22,7 +23,7 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
   const router = useRouter();
   const token = getOwnerToken();
   const [unread, setUnread] = useState(0);
-  const [mobileMenu, setMobileMenu] = useState(false);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const salon = useSalonSettings();
 
   // Dynamically ensure Admin PWA manifest and title are active when in /admin
@@ -69,6 +70,23 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
 
   return (
     <div className="mx-auto max-w-7xl lg:flex lg:gap-6">
+      {/* ── Logout Confirmation Modal ── */}
+      <ConfirmModal
+        isOpen={logoutModalOpen}
+        title="تأكيد تسجيل الخروج"
+        message="هل أنت متأكد من رغبتك في تسجيل الخروج من لوحة تحكم الصالون؟"
+        confirmText="نعم، تسجيل الخروج"
+        cancelText="إلغاء"
+        variant="warning"
+        icon="🚪"
+        onConfirm={() => {
+          setLogoutModalOpen(false);
+          clearOwnerToken();
+          router.push("/admin/login");
+        }}
+        onClose={() => setLogoutModalOpen(false)}
+      />
+
       {/* ── Desktop Sidebar (Visible only on lg screens) ── */}
       <aside className="hidden lg:block shrink-0 space-y-1.5 lg:w-60 sticky top-20 h-fit">
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-3 shadow-xl space-y-1">
@@ -90,6 +108,16 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
               </Link>
             );
           })}
+
+          <div className="pt-2 border-t border-zinc-800/80 mt-2">
+            <button
+              onClick={() => setLogoutModalOpen(true)}
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all"
+            >
+              <span className="text-lg">🚪</span>
+              <span>تسجيل خروج</span>
+            </button>
+          </div>
         </div>
       </aside>
 

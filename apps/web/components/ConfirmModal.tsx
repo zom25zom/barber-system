@@ -10,6 +10,7 @@ interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   variant?: "danger" | "warning" | "primary";
+  icon?: string;
   isLoading?: boolean;
   onConfirm: () => void;
   onClose: () => void;
@@ -22,6 +23,7 @@ export default function ConfirmModal({
   confirmText = "تأكيد",
   cancelText = "إلغاء",
   variant = "danger",
+  icon,
   isLoading = false,
   onConfirm,
   onClose,
@@ -75,7 +77,7 @@ export default function ConfirmModal({
       <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl animate-in zoom-in-95 duration-150">
         <div className="flex items-start gap-4">
           <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${currentStyle.iconBg} text-2xl`}>
-            {currentStyle.icon}
+            {icon || currentStyle.icon}
           </div>
           <div className="flex-1 text-right">
             <h3 className="text-lg font-bold text-zinc-100">{title}</h3>

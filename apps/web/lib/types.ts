@@ -62,6 +62,24 @@ export type WaitlistEntry = {
   status: string;
 };
 
+export type QueueItem = {
+  booking_id: number;
+  barber_id: number;
+  barber_name: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  effective_start_time?: string;
+  delay_minutes?: number;
+  target_datetime_iso?: string;
+  total_price: number;
+  services: { name: string; price: number; duration_minutes: number }[];
+  people_ahead: number;
+  queue_number: number;
+  estimated_wait_minutes: number;
+  is_my_turn: boolean;
+};
+
 export type AppNotification = {
   id: number;
   type: string;

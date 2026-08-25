@@ -276,11 +276,28 @@ export default function AdminReportsPage() {
           </div>
         )}
 
-        {data && (
-          <div className="text-xs text-zinc-500 px-3">
-            الفترة المحددة: <span className="font-mono text-zinc-300">{data.from}</span> إلى <span className="font-mono text-zinc-300">{data.to}</span>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-3 px-2">
+          {(period !== "month" || fromDate !== weekAgo || toDate !== today) && (
+            <button
+              type="button"
+              onClick={() => {
+                setPeriod("month");
+                setFromDate(weekAgo);
+                setToDate(today);
+                toast.info("تمت إعادة ضبط الفلاتر للقيمة الافتراضية");
+              }}
+              className="rounded-xl border border-zinc-700 bg-zinc-800/90 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white transition active:scale-95 shadow-sm"
+            >
+              مسح الفلاتر ✕
+            </button>
+          )}
+
+          {data && (
+            <div className="text-xs text-zinc-500">
+              الفترة المحددة: <span className="font-mono text-zinc-300">{data.from}</span> إلى <span className="font-mono text-zinc-300">{data.to}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (

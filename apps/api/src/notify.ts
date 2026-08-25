@@ -7,6 +7,23 @@ type RecipientType = 'owner' | 'customer';
 type NotificationType = 'new_booking' | 'cancellation' | 'waitlist_available';
 
 /**
+ * Format standard new booking notification text
+ * الصيغة الموحدة: "حجز جديد: [اسم الزبون] مع الحلاق [اسم الحلاق]"
+ */
+export function formatNewBookingMessage(
+  customerName: string,
+  barberName: string,
+  date?: string,
+  time?: string,
+): string {
+  const cleanBarber = barberName.startsWith('الحلاق') ? barberName : `الحلاق ${barberName}`;
+  if (date && time) {
+    return `حجز جديد: ${customerName} مع ${cleanBarber} بتاريخ ${date} الساعة ${time}.`;
+  }
+  return `حجز جديد: ${customerName} مع ${cleanBarber}`;
+}
+
+/**
  * Persist a notification and push it in real time through:
  * 1. Durable Object WebSocket hub (for live active pages)
  * 2. Native Web Push API (for mobile and desktop even when the browser is completely closed)

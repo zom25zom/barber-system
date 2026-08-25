@@ -67,6 +67,10 @@ export function toISODate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+export function todayDateISO(): string {
+  return toISODate(new Date());
+}
+
 export type DayOption = { iso: string; weekday: string; label: string };
 
 /** Today + the next 6 days, with Arabic weekday names. */

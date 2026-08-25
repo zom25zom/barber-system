@@ -3,8 +3,13 @@ import type { Context } from 'hono';
 import type { Bindings, Variables } from '../types';
 import { requireOwner } from './auth';
 import { sendNotification } from '../notify';
+import { servicesDuration } from './public';
 import {
+  isValidDate,
   isValidTime,
+  toMinutes,
+  toHHMM,
+  dayOfWeek,
   formatTime12Ar,
   SALON_ID,
   sha256,
@@ -204,7 +209,7 @@ function validateService(name: any, price: any, duration: any): string | null {
     return 'اسم الخدمة مطلوب (بين 2 و 80 حرفاً)';
   }
   if (!isPositivePrice(price)) {
-    return 'سعر غير صالح (يجب أن يكون رقماً موجباً بين 0.1 و 10,000)';
+    return 'سعر غير صالح (يجب أن يكون رقماً أكبر من الصفر)';
   }
   if (!isValidDuration(duration)) {
     return 'مدة غير صالحة (يجب أن تكون بين 5 و 480 دقيقة)';
@@ -432,6 +437,224 @@ ownerRoutes.get('/bookings', async (c) => {
       services: services.filter((s) => s.booking_id === b.id),
     })),
   });
+});
+
+// ---------- Customers lookup / search for manual booking ----------
+
+ownerRoutes.get('/customers', async (c) => {
+  const q = c.req.query('q');
+  if (q && typeof q === 'string' && q.trim()) {
+    const term = `%${q.trim()}%`;
+    const { results } = await c.env.DB.prepare(
+      `SELECT id, username, phone FROM customers
+       WHERE salon_id = ? AND (username LIKE ? OR phone LIKE ?)
+       ORDER BY username LIMIT 30`,
+    )
+      .bind(SALON_ID, term, term)
+      .all();
+    return c.json({ customers: results });
+  }
+
+  const { results } = await c.env.DB.prepare(
+    'SELECT id, username, phone FROM customers WHERE salon_id = ? ORDER BY id DESC LIMIT 50',
+  )
+    .bind(SALON_ID)
+    .all();
+  return c.json({ customers: results });
+});
+
+// ---------- Manual booking creation by owner ----------
+
+ownerRoutes.post('/bookings', async (c) => {
+  const body = await c.req.json().catch(() => ({} as any));
+  const {
+    customer_id,
+    customer_name,
+    customer_phone,
+    barber_id,
+    service_ids,
+    date,
+    start_time,
+  } = body;
+
+  // 1. Resolve or create customer
+  let customer: { id: number; username: string; phone: string } | null = null;
+  if (customer_id && isPositiveInt(customer_id)) {
+    customer = await c.env.DB.prepare(
+      'SELECT id, username, phone FROM customers WHERE id = ? AND salon_id = ?',
+    )
+      .bind(Number(customer_id), SALON_ID)
+      .first<{ id: number; username: string; phone: string }>();
+    if (!customer) return c.json({ error: 'الزبون المحدد غير موجود' }, 404);
+  } else if (customer_name && customer_phone) {
+    const cName = String(customer_name).trim();
+    const cPhone = String(customer_phone).trim();
+    if (cName.length < 2 || cName.length > 60) {
+      return c.json({ error: 'اسم الزبون مطلوب (بين 2 و 60 حرفاً)' }, 400);
+    }
+    if (cPhone.length < 6 || cPhone.length > 30) {
+      return c.json({ error: 'رقم هاتف الزبون غير صالح (6 خانات على الأقل)' }, 400);
+    }
+
+    // Check if customer with this phone already exists
+    const existing = await c.env.DB.prepare(
+      'SELECT id, username, phone FROM customers WHERE phone = ? AND salon_id = ?',
+    )
+      .bind(cPhone, SALON_ID)
+      .first<{ id: number; username: string; phone: string }>();
+
+    if (existing) {
+      customer = existing;
+    } else {
+      const token = crypto.randomUUID();
+      const newCust = await c.env.DB.prepare(
+        'INSERT INTO customers (username, phone, token, salon_id) VALUES (?, ?, ?, ?) RETURNING id, username, phone',
+      )
+        .bind(cName, cPhone, token, SALON_ID)
+        .first<{ id: number; username: string; phone: string }>();
+      customer = newCust;
+    }
+  } else {
+    return c.json({ error: 'يرجى تحديد زبون موجود أو إدخال اسم ورقم هاتف الزبون' }, 400);
+  }
+
+  if (!isPositiveInt(barber_id)) {
+    return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
+  }
+
+  if (
+    !Array.isArray(service_ids) ||
+    service_ids.length === 0 ||
+    service_ids.length > 10 ||
+    !service_ids.every((id) => isPositiveInt(id))
+  ) {
+    return c.json({ error: 'يرجى اختيار خدمة واحدة صالحة على الأقل (بحد أقصى 10 خدمات)' }, 400);
+  }
+
+  if (!isValidDate(date)) {
+    return c.json({ error: 'تاريخ الحجز غير صالح (YYYY-MM-DD)' }, 400);
+  }
+
+  if (!isValidTime(start_time)) {
+    return c.json({ error: 'وقت الحجز غير صالح (HH:MM)' }, 400);
+  }
+
+  const barber = await c.env.DB.prepare(
+    'SELECT id, name FROM barbers WHERE id = ? AND is_active = 1 AND salon_id = ?',
+  )
+    .bind(Number(barber_id), SALON_ID)
+    .first<{ id: number; name: string }>();
+  if (!barber) return c.json({ error: 'الحلاق غير متاح' }, 404);
+
+  const ids = service_ids.map(Number);
+  const totalDuration = await servicesDuration(c.env.DB, barber.id, ids);
+  if (totalDuration == null) return c.json({ error: 'خدمات غير صالحة لهذا الحلاق' }, 400);
+
+  // Check specific date time-off (إجازة مخصصة بتاريخ محدد)
+  const timeOff = await c.env.DB.prepare(
+    'SELECT id, reason FROM barber_time_off WHERE barber_id = ? AND date = ? AND salon_id = ?',
+  )
+    .bind(barber.id, date, SALON_ID)
+    .first<{ id: number; reason: string | null }>();
+  if (timeOff) {
+    return c.json(
+      { error: `الحلاق في إجازة خاصة بتاريخ ${date}${timeOff.reason ? ` (${timeOff.reason})` : ''}` },
+      400,
+    );
+  }
+
+  // Check weekly schedule
+  const schedule = await c.env.DB.prepare(
+    'SELECT start_time, end_time, is_day_off FROM work_schedules WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
+  )
+    .bind(barber.id, dayOfWeek(date), SALON_ID)
+    .first<{ start_time: string; end_time: string; is_day_off: number }>();
+  if (!schedule || schedule.is_day_off) {
+    return c.json({ error: 'الحلاق في عطلة أسبوعية بهذا اليوم' }, 400);
+  }
+
+  const start = toMinutes(start_time);
+  const end = start + totalDuration;
+  if (start < toMinutes(schedule.start_time) || end > toMinutes(schedule.end_time)) {
+    return c.json({ error: 'الموعد المحدد يقع خارج ساعات دوام عمل الحلاق' }, 400);
+  }
+
+  // Check breaks for that day
+  const { results: breaks } = await c.env.DB.prepare(
+    'SELECT start_time, end_time FROM barber_breaks WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
+  )
+    .bind(barber.id, dayOfWeek(date), SALON_ID)
+    .all<{ start_time: string; end_time: string }>();
+
+  const overlapsBreak = (breaks as any[]).some((br) => {
+    const bs = toMinutes(br.start_time);
+    const be = toMinutes(br.end_time);
+    return start < be && end > bs;
+  });
+  if (overlapsBreak) {
+    return c.json({ error: 'الموعد يتعارض مع فترة استراحة الحلاق' }, 400);
+  }
+
+  const endTime = toHHMM(end);
+
+  // Check conflict with other confirmed bookings
+  const conflict = await c.env.DB.prepare(
+    `SELECT id FROM bookings
+     WHERE barber_id = ? AND booking_date = ? AND status = 'confirmed' AND salon_id = ?
+       AND start_time < ? AND end_time > ?
+     LIMIT 1`,
+  )
+    .bind(barber.id, date, SALON_ID, endTime, start_time)
+    .first();
+  if (conflict) {
+    return c.json({ error: 'هذا الموعد يتعارض مع حجز مؤكد آخر للحلاق' }, 409);
+  }
+
+  // Snapshot services and compute total price
+  const placeholders = ids.map(() => '?').join(',');
+  const { results: svcRows } = await c.env.DB.prepare(
+    `SELECT id, name, price, duration_minutes FROM services WHERE barber_id = ? AND id IN (${placeholders})`,
+  )
+    .bind(barber.id, ...ids)
+    .all<any>();
+  const totalPrice = (svcRows as any[]).reduce((s, r) => s + r.price, 0);
+
+  const booking = await c.env.DB.prepare(
+    `INSERT INTO bookings (customer_id, barber_id, booking_date, start_time, end_time, status, total_price, salon_id)
+     VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?) RETURNING id`,
+  )
+    .bind(customer!.id, barber.id, date, start_time, endTime, totalPrice, SALON_ID)
+    .first<{ id: number }>();
+
+  const stmts = (svcRows as any[]).map((s) =>
+    c.env.DB.prepare(
+      'INSERT INTO booking_services (booking_id, service_id, name, price, duration_minutes) VALUES (?, ?, ?, ?, ?)',
+    ).bind(booking!.id, s.id, s.name, s.price, s.duration_minutes),
+  );
+  await c.env.DB.batch(stmts);
+
+  // Notify customer
+  await sendNotification(
+    c,
+    'customer',
+    customer!.id,
+    'new_booking',
+    `تم تسجيل حجز جديد لك مع الحلاق ${barber.name} بتاريخ ${date} الساعة ${formatTime12Ar(start_time)}.`,
+    booking!.id,
+  );
+
+  return c.json(
+    {
+      ok: true,
+      booking_id: booking!.id,
+      customer_id: customer!.id,
+      customer_name: customer!.username,
+      status: 'confirmed',
+      total_price: totalPrice,
+      end_time: endTime,
+    },
+    201,
+  );
 });
 
 ownerRoutes.post('/bookings/:id/cancel', async (c) => {

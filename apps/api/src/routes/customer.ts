@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Bindings, Variables } from '../types';
 import { requireCustomer } from './auth';
-import { sendNotification } from '../notify';
+import { sendNotification, formatNewBookingMessage } from '../notify';
 import { notifyWaitlist } from './owner';
 import { servicesDuration } from './public';
 import {
@@ -130,7 +130,7 @@ customerRoutes.post('/bookings', async (c) => {
 
   await sendNotification(
     c, 'owner', null, 'new_booking',
-    `حجز جديد: ${customer.username} مع ${barber.name} بتاريخ ${date} الساعة ${formatTime12Ar(start_time)}.`,
+    formatNewBookingMessage(customer.username, barber.name, date, formatTime12Ar(start_time)),
     booking!.id,
   );
   return c.json({ id: booking!.id, status: 'confirmed', total_price: totalPrice, end_time: endTime }, 201);
@@ -343,11 +343,21 @@ customerRoutes.delete('/waitlist/:id', async (c) => {
   return c.json({ ok: true });
 });
 
-// ---------- Live Queue ("الدور") Tracker ----------
+// ---------- Live Queue ("الدور") Tracker with Delay & Countdown Support ----------
 
 customerRoutes.get('/queue', async (c) => {
   const customer = c.get('customer');
   const today = todayISO();
+  const clientTime = c.req.query('clientTime');
+
+  let currentMinutes = -1;
+  if (clientTime && isValidTime(clientTime)) {
+    currentMinutes = toMinutes(clientTime);
+  } else {
+    const now = new Date();
+    const utcMins = now.getUTCHours() * 60 + now.getUTCMinutes();
+    currentMinutes = (utcMins + 180) % 1440; // UTC+3 local Arab time
+  }
 
   // Find customer's confirmed active bookings for today or later
   const { results: myBookings } = await c.env.DB.prepare(
@@ -362,27 +372,59 @@ customerRoutes.get('/queue', async (c) => {
   const queueItems = [];
 
   for (const b of myBookings as any[]) {
-    // Find all confirmed bookings for the same barber on that date scheduled before or at this time
-    const { results: aheadBookings } = await c.env.DB.prepare(
-      `SELECT bk.id, bk.start_time, bk.end_time, bk.customer_id
+    // Find all prior bookings for the same barber on that date scheduled before this booking
+    const { results: priorBookings } = await c.env.DB.prepare(
+      `SELECT bk.id, bk.start_time, bk.end_time, bk.status, bk.customer_id
        FROM bookings bk
-       WHERE bk.barber_id = ? AND bk.booking_date = ? AND bk.status = 'confirmed' AND bk.start_time < ? AND bk.salon_id = ?
+       WHERE bk.barber_id = ? AND bk.booking_date = ? AND bk.salon_id = ?
+         AND bk.start_time < ? AND bk.status IN ('confirmed', 'completed')
        ORDER BY bk.start_time ASC`,
     )
-      .bind(b.barber_id, b.booking_date, b.start_time, SALON_ID)
+      .bind(b.barber_id, b.booking_date, SALON_ID, b.start_time)
       .all<any>();
 
-    const aheadIds = (aheadBookings as any[]).map((x) => x.id);
+    const uncompletedPrior = (priorBookings as any[]).filter((x) => x.status === 'confirmed');
+    const peopleAhead = uncompletedPrior.length;
+    const isMyTurn = peopleAhead === 0 && b.booking_date === today;
+
+    // Calculate total duration for uncompleted prior bookings
+    const uncompletedIds = uncompletedPrior.map((x) => x.id);
     let aheadTotalMinutes = 0;
-    if (aheadIds.length > 0) {
-      const placeholders = aheadIds.map(() => '?').join(',');
+    if (uncompletedIds.length > 0) {
+      const placeholders = uncompletedIds.map(() => '?').join(',');
       const { results: aheadSvc } = await c.env.DB.prepare(
         `SELECT SUM(duration_minutes) as total_mins FROM booking_services WHERE booking_id IN (${placeholders})`,
       )
-        .bind(...aheadIds)
+        .bind(...uncompletedIds)
         .all<{ total_mins: number }>();
-      aheadTotalMinutes = aheadSvc[0]?.total_mins || (aheadBookings.length * 30);
+      aheadTotalMinutes = aheadSvc[0]?.total_mins || uncompletedPrior.length * 30;
     }
+
+    // Calculate dynamic delay and expected finish time of uncompleted prior bookings
+    const myStartMins = toMinutes(b.start_time);
+    let maxPriorEndMins = myStartMins;
+
+    for (const ub of uncompletedPrior) {
+      const ubEnd = toMinutes(ub.end_time);
+      const ubStart = toMinutes(ub.start_time);
+
+      let expectedFinish = ubEnd;
+      // If today and time has passed the appointment start time without being marked completed
+      if (b.booking_date === today && currentMinutes > ubStart) {
+        if (currentMinutes > ubEnd) {
+          // Running late: assume 5 minutes needed to wrap up
+          expectedFinish = currentMinutes + 5;
+        }
+      }
+      if (expectedFinish > maxPriorEndMins) {
+        maxPriorEndMins = expectedFinish;
+      }
+    }
+
+    const delayMinutes = Math.max(0, maxPriorEndMins - myStartMins);
+    const effectiveStartMins = myStartMins + delayMinutes;
+    const effectiveStartTime = toHHMM(effectiveStartMins);
+    const targetDatetimeIso = `${b.booking_date}T${effectiveStartTime}:00`;
 
     // Get services for my booking
     const { results: myServices } = await c.env.DB.prepare(
@@ -391,9 +433,6 @@ customerRoutes.get('/queue', async (c) => {
       .bind(b.id)
       .all<any>();
 
-    const peopleAhead = aheadBookings.length;
-    const isMyTurn = peopleAhead === 0 && b.booking_date === today;
-
     queueItems.push({
       booking_id: b.id,
       barber_id: b.barber_id,
@@ -401,6 +440,9 @@ customerRoutes.get('/queue', async (c) => {
       booking_date: b.booking_date,
       start_time: b.start_time,
       end_time: b.end_time,
+      effective_start_time: effectiveStartTime,
+      delay_minutes: delayMinutes,
+      target_datetime_iso: targetDatetimeIso,
       total_price: b.total_price,
       services: myServices,
       people_ahead: peopleAhead,

@@ -8,22 +8,8 @@ import { formatTime12, BOOKING_STATUS_AR } from "@/lib/time";
 import { useLiveNotifications } from "@/lib/useNotifications";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
-import type { Booking } from "@/lib/types";
-
-type QueueItem = {
-  booking_id: number;
-  barber_id: number;
-  barber_name: string;
-  booking_date: string;
-  start_time: string;
-  end_time: string;
-  total_price: number;
-  services: { name: string; price: number; duration_minutes: number }[];
-  people_ahead: number;
-  queue_number: number;
-  estimated_wait_minutes: number;
-  is_my_turn: boolean;
-};
+import BookingCountdown from "@/components/BookingCountdown";
+import type { Booking, QueueItem } from "@/lib/types";
 
 const statusColor: Record<string, string> = {
   confirmed: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
@@ -50,9 +36,14 @@ export default function MyBookingsPage() {
 
   const loadData = useCallback(() => {
     if (!token) return;
+    const now = new Date();
+    const currentHH = String(now.getHours()).padStart(2, "0");
+    const currentMM = String(now.getMinutes()).padStart(2, "0");
+    const clientTime = `${currentHH}:${currentMM}`;
+
     Promise.all([
       apiFetch<{ bookings: Booking[] }>("/api/customer/bookings", { token }),
-      apiFetch<{ queue: QueueItem[] }>("/api/customer/queue", { token }).catch(() => ({ queue: [] })),
+      apiFetch<{ queue: QueueItem[] }>(`/api/customer/queue?clientTime=${clientTime}`, { token }).catch(() => ({ queue: [] })),
     ])
       .then(([b, q]) => {
         setBookings(b.bookings);
@@ -247,6 +238,16 @@ export default function MyBookingsPage() {
                     )}
                   </div>
                 )}
+
+                {/* Live Countdown Timer */}
+                <BookingCountdown
+                  bookingDate={item.booking_date}
+                  startTime={item.start_time}
+                  effectiveStartTime={item.effective_start_time}
+                  delayMinutes={item.delay_minutes}
+                  targetDatetimeIso={item.target_datetime_iso}
+                  isMyTurn={item.is_my_turn}
+                />
 
                 {/* Booking details card */}
                 <div className="space-y-2.5 rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-4">

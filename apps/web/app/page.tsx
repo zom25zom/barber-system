@@ -37,6 +37,12 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const salon = useSalonSettings();
+  // Year computed post-mount — a build-time Date() causes hydration mismatch (#418) after New Year
+  const [year, setYear] = useState<number | null>(null);
+
+  useEffect(() => {
+    setYear(new Date().getFullYear());
+  }, []);
 
   useEffect(() => {
     apiFetch<{ barbers: Barber[] }>("/api/barbers")
@@ -68,7 +74,7 @@ export default function HomePage() {
   );
 
   return (
-    <div className="space-y-14">
+    <div className="mx-auto max-w-6xl space-y-14">
       {/* ══════════ Hero Section ══════════ */}
       <section className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 px-6 py-16 text-center shadow-2xl sm:px-10 sm:py-20">
         {/* Decorative glows */}
@@ -359,7 +365,7 @@ export default function HomePage() {
         {/* Copyright strip */}
         <div className="border-t border-zinc-900">
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-4 text-[11px] text-zinc-600 sm:flex-row">
-            <p>جميع الحقوق محفوظة © {new Date().getFullYear()} {salon.name}</p>
+            <p>جميع الحقوق محفوظة © {year ?? ""} {salon.name}</p>
             <p>نظام حجز الصالونات والمواعيد الذكي</p>
           </div>
         </div>

@@ -28,7 +28,7 @@ export default function CustomerBottomBar() {
       setUnread(0);
       return;
     }
-    apiFetch<{ notifications: { is_read: number }[] }>("/api/notifications", { token })
+    apiFetch<{ notifications: { is_read: number }[] }>("/api/customer/notifications", { token })
       .then((d) => setUnread(d.notifications.filter((n) => !n.is_read).length))
       .catch(() => {});
   }, []);

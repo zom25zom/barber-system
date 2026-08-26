@@ -258,10 +258,14 @@ function ScheduleContent() {
     return acc;
   }, {});
 
-  // Filter future time-offs vs past
-  const today = new Date().toISOString().slice(0, 10);
-  const futureTimeOffs = timeOffs.filter((t) => t.date >= today);
-  const pastTimeOffs = timeOffs.filter((t) => t.date < today);
+  // Filter future time-offs vs past — "today" computed post-mount to avoid
+  // hydration mismatch (#418): build-time HTML would bake a stale date
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    setToday(new Date().toISOString().slice(0, 10));
+  }, []);
+  const futureTimeOffs = today ? timeOffs.filter((t) => t.date >= today) : [];
+  const pastTimeOffs = today ? timeOffs.filter((t) => t.date < today) : [];
 
   /* ===== Tabs ===== */
   const tabs = [

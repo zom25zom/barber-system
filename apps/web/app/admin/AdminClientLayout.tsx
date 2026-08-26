@@ -71,7 +71,7 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
   };
 
   return (
-    <div className="mx-auto max-w-7xl lg:flex lg:gap-6">
+    <div className="w-full lg:flex lg:gap-8">
       {/* ── Logout Confirmation Modal ── */}
       <ConfirmModal
         isOpen={logoutModalOpen}
@@ -90,7 +90,7 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
       />
 
       {/* ── Desktop Sidebar (Visible only on lg screens) ── */}
-      <aside className="hidden lg:block shrink-0 space-y-1.5 lg:w-60 sticky top-20 h-fit">
+      <aside className="hidden lg:block shrink-0 space-y-1.5 lg:w-64 sticky top-20 h-fit">
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-3 shadow-xl space-y-1">
           {nav.map((item) => {
             const active = isItemActive(item.href);
@@ -110,16 +110,6 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
               </Link>
             );
           })}
-
-          <div className="pt-2 border-t border-zinc-800/80 mt-2">
-            <button
-              onClick={() => setLogoutModalOpen(true)}
-              className="flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all"
-            >
-              <span className="text-lg">🚪</span>
-              <span>تسجيل خروج</span>
-            </button>
-          </div>
         </div>
       </aside>
 

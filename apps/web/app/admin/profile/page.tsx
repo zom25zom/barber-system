@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import { getOwnerToken, getCustomerProfile } from "@/lib/auth";
+import { getOwnerToken, clearOwnerToken } from "@/lib/auth";
 import { useSalonSettings } from "@/lib/salon";
 import Spinner from "@/components/Spinner";
 
@@ -11,9 +11,10 @@ export default function AdminProfilePage() {
   const router = useRouter();
   const token = getOwnerToken();
   const salon = useSalonSettings();
-  const customerName = getCustomerProfile()?.username;
-
   const [loading, setLoading] = useState(true);
+  // Owner identity comes ONLY from the owner session (server-validated via /api/owner/me).
+  // Never reads customer storage — the two session types are fully separate.
+  const [username, setUsername] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -26,7 +27,14 @@ export default function AdminProfilePage() {
       router.replace("/admin/login");
       return;
     }
-    setLoading(false);
+    apiFetch<{ owner: { id: number; username: string } }>("/api/owner/me", { token })
+      .then((d) => setUsername(d.owner.username))
+      .catch(() => {
+        // Invalid/expired OWNER token → not an authenticated admin
+        clearOwnerToken();
+        router.replace("/admin/login");
+      })
+      .finally(() => setLoading(false));
   }, [token, router]);
 
   async function onResetPassword(e: React.FormEvent) {
@@ -75,9 +83,9 @@ export default function AdminProfilePage() {
       {/* ── Account header ── */}
       <div className="rounded-2xl border border-zinc-800 bg-gradient-to-b from-zinc-900 to-zinc-950 p-6 text-center shadow-xl">
         <span className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border-2 border-amber-500/40 bg-zinc-800 text-3xl font-black text-amber-400">
-          {(customerName || "A").charAt(0).toUpperCase()}
+          {(username || "A").charAt(0).toUpperCase()}
         </span>
-        <h1 className="text-xl font-black text-zinc-100">{customerName || "المدير"}</h1>
+        <h1 className="text-xl font-black text-zinc-100">{username || "المدير"}</h1>
         <p className="mt-0.5 text-xs text-zinc-500">حساب إدارة {salon.name}</p>
       </div>
 

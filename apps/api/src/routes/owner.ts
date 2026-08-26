@@ -26,6 +26,20 @@ import {
 export const ownerRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 ownerRoutes.use('*', requireOwner);
 
+// ---------- Owner identity (authoritative — validates OWNER session only) ----------
+
+ownerRoutes.get('/me', async (c) => {
+  // requireOwner middleware already rejected any non-owner token before here
+  const owner = c.get('owner');
+  const row = await c.env.DB.prepare(
+    'SELECT id, username FROM owners WHERE id = ? AND salon_id = ?',
+  )
+    .bind(owner.id, SALON_ID)
+    .first<{ id: number; username: string }>();
+  if (!row) return c.json({ error: 'الحساب غير موجود' }, 404);
+  return c.json({ owner: row });
+});
+
 // ---------- Owner Change Password ----------
 
 ownerRoutes.post('/change-password', async (c) => {

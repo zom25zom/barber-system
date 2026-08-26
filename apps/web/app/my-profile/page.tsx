@@ -19,9 +19,9 @@ export default function MyProfilePage() {
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Change password state
+  // Change password state — direct reset, no current password required
   const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -84,13 +84,11 @@ export default function MyProfilePage() {
       await apiFetch("/api/customer/change-password", {
         method: "POST",
         token,
-        body: { currentPassword, newPassword },
+        body: { newPassword },
       });
-      setPasswordSuccess(true);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmNewPassword("");
-      setShowPasswordForm(false);
+      // Token was rotated server-side → this device is logged out; go re-login
+      clearCustomerAuth();
+      router.push("/login");
     } catch (err) {
       setPasswordError((err as Error).message);
     } finally {
@@ -174,12 +172,12 @@ export default function MyProfilePage() {
         </form>
       </section>
 
-      {/* ── Change password ── */}
+      {/* ── Reset password (no current password required) ── */}
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-lg">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-bold text-zinc-100">كلمة المرور</h2>
-            <p className="mt-0.5 text-xs text-zinc-500">تغيير كلمة مرور حسابك</p>
+            <p className="mt-0.5 text-xs text-zinc-500">إعادة تعيين مباشرة — سيتم تسجيل خروجك من جميع الأجهزة</p>
           </div>
           <button
             type="button"
@@ -197,40 +195,54 @@ export default function MyProfilePage() {
         {passwordSuccess && !showPasswordForm && (
           <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-400 sm:text-sm">
             <span>✓</span>
-            <span>{passwordSuccess && "تم تغيير كلمة المرور بنجاح"}</span>
+            <span>تم إعادة تعيين كلمة المرور — سجّل دخولك بكلمة المرور الجديدة</span>
           </div>
         )}
 
         {showPasswordForm && (
           <form onSubmit={onChangePassword} className="mt-5 space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">كلمة المرور الحالية</label>
-              <input
-                type="password"
-                required
-                dir="ltr"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className={`${inputCls} text-left`}
-              />
-            </div>
-            <div>
               <label className="mb-1.5 block text-sm font-semibold text-zinc-200">كلمة المرور الجديدة</label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                dir="ltr"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className={`${inputCls} text-left`}
-                placeholder="6 خانات على الأقل"
-              />
+              <div className="relative">
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  dir="ltr"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className={`${inputCls} pl-11 text-left`}
+                  placeholder="6 خانات على الأقل"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword((v) => !v)}
+                  tabIndex={-1}
+                  aria-label={showNewPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+                  className="absolute left-1.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
+                >
+                  {showNewPassword ? (
+                    /* Eye-off icon */
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                      <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                      <line x1="2" x2="22" y1="2" y2="22" />
+                    </svg>
+                  ) : (
+                    /* Eye icon */
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-zinc-200">تأكيد كلمة المرور الجديدة</label>
               <input
-                type="password"
+                type={showNewPassword ? "text" : "password"}
                 required
                 minLength={6}
                 dir="ltr"

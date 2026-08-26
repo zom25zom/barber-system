@@ -63,42 +63,35 @@ authRoutes.post('/owner/change-password', async (c) => {
   if (!token) return c.json({ error: 'غير مصرح' }, 401);
 
   const owner = await c.env.DB.prepare(
-    `SELECT o.id, o.username, o.password_hash FROM sessions s JOIN owners o ON o.id = s.owner_id
+    `SELECT o.id, o.username FROM sessions s JOIN owners o ON o.id = s.owner_id
      WHERE s.token = ? AND s.expires_at > datetime('now') AND o.salon_id = ?`,
   )
     .bind(token, SALON_ID)
-    .first<{ id: number; username: string; password_hash: string }>();
+    .first<{ id: number; username: string }>();
 
   if (!owner) return c.json({ error: 'غير مصرح أو انتهت صلاحية الجلسة' }, 401);
 
   const body = await c.req.json().catch(() => ({} as any));
-  const { currentPassword, newPassword } = body;
+  const { newPassword } = body;
 
-  if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
-    return c.json({ error: 'كلمة المرور الحالية والجديدة مطلوبتان' }, 400);
+  if (typeof newPassword !== 'string') {
+    return c.json({ error: 'كلمة المرور الجديدة مطلوبة' }, 400);
   }
 
   if (newPassword.length < 6 || newPassword.length > 100) {
     return c.json({ error: 'كلمة المرور الجديدة يجب أن تكون 6 خانات على الأقل وبحد أقصى 100 خانة' }, 400);
   }
 
-  // 1. Verify current password
-  const currentHash = await sha256(currentPassword);
-  if (owner.password_hash !== currentHash) {
-    return c.json({ error: 'كلمة المرور الحالية غير صحيحة' }, 400);
-  }
-
-  if (currentPassword === newPassword) {
-    return c.json({ error: 'كلمة المرور الجديدة يجب أن تكون مختلفة عن كلمة المرور الحالية' }, 400);
-  }
-
-  // 2. Hash & update new password
+  // Direct reset: SQL UPDATE replaces the old hash in-place
   const newHash = await sha256(newPassword);
   await c.env.DB.prepare('UPDATE owners SET password_hash = ? WHERE id = ? AND salon_id = ?')
     .bind(newHash, owner.id, SALON_ID)
     .run();
 
-  return c.json({ ok: true, message: 'تم تغيير كلمة المرور بنجاح' });
+  // Invalidate ALL active sessions for this owner
+  await c.env.DB.prepare('DELETE FROM sessions WHERE owner_id = ?').bind(owner.id).run();
+
+  return c.json({ ok: true, message: 'تم إعادة تعيين كلمة المرور بنجاح. يرجى تسجيل الدخول من جديد.' });
 });
 
 // ---------- Customer Register (Rate limited: 5 attempts per 5 mins per IP) ----------

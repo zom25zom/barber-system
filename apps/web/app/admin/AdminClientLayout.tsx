@@ -18,6 +18,7 @@ const nav = [
   { href: "/admin/bookings", label: "الحجوزات", icon: "📅" },
   { href: "/admin/notifications", label: "الإشعارات", icon: "🔔" },
   { href: "/admin/settings", label: "إعدادات الصالون", icon: "⚙️" },
+  { href: "/admin/profile", label: "حسابي", icon: "👤" },
 ];
 
 export default function AdminClientLayout({ children }: { children: ReactNode }) {

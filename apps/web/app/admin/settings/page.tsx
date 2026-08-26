@@ -49,14 +49,6 @@ export default function AdminSettingsPage() {
     social: false,
   });
 
-  // Password Change Form State
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
-
   useEffect(() => {
     setName(salon.name);
     setPhone(salon.phone || "");
@@ -119,43 +111,6 @@ export default function AdminSettingsPage() {
 
   const inputCls =
     "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500";
-
-  const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token) return;
-
-    if (!currentPassword) {
-      setPasswordError("يرجى إدخال كلمة المرور الحالية");
-      return;
-    }
-    if (newPassword.length < 6) {
-      setPasswordError("كلمة المرور الجديدة يجب أن تكون 6 أحرف أو أرقام على الأقل");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError("كلمة المرور الجديدة وتأكيدها غير متطابقين");
-      return;
-    }
-
-    setPasswordSaving(true);
-    setPasswordError(null);
-    try {
-      await apiFetch("/api/owner/change-password", {
-        method: "POST",
-        token,
-        body: { currentPassword, newPassword },
-      });
-      setPasswordSuccess(true);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      showToast.success("تم تغيير كلمة المرور بنجاح ✓");
-    } catch (err) {
-      setPasswordError((err as Error).message || "حدث خطأ، يرجى التأكد من كلمة المرور الحالية والمحاولة مجدداً");
-    } finally {
-      setPasswordSaving(false);
-    }
-  };
 
   return (
     <div className="space-y-8">
@@ -436,79 +391,24 @@ export default function AdminSettingsPage() {
         )}
       </section>
 
-      {/* ══════════ Section 4: Security (password) ══════════ */}
-      <form onSubmit={handlePasswordChange} className="space-y-5 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/90 shadow-lg p-5">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-lg text-emerald-400">
-            🔒
-          </span>
-          <div>
-            <h2 className="text-base font-bold text-zinc-100">تغيير كلمة مرور المدير</h2>
-            <p className="mt-0.5 text-xs text-zinc-500">أدخل كلمة المرور الحالية أولاً لتعيين كلمة مرور جديدة.</p>
+      {/* ══════════ Section 4: Security → direct reset lives in /admin/profile ══════════ */}
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-5 shadow-lg">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-lg text-emerald-400">🔒</span>
+            <div>
+              <h2 className="text-base font-bold text-zinc-100">كلمة مرور المدير</h2>
+              <p className="mt-0.5 text-xs text-zinc-500">إعادة تعيين مباشرة بدون كلمة المرور الحالية</p>
+            </div>
           </div>
-        </div>
-
-        {passwordError && (
-          <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-400 sm:text-sm">
-            <span>⚠️</span>
-            <span>{passwordError}</span>
-          </div>
-        )}
-        {passwordSuccess && (
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-400 sm:text-sm">
-            <span>✅</span>
-            <span>تم تحديث كلمة المرور بنجاح!</span>
-          </div>
-        )}
-
-        <div>
-          <label className="mb-1.5 block text-sm font-semibold text-zinc-200">كلمة المرور الحالية</label>
-          <input
-            type="password"
-            required
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            className={inputCls}
-          />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-zinc-200">كلمة المرور الجديدة</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="6 خانات على الأقل"
-              className={inputCls}
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-zinc-200">تأكيد كلمة المرور</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="أعد كتابة كلمة المرور الجديدة"
-              className={inputCls}
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end border-t border-zinc-800 pt-4">
-          <button
-            type="submit"
-            disabled={passwordSaving}
-            className="rounded-xl border border-zinc-700 bg-zinc-800 px-6 py-2.5 text-sm font-bold text-zinc-100 shadow-md transition-all hover:bg-zinc-700 active:scale-95 disabled:opacity-50"
+          <a
+            href="/admin/profile"
+            className="shrink-0 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-bold text-emerald-400 transition hover:bg-emerald-500/20 active:scale-95"
           >
-            {passwordSaving ? "جاري التحديث…" : "🔐 تحديث كلمة المرور"}
-          </button>
+            الانتقال لإعادة التعيين ←
+          </a>
         </div>
-      </form>
+      </section>
     </div>
   );
 }

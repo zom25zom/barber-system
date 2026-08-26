@@ -16,6 +16,7 @@ import {
   SALON_ID,
   isPositiveInt,
   sha256,
+  randomToken,
   isValidUsername,
   isValidPhone,
 } from '../utils';
@@ -90,36 +91,32 @@ customerRoutes.patch('/profile', async (c) => {
 customerRoutes.post('/change-password', async (c) => {
   const customer = c.get('customer');
   const body = await c.req.json().catch(() => ({} as any));
-  const { currentPassword, newPassword } = body;
+  const { newPassword } = body;
 
-  if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
-    return c.json({ error: 'كلمة المرور الحالية والجديدة مطلوبتان' }, 400);
+  if (typeof newPassword !== 'string') {
+    return c.json({ error: 'كلمة المرور الجديدة مطلوبة' }, 400);
   }
   if (newPassword.length < 6 || newPassword.length > 100) {
     return c.json({ error: 'كلمة المرور الجديدة يجب أن تكون 6 خانات على الأقل وبحد أقصى 100 خانة' }, 400);
   }
-  if (currentPassword === newPassword) {
-    return c.json({ error: 'كلمة المرور الجديدة يجب أن تكون مختلفة عن الحالية' }, 400);
-  }
 
-  const row = await c.env.DB.prepare(
-    'SELECT password_hash FROM customers WHERE id = ? AND salon_id = ?',
+  const exists = await c.env.DB.prepare(
+    'SELECT id FROM customers WHERE id = ? AND salon_id = ?',
   )
     .bind(customer.id, SALON_ID)
-    .first<{ password_hash: string }>();
-  if (!row) return c.json({ error: 'الحساب غير موجود' }, 404);
+    .first();
+  if (!exists) return c.json({ error: 'الحساب غير موجود' }, 404);
 
-  // Verify current password before allowing the change (same mechanism as owners)
-  if (!row.password_hash || row.password_hash !== (await sha256(currentPassword))) {
-    return c.json({ error: 'كلمة المرور الحالية غير صحيحة' }, 400);
-  }
-
+  // Direct reset: SQL UPDATE replaces the old hash in-place
   const newHash = await sha256(newPassword);
-  await c.env.DB.prepare('UPDATE customers SET password_hash = ? WHERE id = ? AND salon_id = ?')
-    .bind(newHash, customer.id, SALON_ID)
+
+  // Rotate the session token → any other device using the old token is logged out instantly
+  const newToken = randomToken();
+  await c.env.DB.prepare('UPDATE customers SET password_hash = ?, token = ? WHERE id = ? AND salon_id = ?')
+    .bind(newHash, newToken, customer.id, SALON_ID)
     .run();
 
-  return c.json({ ok: true, message: 'تم تغيير كلمة المرور بنجاح' });
+  return c.json({ ok: true, message: 'تم إعادة تعيين كلمة المرور بنجاح. يرجى تسجيل الدخول من جديد.' });
 });
 
 // ---------- Create booking — PRD 3.5 (auto-confirmed) ----------

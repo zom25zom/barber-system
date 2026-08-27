@@ -1,6 +1,17 @@
+/**
+ * API base URL.
+ * • Same-origin deployments: empty → relative /api/... paths
+ * • Split deployments (SSR web worker + API worker): set
+ *   NEXT_PUBLIC_API_BASE_URL at web build-time, e.g. https://barber-api.<account>.workers.dev
+ */
+export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
+
 export function getWsUrl(): string {
+  const proto = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss:" : "ws:";
+  if (API_BASE) {
+    return `${proto}//${API_BASE.replace(/^https?:\/\//, "")}`;
+  }
   if (typeof window !== "undefined") {
-    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
     return `${proto}//${window.location.host}`;
   }
   return "ws://localhost:8787";
@@ -23,7 +34,7 @@ export async function apiFetch<T = unknown>(path: string, opts: ApiOptions = {})
   let res: Response;
 
   try {
-    res = await fetch(path, {
+    res = await fetch(`${API_BASE}${path}`, {
       method,
       headers: {
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),

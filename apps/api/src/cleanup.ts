@@ -36,8 +36,18 @@ export async function deleteOldUpload(
     key = trimmed.slice(markerIdx + UPLOAD_URL_MARKER.length).split(/[?#]/)[0].trim();
   }
 
-  // Guard against malformed/path-traversal keys
-  if (!key || key.includes('/') || key.includes('\\') || key.includes('..')) return true;
+  // Guard against malformed/path-traversal keys.
+  // Nested per-salon keys (salons/{id}/file.jpg) ARE allowed — only the
+  // separator "/" is legal; backslashes, empty/dot segments are rejected.
+  if (
+    !key ||
+    key.length > 512 ||
+    key.includes('\\') ||
+    /[^\x20-\x7e]/.test(key) ||
+    key.split('/').some((seg) => seg === '' || seg === '.' || seg === '..')
+  ) {
+    return true;
+  }
 
   let r2Deleted = true;
 

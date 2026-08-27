@@ -7,7 +7,7 @@ import { ownerRoutes } from './routes/owner';
 import { customerRoutes } from './routes/customer';
 import { pushRoutes } from './routes/push';
 import { uploadRoutes } from './routes/upload';
-import { SALON_ID, logRouteError, formatTime12Ar } from './utils';
+import { logRouteError, formatTime12Ar, resolvePublicSalonId } from './utils';
 import type { MessageBatch, ReminderMessage } from './types';
 import { dispatchWebPush } from './webpush';
 
@@ -36,7 +36,7 @@ async function processReminderBatch(batch: MessageBatch<ReminderMessage>, env: B
          JOIN barbers br ON br.id = bk.barber_id
          WHERE bk.id = ? AND bk.salon_id = ?`,
       )
-        .bind(bookingId, SALON_ID)
+        .bind(bookingId, message.body.salonId)
         .first<{
           id: number;
           booking_date: string;
@@ -85,19 +85,25 @@ async function processReminderBatch(batch: MessageBatch<ReminderMessage>, env: B
       const cleanBarber = booking.barber_name.startsWith('الحلاق') ? booking.barber_name : `الحلاق ${booking.barber_name}`;
       const text = `موعدك مع ${cleanBarber} بعد ${REMINDER_LEAD_MINUTES} دقيقة! الساعة ${formatTime12Ar(startTime)} — نراك قريباً 💈`;
 
+      // Deep-link the user inside THEIR salon (tenant-prefixed when slug exists)
+      const slugRow = await env.DB.prepare('SELECT slug FROM salons WHERE id = ?')
+        .bind(message.body.salonId)
+        .first<{ slug: string | null }>();
+      const deepLinkUrl = `${slugRow?.slug ? `/${slugRow.slug}` : ''}/my-bookings`;
+
       // Persist in-app notification record
       await env.DB.prepare(
         `INSERT INTO notifications (recipient_type, recipient_id, type, message, booking_id, salon_id)
          VALUES ('customer', ?, 'reminder', ?, ?, ?)`,
       )
-        .bind(booking.customer_id, text, bookingId, SALON_ID)
+        .bind(booking.customer_id, text, bookingId, message.body.salonId)
         .run();
 
       // Native Web Push — wakes the device even with the browser closed
-      const results = await dispatchWebPush(env.DB, 'customer', booking.customer_id, SALON_ID, {
+      const results = await dispatchWebPush(env.DB, 'customer', booking.customer_id, message.body.salonId, {
         title: 'تذكير بموعدك ⏰',
         message: text,
-        url: '/my-bookings',
+        url: deepLinkUrl,
         id: bookingId,
       });
       const delivered = results.filter((r) => r.success).length;
@@ -147,7 +153,7 @@ app.get('/api/health', async (c) => {
     if (c.env.NOTIFICATION_HUB) {
       const pStart = Date.now();
       const hub = c.env.NOTIFICATION_HUB.get(
-        c.env.NOTIFICATION_HUB.idFromName(`salon-${SALON_ID}`),
+        c.env.NOTIFICATION_HUB.idFromName('system-health-probe'),
       );
       const res = await hub.fetch('https://hub/rate-limit', {
         method: 'POST',
@@ -202,8 +208,9 @@ app.route('/api/push', pushRoutes);
 
 // Dynamic PWA Web App Manifests directly served from D1 database
 app.get('/manifest.json', async (c) => {
+  const salonId = await resolvePublicSalonId(c);
   const salon = await c.env.DB.prepare('SELECT name, primary_color, logo_url FROM salons WHERE id = ?')
-    .bind(SALON_ID)
+    .bind(salonId)
     .first<SalonSettings>();
 
   const name = salon?.name || 'صالون الحلاقة';
@@ -243,8 +250,9 @@ app.get('/manifest.json', async (c) => {
 });
 
 app.get('/manifest-admin.json', async (c) => {
+  const salonId = await resolvePublicSalonId(c);
   const salon = await c.env.DB.prepare('SELECT name, primary_color, logo_url FROM salons WHERE id = ?')
-    .bind(SALON_ID)
+    .bind(salonId)
     .first<SalonSettings>();
 
   const name = salon?.name || 'إدارة الصالون';
@@ -296,24 +304,28 @@ app.get('/api/notifications/ws', async (c) => {
   }
 
   let customerId: number | null = null;
+  let wsSalonId: number | null = null;
   if (role === 'owner') {
     const row = await c.env.DB.prepare(
-      `SELECT s.owner_id FROM sessions s JOIN owners o ON o.id = s.owner_id
-       WHERE s.token = ? AND s.expires_at > datetime('now') AND o.salon_id = ?`,
+      `SELECT s.owner_id, s.salon_id FROM sessions s JOIN owners o ON o.id = s.owner_id
+       WHERE s.token = ? AND s.expires_at > datetime('now')`,
     )
-      .bind(token, SALON_ID)
-      .first();
+      .bind(token)
+      .first<{ owner_id: number; salon_id: number }>();
     if (!row) return c.json({ error: 'غير مصرح' }, 401);
+    wsSalonId = row.salon_id;
   } else {
-    const row = await c.env.DB.prepare('SELECT id FROM customers WHERE token = ? AND salon_id = ?')
-      .bind(token, SALON_ID)
-      .first<{ id: number }>();
+    const row = await c.env.DB.prepare('SELECT id, salon_id FROM customers WHERE token = ?')
+      .bind(token)
+      .first<{ id: number; salon_id: number }>();
     if (!row) return c.json({ error: 'غير مصرح' }, 401);
     customerId = row.id;
+    wsSalonId = row.salon_id;
   }
 
-  // Each salon gets its own Durable Object instance for WebSocket isolation
-  const hub = c.env.NOTIFICATION_HUB.get(c.env.NOTIFICATION_HUB.idFromName(`salon-${SALON_ID}`));
+  // Each salon gets its own Durable Object instance for WebSocket isolation —
+  // named dynamically after the session's tenant.
+  const hub = c.env.NOTIFICATION_HUB.get(c.env.NOTIFICATION_HUB.idFromName(`salon-${wsSalonId}`));
   const url = new URL('https://hub/ws');
   url.searchParams.set('role', role);
   if (customerId != null) url.searchParams.set('customerId', String(customerId));

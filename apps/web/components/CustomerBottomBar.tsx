@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getCustomerToken } from "@/lib/auth";
+import { buildTenantUrl, useTenantLink } from "@/lib/salonTenant";
 import {
   IconBell,
   IconCalendarPlus,
@@ -20,6 +21,7 @@ const items = [
 
 export default function CustomerBottomBar() {
   const pathname = usePathname();
+  const tLink = useTenantLink();
   const [unread, setUnread] = useState(0);
 
   const loadUnread = useCallback(() => {
@@ -47,8 +49,13 @@ export default function CustomerBottomBar() {
   // Hidden entirely on admin panel (it has its own navigation)
   if (pathname.startsWith("/admin")) return null;
 
-  const isActive = (item: (typeof items)[number]) =>
-    item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href);
+  // Tenant-aware href — the ONLY way links are built here (ARCHITECTURE.md)
+  const effHref = (href: string) => buildTenantUrl(href);
+
+  const isActive = (href: string, exact?: boolean) => {
+    const eff = effHref(href);
+    return exact ? pathname === eff : pathname === eff || pathname.startsWith(eff);
+  };
 
   const linkCls = (active: boolean) =>
     `relative flex flex-1 flex-col items-center justify-center gap-1 py-1.5 text-center transition-all ${
@@ -67,9 +74,9 @@ export default function CustomerBottomBar() {
         <div className="mx-auto flex max-w-md items-center justify-around px-2 py-1.5">
           {/* الرئيسية / الحجز / حجوزاتي */}
           {items.map((item) => {
-            const active = isActive(item);
+            const active = isActive(item.href, item.exact);
             return (
-              <Link key={item.href} href={item.href} className={linkCls(active)}>
+              <Link key={item.href} href={effHref(item.href)} className={linkCls(active)}>
                 <item.Icon className="h-5 w-5" />
                 <span className="text-[10px] sm:text-[11px] leading-none">{item.label}</span>
                 <span
@@ -82,7 +89,7 @@ export default function CustomerBottomBar() {
           })}
 
           {/* الإشعارات */}
-          <Link href="/notifications" className={linkCls(pathname === "/notifications")}>
+          <Link href={effHref("/notifications")} className={linkCls(pathname === effHref("/notifications"))}>
             <div className="relative">
               <IconBell className="h-5 w-5" />
               {unread > 0 && (
@@ -100,7 +107,7 @@ export default function CustomerBottomBar() {
           </Link>
 
           {/* حسابي — صفحة البروفايل */}
-          <Link href="/my-profile" className={linkCls(pathname.startsWith("/my-profile"))}>
+          <Link href={tLink.href("/my-profile")} className={linkCls(pathname.startsWith(tLink.href("/my-profile")))}>
             <span
               className={`flex h-8 w-8 items-center justify-center rounded-xl border transition-all ${
                 pathname.startsWith("/my-profile")

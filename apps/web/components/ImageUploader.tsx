@@ -3,6 +3,8 @@
 import { useState, useRef } from "react";
 import Spinner from "./Spinner";
 import { useToast } from "./Toaster";
+import { API_BASE } from "@/lib/api";
+import { getOwnerToken } from "@/lib/auth";
 
 interface ImageUploaderProps {
   value: string | null;
@@ -49,22 +51,33 @@ export default function ImageUploader({
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/upload", {
+      // Multi-tenant: the upload endpoint is owner-authenticated; the backend
+      // derives the salon from the session and stores under salons/{id}/...
+      // API_BASE keeps split deployments (web worker ≠ api worker) working.
+      const token = getOwnerToken();
+      const res = await fetch(`${API_BASE}/api/upload`, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "فشل رفع الصورة");
+      const data = await res.json().catch(() => ({}) as Record<string, unknown>);
+      if (!res.ok || !data || typeof data.url !== "string") {
+        throw new Error(
+          (typeof data.error === "string" && data.error) ||
+            (res.status === 401
+              ? "انتهت صلاحية جلستك، يرجى تسجيل الدخول من جديد ثم إعادة رفع الصورة"
+              : "فشل رفع الصورة"),
+        );
       }
 
       onChange(data.url);
       toast.success("تم رفع الصورة بنجاح ✓");
     } catch (err) {
-      const friendlyMsg = "حدث خطأ أثناء رفع الصورة، يرجى المحاولة مرة أخرى";
-      setError(friendlyMsg);
-      toast.error(friendlyMsg);
+      // Surface the REAL error so failures are diagnosable
+      const msg = (err as Error)?.message || "حدث خطأ أثناء رفع الصورة، يرجى المحاولة مرة أخرى";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setUploading(false);
       if (fileInputRef.current) {

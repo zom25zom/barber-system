@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import type { Bindings } from './types';
 import { dispatchWebPush } from './webpush';
-import { SALON_ID, logRouteError } from './utils';
+import { logRouteError } from './utils';
 
 type RecipientType = 'owner' | 'customer';
 type NotificationType = 'new_booking' | 'cancellation' | 'waitlist_available';
@@ -37,11 +37,21 @@ export async function sendNotification(
   message: string,
   bookingId: number | null = null,
 ): Promise<void> {
+  // Tenant derived from the authenticated session context (never client input)
+  const salonId: number = c.get('salonId');
+
+  // Deep-link URLs must keep the user inside their own salon — customers get
+  // a tenant-prefixed path (/{slug}/my-bookings) when the salon has a slug.
+  const slugRow = (await c.env.DB.prepare('SELECT slug FROM salons WHERE id = ?')
+    .bind(salonId)
+    .first()) as { slug: string | null } | null;
+  const slugPrefix = slugRow?.slug ? `/${slugRow.slug}` : '';
+
   const res = (await c.env.DB.prepare(
     `INSERT INTO notifications (recipient_type, recipient_id, type, message, booking_id, salon_id)
      VALUES (?, ?, ?, ?, ?, ?) RETURNING id, created_at`,
   )
-    .bind(recipientType, recipientId, type, message, bookingId, SALON_ID)
+    .bind(recipientType, recipientId, type, message, bookingId, salonId)
     .first()) as { id: number; created_at: string } | null;
 
   const payload = {
@@ -59,7 +69,7 @@ export async function sendNotification(
   //    non-fatal and must never delay or break the Web Push below.
   const hubBroadcastPromise = (async () => {
     try {
-      const hub = c.env.NOTIFICATION_HUB.get(c.env.NOTIFICATION_HUB.idFromName(`salon-${SALON_ID}`));
+      const hub = c.env.NOTIFICATION_HUB.get(c.env.NOTIFICATION_HUB.idFromName(`salon-${salonId}`));
       await hub.fetch('https://hub/broadcast', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -72,12 +82,15 @@ export async function sendNotification(
   // 2. Native Web Push (wakes up devices even when browser is completely closed)
   const title =
     recipientType === 'owner' ? 'صالون الحلاقة — حجز جديد أو تعديل 💈' : 'صالون الحلاقة — إشعار جديد 💈';
-  const url = recipientType === 'owner' ? '/admin/bookings' : '/my-bookings';
+  const url =
+    recipientType === 'owner'
+      ? '/admin/bookings' // admin panel is session-global by design
+      : `${slugPrefix}/my-bookings`;
 
   const webPushPromise = (async () => {
     try {
-      console.log(`[Notify] Dispatching Web Push → ${recipientType}${recipientId != null ? ` (id=${recipientId})` : ''} | type=${type} | salon=${SALON_ID}`);
-      const results = await dispatchWebPush(c.env.DB, recipientType, recipientId, SALON_ID, {
+      console.log(`[Notify] Dispatching Web Push → ${recipientType}${recipientId != null ? ` (id=${recipientId})` : ''} | type=${type} | salon=${salonId}`);
+      const results = await dispatchWebPush(c.env.DB, recipientType, recipientId, salonId, {
         title,
         message,
         url,

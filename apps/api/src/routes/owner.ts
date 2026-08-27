@@ -13,7 +13,6 @@ import {
   toHHMM,
   dayOfWeek,
   formatTime12Ar,
-  SALON_ID,
   sha256,
   isPositiveInt,
   isPositivePrice,
@@ -29,20 +28,40 @@ ownerRoutes.use('*', requireOwner);
 // ---------- Owner identity (authoritative — validates OWNER session only) ----------
 
 ownerRoutes.get('/me', async (c) => {
+  const salonId: number = c.get('salonId');
   // requireOwner middleware already rejected any non-owner token before here
   const owner = c.get('owner');
   const row = await c.env.DB.prepare(
     'SELECT id, username FROM owners WHERE id = ? AND salon_id = ?',
   )
-    .bind(owner.id, SALON_ID)
+    .bind(owner.id, salonId)
     .first<{ id: number; username: string }>();
   if (!row) return c.json({ error: 'الحساب غير موجود' }, 404);
   return c.json({ owner: row });
 });
 
+// ---------- Salon settings (session-scoped — admin panel branding) ----------
+
+// Unlike public GET /api/salon-settings (which resolves the tenant from
+// slug/host), this derives the tenant from the OWNER SESSION itself — so the
+// admin panel always reads its own salon's settings and never 404s or leaks.
+ownerRoutes.get('/salon-settings', async (c) => {
+  const salonId: number = c.get('salonId');
+  const salon = await c.env.DB.prepare(
+    `SELECT id, name, phone, logo_url, primary_color,
+            social_facebook, social_instagram, social_tiktok, social_whatsapp, maps_url, slug
+     FROM salons WHERE id = ?`,
+  )
+    .bind(salonId)
+    .first<any>();
+  if (!salon) return c.json({ error: 'الصالون غير موجود' }, 404);
+  return c.json({ salon });
+});
+
 // ---------- Owner Change Password ----------
 
 ownerRoutes.post('/change-password', async (c) => {
+  const salonId: number = c.get('salonId');
   const owner = c.get('owner');
   const body = await c.req.json().catch(() => ({} as any));
   const { newPassword } = body;
@@ -58,7 +77,7 @@ ownerRoutes.post('/change-password', async (c) => {
   const ownerRecord = await c.env.DB.prepare(
     'SELECT id FROM owners WHERE id = ? AND salon_id = ?',
   )
-    .bind(owner.id, SALON_ID)
+    .bind(owner.id, salonId)
     .first();
 
   if (!ownerRecord) return c.json({ error: 'الحساب غير موجود' }, 404);
@@ -66,7 +85,7 @@ ownerRoutes.post('/change-password', async (c) => {
   // Direct reset: SQL UPDATE replaces the old hash in-place (no delete step needed)
   const newHash = await sha256(newPassword);
   await c.env.DB.prepare('UPDATE owners SET password_hash = ? WHERE id = ? AND salon_id = ?')
-    .bind(newHash, owner.id, SALON_ID)
+    .bind(newHash, owner.id, salonId)
     .run();
 
   // Invalidate ALL active sessions for this owner — every device must re-login
@@ -78,13 +97,15 @@ ownerRoutes.post('/change-password', async (c) => {
 // ---------- Barbers CRUD — PRD 3.3 ----------
 
 ownerRoutes.get('/barbers', async (c) => {
+  const salonId: number = c.get('salonId');
   const { results } = await c.env.DB.prepare('SELECT * FROM barbers WHERE salon_id = ? ORDER BY name')
-    .bind(SALON_ID)
+    .bind(salonId)
     .all();
   return c.json({ barbers: results });
 });
 
 ownerRoutes.post('/barbers', async (c) => {
+  const salonId: number = c.get('salonId');
   const { name, photo_url } = await c.req.json().catch(() => ({} as any));
   if (!name || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 60) {
     return c.json({ error: 'اسم الحلاق مطلوب (بين 2 و 60 حرفاً)' }, 400);
@@ -94,12 +115,13 @@ ownerRoutes.post('/barbers', async (c) => {
   }
 
   const res = await c.env.DB.prepare('INSERT INTO barbers (name, photo_url, salon_id) VALUES (?, ?, ?) RETURNING id')
-    .bind(name.trim(), photo_url?.trim() || null, SALON_ID)
+    .bind(name.trim(), photo_url?.trim() || null, salonId)
     .first<{ id: number }>();
   return c.json({ id: res!.id }, 201);
 });
 
 ownerRoutes.patch('/barbers/:id', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
   const id = Number(idRaw);
@@ -123,7 +145,7 @@ ownerRoutes.patch('/barbers/:id', async (c) => {
 
     // Fetch the old photo URL before overwriting it, then delete its file from storage
     const current = await c.env.DB.prepare('SELECT photo_url FROM barbers WHERE id = ? AND salon_id = ?')
-      .bind(id, SALON_ID)
+      .bind(id, salonId)
       .first<{ photo_url: string | null }>();
 
     const newPhotoUrl = body.photo_url ? String(body.photo_url).trim() : null;
@@ -142,7 +164,7 @@ ownerRoutes.patch('/barbers/:id', async (c) => {
   }
 
   if (fields.length === 0) return c.json({ error: 'لا توجد بيانات للتحديث' }, 400);
-  values.push(id, SALON_ID);
+  values.push(id, salonId);
 
   const res = await c.env.DB.prepare(`UPDATE barbers SET ${fields.join(', ')} WHERE id = ? AND salon_id = ?`).bind(...values).run();
   if (res.meta.changes === 0) return c.json({ error: 'الحلاق غير موجود' }, 404);
@@ -150,11 +172,12 @@ ownerRoutes.patch('/barbers/:id', async (c) => {
 });
 
 ownerRoutes.delete('/barbers/:id', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
   const id = Number(idRaw);
 
-  const res = await c.env.DB.prepare('DELETE FROM barbers WHERE id = ? AND salon_id = ?').bind(id, SALON_ID).run();
+  const res = await c.env.DB.prepare('DELETE FROM barbers WHERE id = ? AND salon_id = ?').bind(id, salonId).run();
   if (res.meta.changes === 0) return c.json({ error: 'الحلاق غير موجود' }, 404);
   return c.json({ ok: true });
 });
@@ -162,6 +185,7 @@ ownerRoutes.delete('/barbers/:id', async (c) => {
 // ---------- Services per barber — PRD 3.4 ----------
 
 ownerRoutes.get('/barbers/:id/services', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
   const barberId = Number(idRaw);
@@ -169,12 +193,13 @@ ownerRoutes.get('/barbers/:id/services', async (c) => {
   const { results } = await c.env.DB.prepare(
     'SELECT * FROM services WHERE barber_id = ? AND salon_id = ? ORDER BY name',
   )
-    .bind(barberId, SALON_ID)
+    .bind(barberId, salonId)
     .all();
   return c.json({ services: results });
 });
 
 ownerRoutes.post('/barbers/:id/services', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
   const barberId = Number(idRaw);
@@ -185,19 +210,20 @@ ownerRoutes.post('/barbers/:id/services', async (c) => {
 
   // Verify barber exists
   const barber = await c.env.DB.prepare('SELECT id FROM barbers WHERE id = ? AND salon_id = ?')
-    .bind(barberId, SALON_ID)
+    .bind(barberId, salonId)
     .first();
   if (!barber) return c.json({ error: 'الحلاق غير موجود' }, 404);
 
   const res = await c.env.DB.prepare(
     'INSERT INTO services (barber_id, name, price, duration_minutes, salon_id) VALUES (?, ?, ?, ?, ?) RETURNING id',
   )
-    .bind(barberId, name.trim(), Number(price), Number(duration_minutes), SALON_ID)
+    .bind(barberId, name.trim(), Number(price), Number(duration_minutes), salonId)
     .first<{ id: number }>();
   return c.json({ id: res!.id }, 201);
 });
 
 ownerRoutes.patch('/services/:id', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الخدمة غير صالح' }, 400);
   const id = Number(idRaw);
@@ -209,19 +235,20 @@ ownerRoutes.patch('/services/:id', async (c) => {
   const res = await c.env.DB.prepare(
     'UPDATE services SET name = ?, price = ?, duration_minutes = ? WHERE id = ? AND salon_id = ?',
   )
-    .bind(name.trim(), Number(price), Number(duration_minutes), id, SALON_ID)
+    .bind(name.trim(), Number(price), Number(duration_minutes), id, salonId)
     .run();
   if (res.meta.changes === 0) return c.json({ error: 'الخدمة غير موجودة' }, 404);
   return c.json({ ok: true });
 });
 
 ownerRoutes.delete('/services/:id', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الخدمة غير صالح' }, 400);
   const id = Number(idRaw);
 
   const res = await c.env.DB.prepare('DELETE FROM services WHERE id = ? AND salon_id = ?')
-    .bind(id, SALON_ID)
+    .bind(id, salonId)
     .run();
   if (res.meta.changes === 0) return c.json({ error: 'الخدمة غير موجودة' }, 404);
   return c.json({ ok: true });
@@ -243,6 +270,7 @@ function validateService(name: any, price: any, duration: any): string | null {
 // ---------- Work schedules per barber — PRD 3.3 / 3.10 ----------
 
 ownerRoutes.get('/barbers/:id/schedule', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
   const barberId = Number(idRaw);
@@ -250,13 +278,14 @@ ownerRoutes.get('/barbers/:id/schedule', async (c) => {
   const { results } = await c.env.DB.prepare(
     'SELECT * FROM work_schedules WHERE barber_id = ? AND salon_id = ? ORDER BY day_of_week',
   )
-    .bind(barberId, SALON_ID)
+    .bind(barberId, salonId)
     .all();
   return c.json({ schedule: results });
 });
 
 // Replace the full week schedule: [{ day_of_week, start_time, end_time, is_day_off }]
 ownerRoutes.put('/barbers/:id/schedule', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
   const barberId = Number(idRaw);
@@ -266,7 +295,7 @@ ownerRoutes.put('/barbers/:id/schedule', async (c) => {
     return c.json({ error: 'صيغة جدول المواعيد غير صالحة' }, 400);
   }
 
-  const stmts = [c.env.DB.prepare('DELETE FROM work_schedules WHERE barber_id = ? AND salon_id = ?').bind(barberId, SALON_ID)];
+  const stmts = [c.env.DB.prepare('DELETE FROM work_schedules WHERE barber_id = ? AND salon_id = ?').bind(barberId, salonId)];
   for (const d of days) {
     const dow = Number(d.day_of_week);
     const off = d.is_day_off ? 1 : 0;
@@ -277,7 +306,7 @@ ownerRoutes.put('/barbers/:id/schedule', async (c) => {
     stmts.push(
       c.env.DB.prepare(
         'INSERT INTO work_schedules (barber_id, day_of_week, start_time, end_time, is_day_off, salon_id) VALUES (?, ?, ?, ?, ?, ?)',
-      ).bind(barberId, dow, d.start_time ?? '09:00', d.end_time ?? '21:00', off, SALON_ID),
+      ).bind(barberId, dow, d.start_time ?? '09:00', d.end_time ?? '21:00', off, salonId),
     );
   }
   await c.env.DB.batch(stmts);
@@ -287,6 +316,7 @@ ownerRoutes.put('/barbers/:id/schedule', async (c) => {
 // ---------- Specific Date Time Off (الإجازات المحددة بالتاريخ) ----------
 
 ownerRoutes.get('/barbers/:id/time-off', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
   const barberId = Number(idRaw);
@@ -294,12 +324,13 @@ ownerRoutes.get('/barbers/:id/time-off', async (c) => {
   const { results } = await c.env.DB.prepare(
     'SELECT * FROM barber_time_off WHERE barber_id = ? AND salon_id = ? ORDER BY date ASC',
   )
-    .bind(barberId, SALON_ID)
+    .bind(barberId, salonId)
     .all();
   return c.json({ time_off: results });
 });
 
 ownerRoutes.post('/barbers/:id/time-off', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
   const barberId = Number(idRaw);
@@ -311,7 +342,7 @@ ownerRoutes.post('/barbers/:id/time-off', async (c) => {
 
   // Check barber exists
   const barber = await c.env.DB.prepare('SELECT id FROM barbers WHERE id = ? AND salon_id = ?')
-    .bind(barberId, SALON_ID)
+    .bind(barberId, salonId)
     .first();
   if (!barber) return c.json({ error: 'الحلاق غير موجود' }, 404);
 
@@ -319,7 +350,7 @@ ownerRoutes.post('/barbers/:id/time-off', async (c) => {
     const res = await c.env.DB.prepare(
       'INSERT INTO barber_time_off (barber_id, date, reason, salon_id) VALUES (?, ?, ?, ?) RETURNING id',
     )
-      .bind(barberId, date, reason ? String(reason).trim() : null, SALON_ID)
+      .bind(barberId, date, reason ? String(reason).trim() : null, salonId)
       .first<{ id: number }>();
     return c.json({ id: res!.id, ok: true }, 201);
   } catch {
@@ -328,6 +359,7 @@ ownerRoutes.post('/barbers/:id/time-off', async (c) => {
 });
 
 ownerRoutes.delete('/barbers/:id/time-off/:timeOffId', async (c) => {
+  const salonId: number = c.get('salonId');
   const barberId = Number(c.req.param('id'));
   const timeOffId = Number(c.req.param('timeOffId'));
   if (!isPositiveInt(barberId) || !isPositiveInt(timeOffId)) {
@@ -337,7 +369,7 @@ ownerRoutes.delete('/barbers/:id/time-off/:timeOffId', async (c) => {
   const res = await c.env.DB.prepare(
     'DELETE FROM barber_time_off WHERE id = ? AND barber_id = ? AND salon_id = ?',
   )
-    .bind(timeOffId, barberId, SALON_ID)
+    .bind(timeOffId, barberId, salonId)
     .run();
   if (res.meta.changes === 0) return c.json({ error: 'سجل الإجازة غير موجود' }, 404);
   return c.json({ ok: true });
@@ -346,6 +378,7 @@ ownerRoutes.delete('/barbers/:id/time-off/:timeOffId', async (c) => {
 // ---------- Daily Breaks (فترات الاستراحة اليومية المتعددة) ----------
 
 ownerRoutes.get('/barbers/:id/breaks', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
   const barberId = Number(idRaw);
@@ -353,12 +386,13 @@ ownerRoutes.get('/barbers/:id/breaks', async (c) => {
   const { results } = await c.env.DB.prepare(
     'SELECT * FROM barber_breaks WHERE barber_id = ? AND salon_id = ? ORDER BY day_of_week ASC, start_time ASC',
   )
-    .bind(barberId, SALON_ID)
+    .bind(barberId, salonId)
     .all();
   return c.json({ breaks: results });
 });
 
 ownerRoutes.post('/barbers/:id/breaks', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحلاق غير صالح' }, 400);
   const barberId = Number(idRaw);
@@ -375,20 +409,21 @@ ownerRoutes.post('/barbers/:id/breaks', async (c) => {
 
   // Check barber exists
   const barber = await c.env.DB.prepare('SELECT id FROM barbers WHERE id = ? AND salon_id = ?')
-    .bind(barberId, SALON_ID)
+    .bind(barberId, salonId)
     .first();
   if (!barber) return c.json({ error: 'الحلاق غير موجود' }, 404);
 
   const res = await c.env.DB.prepare(
     'INSERT INTO barber_breaks (barber_id, day_of_week, start_time, end_time, salon_id) VALUES (?, ?, ?, ?, ?) RETURNING id',
   )
-    .bind(barberId, dow, start_time, end_time, SALON_ID)
+    .bind(barberId, dow, start_time, end_time, salonId)
     .first<{ id: number }>();
 
   return c.json({ id: res!.id, ok: true }, 201);
 });
 
 ownerRoutes.delete('/barbers/:id/breaks/:breakId', async (c) => {
+  const salonId: number = c.get('salonId');
   const barberId = Number(c.req.param('id'));
   const breakId = Number(c.req.param('breakId'));
   if (!isPositiveInt(barberId) || !isPositiveInt(breakId)) {
@@ -398,7 +433,7 @@ ownerRoutes.delete('/barbers/:id/breaks/:breakId', async (c) => {
   const res = await c.env.DB.prepare(
     'DELETE FROM barber_breaks WHERE id = ? AND barber_id = ? AND salon_id = ?',
   )
-    .bind(breakId, barberId, SALON_ID)
+    .bind(breakId, barberId, salonId)
     .run();
   if (res.meta.changes === 0) return c.json({ error: 'سجل الاستراحة غير موجود' }, 404);
   return c.json({ ok: true });
@@ -407,9 +442,10 @@ ownerRoutes.delete('/barbers/:id/breaks/:breakId', async (c) => {
 // ---------- Bookings management — PRD 3.6 / 3.7 / 3.10 ----------
 
 ownerRoutes.get('/bookings', async (c) => {
+  const salonId: number = c.get('salonId');
   const { barber_id, date, status, from, to } = c.req.query();
   const where: string[] = ['bk.salon_id = ?'];
-  const params: any[] = [SALON_ID];
+  const params: any[] = [salonId];
 
   if (barber_id && isPositiveInt(barber_id)) {
     where.push('bk.barber_id = ?');
@@ -465,6 +501,7 @@ ownerRoutes.get('/bookings', async (c) => {
 // ---------- Customers lookup / search for manual booking ----------
 
 ownerRoutes.get('/customers', async (c) => {
+  const salonId: number = c.get('salonId');
   const q = c.req.query('q');
   if (q && typeof q === 'string' && q.trim()) {
     const term = `%${q.trim()}%`;
@@ -473,7 +510,7 @@ ownerRoutes.get('/customers', async (c) => {
        WHERE salon_id = ? AND (username LIKE ? OR phone LIKE ?)
        ORDER BY username LIMIT 30`,
     )
-      .bind(SALON_ID, term, term)
+      .bind(salonId, term, term)
       .all();
     return c.json({ customers: results });
   }
@@ -481,7 +518,7 @@ ownerRoutes.get('/customers', async (c) => {
   const { results } = await c.env.DB.prepare(
     'SELECT id, username, phone FROM customers WHERE salon_id = ? ORDER BY id DESC LIMIT 50',
   )
-    .bind(SALON_ID)
+    .bind(salonId)
     .all();
   return c.json({ customers: results });
 });
@@ -489,6 +526,7 @@ ownerRoutes.get('/customers', async (c) => {
 // ---------- Manual booking creation by owner ----------
 
 ownerRoutes.post('/bookings', async (c) => {
+  const salonId: number = c.get('salonId');
   const body = await c.req.json().catch(() => ({} as any));
   const {
     customer_id,
@@ -506,7 +544,7 @@ ownerRoutes.post('/bookings', async (c) => {
     customer = await c.env.DB.prepare(
       'SELECT id, username, phone FROM customers WHERE id = ? AND salon_id = ?',
     )
-      .bind(Number(customer_id), SALON_ID)
+      .bind(Number(customer_id), salonId)
       .first<{ id: number; username: string; phone: string }>();
     if (!customer) return c.json({ error: 'الزبون المحدد غير موجود' }, 404);
   } else if (customer_name && customer_phone) {
@@ -523,7 +561,7 @@ ownerRoutes.post('/bookings', async (c) => {
     const existing = await c.env.DB.prepare(
       'SELECT id, username, phone FROM customers WHERE phone = ? AND salon_id = ?',
     )
-      .bind(cPhone, SALON_ID)
+      .bind(cPhone, salonId)
       .first<{ id: number; username: string; phone: string }>();
 
     if (existing) {
@@ -533,7 +571,7 @@ ownerRoutes.post('/bookings', async (c) => {
       const newCust = await c.env.DB.prepare(
         'INSERT INTO customers (username, phone, token, salon_id) VALUES (?, ?, ?, ?) RETURNING id, username, phone',
       )
-        .bind(cName, cPhone, token, SALON_ID)
+        .bind(cName, cPhone, token, salonId)
         .first<{ id: number; username: string; phone: string }>();
       customer = newCust;
     }
@@ -565,7 +603,7 @@ ownerRoutes.post('/bookings', async (c) => {
   const barber = await c.env.DB.prepare(
     'SELECT id, name FROM barbers WHERE id = ? AND is_active = 1 AND salon_id = ?',
   )
-    .bind(Number(barber_id), SALON_ID)
+    .bind(Number(barber_id), salonId)
     .first<{ id: number; name: string }>();
   if (!barber) return c.json({ error: 'الحلاق غير متاح' }, 404);
 
@@ -577,7 +615,7 @@ ownerRoutes.post('/bookings', async (c) => {
   const timeOff = await c.env.DB.prepare(
     'SELECT id, reason FROM barber_time_off WHERE barber_id = ? AND date = ? AND salon_id = ?',
   )
-    .bind(barber.id, date, SALON_ID)
+    .bind(barber.id, date, salonId)
     .first<{ id: number; reason: string | null }>();
   if (timeOff) {
     return c.json(
@@ -590,7 +628,7 @@ ownerRoutes.post('/bookings', async (c) => {
   const schedule = await c.env.DB.prepare(
     'SELECT start_time, end_time, is_day_off FROM work_schedules WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
   )
-    .bind(barber.id, dayOfWeek(date), SALON_ID)
+    .bind(barber.id, dayOfWeek(date), salonId)
     .first<{ start_time: string; end_time: string; is_day_off: number }>();
   if (!schedule || schedule.is_day_off) {
     return c.json({ error: 'الحلاق في عطلة أسبوعية بهذا اليوم' }, 400);
@@ -606,7 +644,7 @@ ownerRoutes.post('/bookings', async (c) => {
   const { results: breaks } = await c.env.DB.prepare(
     'SELECT start_time, end_time FROM barber_breaks WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
   )
-    .bind(barber.id, dayOfWeek(date), SALON_ID)
+    .bind(barber.id, dayOfWeek(date), salonId)
     .all<{ start_time: string; end_time: string }>();
 
   const overlapsBreak = (breaks as any[]).some((br) => {
@@ -627,7 +665,7 @@ ownerRoutes.post('/bookings', async (c) => {
        AND start_time < ? AND end_time > ?
      LIMIT 1`,
   )
-    .bind(barber.id, date, SALON_ID, endTime, start_time)
+    .bind(barber.id, date, salonId, endTime, start_time)
     .first();
   if (conflict) {
     return c.json({ error: 'هذا الموعد يتعارض مع حجز مؤكد آخر للحلاق' }, 409);
@@ -646,7 +684,7 @@ ownerRoutes.post('/bookings', async (c) => {
     `INSERT INTO bookings (customer_id, barber_id, booking_date, start_time, end_time, status, total_price, salon_id)
      VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?) RETURNING id`,
   )
-    .bind(customer!.id, barber.id, date, start_time, endTime, totalPrice, SALON_ID)
+    .bind(customer!.id, barber.id, date, start_time, endTime, totalPrice, salonId)
     .first<{ id: number }>();
 
   const stmts = (svcRows as any[]).map((s) =>
@@ -657,7 +695,7 @@ ownerRoutes.post('/bookings', async (c) => {
   await c.env.DB.batch(stmts);
 
   // Schedule a push reminder 20 minutes before the appointment (skipped for urgent bookings)
-  await scheduleBookingReminder(c.env, booking!.id, date, start_time);
+  await scheduleBookingReminder(c.env, salonId, booking!.id, date, start_time);
 
   // Notify customer
   await sendNotification(
@@ -684,6 +722,7 @@ ownerRoutes.post('/bookings', async (c) => {
 });
 
 ownerRoutes.post('/bookings/:id/cancel', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحجز غير صالح' }, 400);
   const id = Number(idRaw);
@@ -693,7 +732,7 @@ ownerRoutes.post('/bookings/:id/cancel', async (c) => {
      FROM bookings bk JOIN customers cu ON cu.id = bk.customer_id JOIN barbers br ON br.id = bk.barber_id
      WHERE bk.id = ? AND bk.salon_id = ?`,
   )
-    .bind(id, SALON_ID)
+    .bind(id, salonId)
     .first<any>();
   if (!booking) return c.json({ error: 'الحجز غير موجود' }, 404);
   if (booking.status !== 'confirmed') return c.json({ error: 'لا يمكن إلغاء هذا الحجز' }, 400);
@@ -709,6 +748,7 @@ ownerRoutes.post('/bookings/:id/cancel', async (c) => {
 });
 
 ownerRoutes.post('/bookings/:id/no-show', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحجز غير صالح' }, 400);
   const id = Number(idRaw);
@@ -716,13 +756,14 @@ ownerRoutes.post('/bookings/:id/no-show', async (c) => {
   const res = await c.env.DB.prepare(
     "UPDATE bookings SET status = 'no_show' WHERE id = ? AND salon_id = ? AND status IN ('confirmed','completed')",
   )
-    .bind(id, SALON_ID)
+    .bind(id, salonId)
     .run();
   if (res.meta.changes === 0) return c.json({ error: 'الحجز غير موجود أو لا يمكن تعليمه' }, 404);
   return c.json({ ok: true });
 });
 
 ownerRoutes.post('/bookings/:id/complete', async (c) => {
+  const salonId: number = c.get('salonId');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحجز غير صالح' }, 400);
   const id = Number(idRaw);
@@ -730,7 +771,7 @@ ownerRoutes.post('/bookings/:id/complete', async (c) => {
   const res = await c.env.DB.prepare(
     "UPDATE bookings SET status = 'completed' WHERE id = ? AND salon_id = ? AND status = 'confirmed'",
   )
-    .bind(id, SALON_ID)
+    .bind(id, salonId)
     .run();
   if (res.meta.changes === 0) return c.json({ error: 'الحجز غير موجود أو لا يمكن تعليمه' }, 404);
   return c.json({ ok: true });
@@ -742,12 +783,13 @@ export async function notifyWaitlist(
   c: Context<any>,
   booking: { barber_id: number; booking_date: string; start_time: string; end_time: string },
 ) {
+  const salonId: number = c.get('salonId');
   const { results } = await c.env.DB.prepare(
     `SELECT w.id, w.customer_id FROM waitlist w
      WHERE w.barber_id = ? AND w.desired_date = ? AND w.status = 'waiting' AND w.salon_id = ?
        AND w.start_time < ? AND w.end_time > ?`,
   )
-    .bind(booking.barber_id, booking.booking_date, SALON_ID, booking.end_time, booking.start_time)
+    .bind(booking.barber_id, booking.booking_date, salonId, booking.end_time, booking.start_time)
     .all();
 
   for (const w of results as any[]) {
@@ -763,6 +805,7 @@ export async function notifyWaitlist(
 // ---------- Reports & statistics — PRD 3.10 ----------
 
 ownerRoutes.get('/stats', async (c) => {
+  const salonId: number = c.get('salonId');
   const db = c.env.DB;
   const today = new Date().toISOString().slice(0, 10);
   const weekAgo = new Date(Date.now() - 6 * 24 * 3600 * 1000).toISOString().slice(0, 10);
@@ -771,12 +814,12 @@ ownerRoutes.get('/stats', async (c) => {
     `SELECT booking_date AS date, COUNT(*) AS count FROM bookings
      WHERE booking_date BETWEEN ? AND ? AND status != 'cancelled' AND salon_id = ?
      GROUP BY booking_date ORDER BY booking_date`,
-  ).bind(weekAgo, today, SALON_ID).all();
+  ).bind(weekAgo, today, salonId).all();
 
   const revenue = await db.prepare(
     `SELECT COALESCE(SUM(total_price), 0) AS expected_revenue, COUNT(*) AS bookings
      FROM bookings WHERE booking_date BETWEEN ? AND ? AND status IN ('confirmed','completed') AND salon_id = ?`,
-  ).bind(weekAgo, today, SALON_ID).first();
+  ).bind(weekAgo, today, salonId).first();
 
   const topServices = await db.prepare(
     `SELECT bs.name, COUNT(*) AS count, SUM(bs.price) AS revenue
@@ -784,7 +827,7 @@ ownerRoutes.get('/stats', async (c) => {
      JOIN bookings bk ON bk.id = bs.booking_id
      WHERE bk.status != 'cancelled' AND bk.salon_id = ?
      GROUP BY bs.name ORDER BY count DESC LIMIT 5`,
-  ).bind(SALON_ID).all();
+  ).bind(salonId).all();
 
   const noShows = await db.prepare(
     `SELECT cu.username AS customer_name, br.name AS barber_name, COUNT(*) AS count
@@ -793,11 +836,11 @@ ownerRoutes.get('/stats', async (c) => {
      JOIN barbers br ON br.id = bk.barber_id
      WHERE bk.status = 'no_show' AND bk.salon_id = ?
      GROUP BY bk.customer_id, bk.barber_id ORDER BY count DESC LIMIT 10`,
-  ).bind(SALON_ID).all();
+  ).bind(salonId).all();
 
   const totals = await db.prepare(
     `SELECT status, COUNT(*) AS count FROM bookings WHERE salon_id = ? GROUP BY status`,
-  ).bind(SALON_ID).all();
+  ).bind(salonId).all();
 
   return c.json({
     daily: daily.results,
@@ -812,6 +855,8 @@ ownerRoutes.get('/stats', async (c) => {
 
 ownerRoutes.get('/reports', async (c) => {
   const db = c.env.DB;
+  // Tenant derived from the authenticated owner session
+  const salonId: number = c.get('salonId');
   const { period = 'this_month', from: qFrom, to: qTo } = c.req.query();
   // Salon-local "today" (Jordan UTC+3) — raw UTC would lag a day between 00:00-03:00 local.
   const now = salonNow();
@@ -831,6 +876,7 @@ ownerRoutes.get('/reports', async (c) => {
     endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dow + 6))
       .toISOString().slice(0, 10);
   } else if (period === 'this_month') {
+    const salonId: number = c.get('salonId');
     // Calendar month — extends to end of month so future-dated bookings
     // (e.g. appointments already marked completed) are included.
     startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
@@ -867,7 +913,7 @@ ownerRoutes.get('/reports', async (c) => {
      FROM bookings
      WHERE salon_id = ? AND booking_date BETWEEN ? AND ?`,
   )
-    .bind(SALON_ID, startDate, endDate)
+    .bind(salonId, startDate, endDate)
     .first<{
       total_revenue: number;
       completed_revenue: number;
@@ -893,7 +939,7 @@ ownerRoutes.get('/reports', async (c) => {
      GROUP BY br.id, br.name, br.photo_url
      ORDER BY revenue DESC`,
   )
-    .bind(startDate, endDate, SALON_ID)
+    .bind(startDate, endDate, salonId)
     .all();
 
   // 3. Revenue & count per service
@@ -908,7 +954,7 @@ ownerRoutes.get('/reports', async (c) => {
      GROUP BY bs.name
      ORDER BY revenue DESC`,
   )
-    .bind(SALON_ID, startDate, endDate)
+    .bind(salonId, startDate, endDate)
     .all();
 
   // 4. Daily Trend
@@ -922,7 +968,7 @@ ownerRoutes.get('/reports', async (c) => {
      GROUP BY booking_date
      ORDER BY booking_date ASC`,
   )
-    .bind(SALON_ID, startDate, endDate)
+    .bind(salonId, startDate, endDate)
     .all();
 
   // 5. Peak Hours Heatmap Matrix (Days 0..6 x Hours)
@@ -936,7 +982,7 @@ ownerRoutes.get('/reports', async (c) => {
      GROUP BY day_of_week, hour
      ORDER BY day_of_week, hour`,
   )
-    .bind(SALON_ID, startDate, endDate)
+    .bind(salonId, startDate, endDate)
     .all();
 
   const completedAndConfirmed = (summary?.completed_count || 0) + (summary?.confirmed_count || 0);
@@ -968,16 +1014,18 @@ ownerRoutes.get('/reports', async (c) => {
 // ---------- Owner notifications ----------
 
 ownerRoutes.get('/notifications', async (c) => {
+  const salonId: number = c.get('salonId');
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM notifications WHERE recipient_type = 'owner' AND salon_id = ?
      ORDER BY id DESC LIMIT 100`,
-  ).bind(SALON_ID).all();
+  ).bind(salonId).all();
   return c.json({ notifications: results });
 });
 
 ownerRoutes.post('/notifications/read-all', async (c) => {
+  const salonId: number = c.get('salonId');
   await c.env.DB.prepare("UPDATE notifications SET is_read = 1 WHERE recipient_type = 'owner' AND salon_id = ?")
-    .bind(SALON_ID)
+    .bind(salonId)
     .run();
   return c.json({ ok: true });
 });

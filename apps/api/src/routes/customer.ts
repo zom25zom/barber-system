@@ -13,7 +13,6 @@ import {
   dayOfWeek,
   todayISO,
   formatTime12Ar,
-  SALON_ID,
   isPositiveInt,
   sha256,
   randomToken,
@@ -27,17 +26,19 @@ customerRoutes.use('*', requireCustomer);
 // ---------- My profile (view / edit) ----------
 
 customerRoutes.get('/profile', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   const row = await c.env.DB.prepare(
     'SELECT id, username, phone FROM customers WHERE id = ? AND salon_id = ?',
   )
-    .bind(customer.id, SALON_ID)
+    .bind(customer.id, salonId)
     .first<Customer>();
   if (!row) return c.json({ error: 'الحساب غير موجود' }, 404);
   return c.json({ customer: row });
 });
 
 customerRoutes.patch('/profile', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   const body = await c.req.json().catch(() => ({} as any));
 
@@ -52,7 +53,7 @@ customerRoutes.patch('/profile', async (c) => {
     const taken = await c.env.DB.prepare(
       'SELECT id FROM customers WHERE salon_id = ? AND username = ? AND id != ?',
     )
-      .bind(SALON_ID, cleanUsername, customer.id)
+      .bind(salonId, cleanUsername, customer.id)
       .first();
     if (taken) return c.json({ error: 'هذا الاسم مستخدم من حساب آخر' }, 409);
     updates.push('username = ?');
@@ -67,7 +68,7 @@ customerRoutes.patch('/profile', async (c) => {
     const taken = await c.env.DB.prepare(
       'SELECT id FROM customers WHERE salon_id = ? AND phone = ? AND id != ?',
     )
-      .bind(SALON_ID, cleanPhone, customer.id)
+      .bind(salonId, cleanPhone, customer.id)
       .first();
     if (taken) return c.json({ error: 'رقم الهاتف مسجل على حساب آخر' }, 409);
     updates.push('phone = ?');
@@ -75,7 +76,7 @@ customerRoutes.patch('/profile', async (c) => {
   }
 
   if (updates.length === 0) return c.json({ error: 'لا توجد بيانات للتحديث' }, 400);
-  values.push(customer.id, SALON_ID);
+  values.push(customer.id, salonId);
 
   const updated = await c.env.DB.prepare(
     `UPDATE customers SET ${updates.join(', ')} WHERE id = ? AND salon_id = ? RETURNING id, username, phone`,
@@ -89,6 +90,7 @@ customerRoutes.patch('/profile', async (c) => {
 // ---------- Change password (requires current password) ----------
 
 customerRoutes.post('/change-password', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   const body = await c.req.json().catch(() => ({} as any));
   const { newPassword } = body;
@@ -103,7 +105,7 @@ customerRoutes.post('/change-password', async (c) => {
   const exists = await c.env.DB.prepare(
     'SELECT id FROM customers WHERE id = ? AND salon_id = ?',
   )
-    .bind(customer.id, SALON_ID)
+    .bind(customer.id, salonId)
     .first();
   if (!exists) return c.json({ error: 'الحساب غير موجود' }, 404);
 
@@ -113,7 +115,7 @@ customerRoutes.post('/change-password', async (c) => {
   // Rotate the session token → any other device using the old token is logged out instantly
   const newToken = randomToken();
   await c.env.DB.prepare('UPDATE customers SET password_hash = ?, token = ? WHERE id = ? AND salon_id = ?')
-    .bind(newHash, newToken, customer.id, SALON_ID)
+    .bind(newHash, newToken, customer.id, salonId)
     .run();
 
   return c.json({ ok: true, message: 'تم إعادة تعيين كلمة المرور بنجاح. يرجى تسجيل الدخول من جديد.' });
@@ -122,6 +124,7 @@ customerRoutes.post('/change-password', async (c) => {
 // ---------- Create booking — PRD 3.5 (auto-confirmed) ----------
 
 customerRoutes.post('/bookings', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   const body = await c.req.json().catch(() => ({} as any));
   const { barber_id, service_ids, date, start_time } = body;
@@ -151,7 +154,7 @@ customerRoutes.post('/bookings', async (c) => {
   const existingActive = await c.env.DB.prepare(
     "SELECT id, booking_date, start_time FROM bookings WHERE customer_id = ? AND status = 'confirmed' AND salon_id = ?",
   )
-    .bind(customer.id, SALON_ID)
+    .bind(customer.id, salonId)
     .first<{ id: number; booking_date: string; start_time: string }>();
 
   if (existingActive) {
@@ -171,7 +174,7 @@ customerRoutes.post('/bookings', async (c) => {
   }
 
   const barber = await c.env.DB.prepare('SELECT id, name FROM barbers WHERE id = ? AND is_active = 1 AND salon_id = ?')
-    .bind(Number(barber_id), SALON_ID)
+    .bind(Number(barber_id), salonId)
     .first<{ id: number; name: string }>();
   if (!barber) return c.json({ error: 'الحلاق غير متاح' }, 404);
 
@@ -183,7 +186,7 @@ customerRoutes.post('/bookings', async (c) => {
   const schedule = await c.env.DB.prepare(
     'SELECT start_time, end_time, is_day_off FROM work_schedules WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
   )
-    .bind(barber.id, dayOfWeek(date), SALON_ID)
+    .bind(barber.id, dayOfWeek(date), salonId)
     .first<{ start_time: string; end_time: string; is_day_off: number }>();
   if (!schedule || schedule.is_day_off) return c.json({ error: 'الحلاق في إجازة بهذا اليوم' }, 400);
 
@@ -194,7 +197,7 @@ customerRoutes.post('/bookings', async (c) => {
   }
 
   const endTime = toHHMM(end);
-  const conflictCheck = await checkConflict(c.env.DB, barber.id, date, start_time, endTime);
+  const conflictCheck = await checkConflict(c.env.DB, salonId, barber.id, date, start_time, endTime);
   if (conflictCheck) return c.json({ error: 'هذا الموعد لم يعد متاحاً' }, 409);
 
   // Snapshot services and compute total price
@@ -210,7 +213,7 @@ customerRoutes.post('/bookings', async (c) => {
     `INSERT INTO bookings (customer_id, barber_id, booking_date, start_time, end_time, status, total_price, salon_id)
      VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?) RETURNING id`,
   )
-    .bind(customer.id, barber.id, date, start_time, endTime, totalPrice, SALON_ID)
+    .bind(customer.id, barber.id, date, start_time, endTime, totalPrice, salonId)
     .first<{ id: number }>();
 
   const stmts = (svcRows as any[]).map((s) =>
@@ -221,14 +224,14 @@ customerRoutes.post('/bookings', async (c) => {
   await c.env.DB.batch(stmts);
 
   // Schedule a push reminder 20 minutes before the appointment (skipped for urgent bookings)
-  await scheduleBookingReminder(c.env, booking!.id, date, start_time);
+  await scheduleBookingReminder(c.env, salonId, booking!.id, date, start_time);
 
   // If this customer had a waitlist entry for this slot, mark it fulfilled.
   await c.env.DB.prepare(
     `UPDATE waitlist SET status = 'fulfilled'
      WHERE customer_id = ? AND barber_id = ? AND desired_date = ? AND start_time = ? AND status IN ('waiting','notified') AND salon_id = ?`,
   )
-    .bind(customer.id, barber.id, date, start_time, SALON_ID)
+    .bind(customer.id, barber.id, date, start_time, salonId)
     .run();
 
   await sendNotification(
@@ -242,6 +245,7 @@ customerRoutes.post('/bookings', async (c) => {
 // ---------- My bookings ----------
 
 customerRoutes.get('/bookings', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   const { results } = await c.env.DB.prepare(
     `SELECT bk.*, br.name AS barber_name FROM bookings bk
@@ -249,7 +253,7 @@ customerRoutes.get('/bookings', async (c) => {
      WHERE bk.customer_id = ? AND bk.salon_id = ?
      ORDER BY bk.booking_date DESC, bk.start_time DESC LIMIT 200`,
   )
-    .bind(customer.id, SALON_ID)
+    .bind(customer.id, salonId)
     .all<any>();
   const ids = (results as any[]).map((b) => b.id);
   let services: any[] = [];
@@ -273,6 +277,7 @@ customerRoutes.get('/bookings', async (c) => {
 // ---------- Modify booking (any time before the appointment) — PRD 3.6 ----------
 
 customerRoutes.patch('/bookings/:id', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحجز غير صالح' }, 400);
@@ -283,7 +288,7 @@ customerRoutes.patch('/bookings/:id', async (c) => {
   const booking = await c.env.DB.prepare(
     "SELECT * FROM bookings WHERE id = ? AND customer_id = ? AND status = 'confirmed' AND salon_id = ?",
   )
-    .bind(id, customer.id, SALON_ID)
+    .bind(id, customer.id, salonId)
     .first<any>();
   if (!booking) return c.json({ error: 'الحجز غير موجود' }, 404);
 
@@ -331,7 +336,7 @@ customerRoutes.patch('/bookings/:id', async (c) => {
   const schedule = await c.env.DB.prepare(
     'SELECT start_time, end_time, is_day_off FROM work_schedules WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
   )
-    .bind(booking.barber_id, dayOfWeek(newDate), SALON_ID)
+    .bind(booking.barber_id, dayOfWeek(newDate), salonId)
     .first<any>();
   if (!schedule || schedule.is_day_off) return c.json({ error: 'الحلاق في إجازة بهذا اليوم' }, 400);
 
@@ -341,7 +346,7 @@ customerRoutes.patch('/bookings/:id', async (c) => {
     return c.json({ error: 'الموعد خارج ساعات عمل الحلاق' }, 400);
   }
   const newEnd = toHHMM(end);
-  if (await checkConflict(c.env.DB, booking.barber_id, newDate, newStart, newEnd, id)) {
+  if (await checkConflict(c.env.DB, salonId, booking.barber_id, newDate, newStart, newEnd, id)) {
     return c.json({ error: 'هذا الموعد لم يعد متاحاً' }, 409);
   }
 
@@ -368,6 +373,7 @@ customerRoutes.patch('/bookings/:id', async (c) => {
 // ---------- Cancel booking — PRD 3.6 ----------
 
 customerRoutes.post('/bookings/:id/cancel', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف الحجز غير صالح' }, 400);
@@ -377,7 +383,7 @@ customerRoutes.post('/bookings/:id/cancel', async (c) => {
     `SELECT bk.*, br.name AS barber_name FROM bookings bk JOIN barbers br ON br.id = bk.barber_id
      WHERE bk.id = ? AND bk.customer_id = ? AND bk.status = 'confirmed' AND bk.salon_id = ?`,
   )
-    .bind(id, customer.id, SALON_ID)
+    .bind(id, customer.id, salonId)
     .first<any>();
   if (!booking) return c.json({ error: 'الحجز غير موجود' }, 404);
 
@@ -394,6 +400,7 @@ customerRoutes.post('/bookings/:id/cancel', async (c) => {
 // ---------- Waitlist — PRD 3.8 ----------
 
 customerRoutes.post('/waitlist', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   const body = await c.req.json().catch(() => ({} as any));
   const { barber_id, date, start_time, end_time } = body;
@@ -413,7 +420,7 @@ customerRoutes.post('/waitlist', async (c) => {
       `INSERT INTO waitlist (customer_id, barber_id, desired_date, start_time, end_time, salon_id)
        VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
     )
-      .bind(customer.id, Number(barber_id), date, start_time, end_time, SALON_ID)
+      .bind(customer.id, Number(barber_id), date, start_time, end_time, salonId)
       .first<{ id: number }>();
     return c.json({ id: res!.id }, 201);
   } catch {
@@ -422,25 +429,27 @@ customerRoutes.post('/waitlist', async (c) => {
 });
 
 customerRoutes.get('/waitlist', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   const { results } = await c.env.DB.prepare(
     `SELECT w.*, br.name AS barber_name FROM waitlist w
      JOIN barbers br ON br.id = w.barber_id
      WHERE w.customer_id = ? AND w.salon_id = ? ORDER BY w.id DESC LIMIT 100`,
   )
-    .bind(customer.id, SALON_ID)
+    .bind(customer.id, salonId)
     .all();
   return c.json({ waitlist: results });
 });
 
 customerRoutes.delete('/waitlist/:id', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   const idRaw = c.req.param('id');
   if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف قائمة الانتظار غير صالح' }, 400);
   const id = Number(idRaw);
 
   const res = await c.env.DB.prepare('DELETE FROM waitlist WHERE id = ? AND customer_id = ? AND salon_id = ?')
-    .bind(id, customer.id, SALON_ID)
+    .bind(id, customer.id, salonId)
     .run();
   if (res.meta.changes === 0) return c.json({ error: 'غير موجود' }, 404);
   return c.json({ ok: true });
@@ -449,6 +458,7 @@ customerRoutes.delete('/waitlist/:id', async (c) => {
 // ---------- Live Queue ("الدور") Tracker with Delay & Countdown Support ----------
 
 customerRoutes.get('/queue', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   const today = todayISO();
   const clientTime = c.req.query('clientTime');
@@ -469,7 +479,7 @@ customerRoutes.get('/queue', async (c) => {
      WHERE bk.customer_id = ? AND bk.status = 'confirmed' AND bk.booking_date >= ? AND bk.salon_id = ?
      ORDER BY bk.booking_date ASC, bk.start_time ASC`,
   )
-    .bind(customer.id, today, SALON_ID)
+    .bind(customer.id, today, salonId)
     .all<any>();
 
   const queueItems = [];
@@ -483,7 +493,7 @@ customerRoutes.get('/queue', async (c) => {
          AND bk.start_time < ? AND bk.status IN ('confirmed', 'completed')
        ORDER BY bk.start_time ASC`,
     )
-      .bind(b.barber_id, b.booking_date, SALON_ID, b.start_time)
+      .bind(b.barber_id, b.booking_date, salonId, b.start_time)
       .all<any>();
 
     const uncompletedPrior = (priorBookings as any[]).filter((x) => x.status === 'confirmed');
@@ -561,22 +571,24 @@ customerRoutes.get('/queue', async (c) => {
 // ---------- Customer notifications ----------
 
 customerRoutes.get('/notifications', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM notifications WHERE recipient_type = 'customer' AND recipient_id = ? AND salon_id = ?
      ORDER BY id DESC LIMIT 100`,
   )
-    .bind(customer.id, SALON_ID)
+    .bind(customer.id, salonId)
     .all();
   return c.json({ notifications: results });
 });
 
 customerRoutes.post('/notifications/read-all', async (c) => {
+  const salonId: number = c.get('salonId');
   const customer = c.get('customer');
   await c.env.DB.prepare(
     "UPDATE notifications SET is_read = 1 WHERE recipient_type = 'customer' AND recipient_id = ? AND salon_id = ?",
   )
-    .bind(customer.id, SALON_ID)
+    .bind(customer.id, salonId)
     .run();
   return c.json({ ok: true });
 });
@@ -585,6 +597,7 @@ customerRoutes.post('/notifications/read-all', async (c) => {
 
 async function checkConflict(
   db: D1Database,
+  salonId: number,
   barberId: number,
   date: string,
   startTime: string,
@@ -599,8 +612,8 @@ async function checkConflict(
        LIMIT 1`,
     )
     .bind(...(excludeBookingId
-      ? [barberId, date, SALON_ID, endTime, startTime, excludeBookingId]
-      : [barberId, date, SALON_ID, endTime, startTime]))
+      ? [barberId, date, salonId, endTime, startTime, excludeBookingId]
+      : [barberId, date, salonId, endTime, startTime]))
     .first();
   return row != null;
 }

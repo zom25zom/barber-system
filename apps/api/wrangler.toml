@@ -14,6 +14,23 @@ database_name = "barber_db"
 database_id = "f9d5777a-bc60-4849-933b-5053a9bffcea"
 migrations_dir = "migrations"
 
+# ⏳ R2 image storage — PREPARED, NOT APPLIED YET.
+# R2 must first be enabled at the ACCOUNT level in the Cloudflare dashboard
+# (currently returns code 10042 when provisioning via API/wrangler).
+#
+# To activate once R2 is enabled:
+#   1. npx wrangler r2 bucket create barber-uploads
+#   2. Uncomment the block below
+#   3. npx wrangler deploy
+#
+# No code changes needed: routes/upload.ts already prefers env.BUCKET when
+# present and falls back to D1 storage otherwise. Existing D1-stored images
+# keep being served through the same fallback path.
+#
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "barber-uploads"
+
 # Booking reminders — delayed messages (booking time − 20 min)
 [[queues.producers]]
 binding = "REMINDER_QUEUE"

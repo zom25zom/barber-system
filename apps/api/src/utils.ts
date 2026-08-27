@@ -4,11 +4,117 @@ import type { DurableObjectNamespace } from '@cloudflare/workers-types';
 // ---------- multi-tenant ----------
 
 /**
- * Current salon ID for this deployment.
- * Each deployed instance serves a single salon; only this constant
- * (and the matching row in the `salons` table) differs per tenant.
+ * Multi-tenant: there is NO fixed SALON_ID anymore.
+ *
+ * • Authenticated requests: salon_id is derived from the user's own session
+ *   (sessions.salon_id for owners, customers.salon_id for customers) inside
+ *   requireOwner / requireCustomer — never from client input.
+ * • Public (unauthenticated) booking traffic: the tenant is resolved from the
+ *   request Host against salons.domain / salons.slug via resolvePublicSalonId().
  */
-export const SALON_ID = 1;
+export const DEFAULT_SALON_ID = 1; // fallback until a salon registers its domain/slug
+
+const ARABIC_TO_LATIN: Record<string, string> = {
+  'ا': 'a', 'أ': 'a', 'إ': 'i', 'آ': 'a', 'ب': 'b', 'ت': 't', 'ث': 'th',
+  'ج': 'j', 'ح': 'h', 'خ': 'kh', 'د': 'd', 'ذ': 'dh', 'ر': 'r', 'ز': 'z',
+  'س': 's', 'ش': 'sh', 'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z', 'ع': 'a',
+  'غ': 'gh', 'ف': 'f', 'ق': 'q', 'ك': 'k', 'ل': 'l', 'م': 'm', 'ن': 'n',
+  'ه': 'h', 'ة': 'h', 'و': 'w', 'ي': 'y', 'ى': 'a', 'ئ': 'y', 'ؤ': 'w', 'ء': '', 'ـ': '',
+};
+
+/**
+ * Converts a salon name (Arabic or Latin) into a URL-friendly slug.
+ * Arabic letters are transliterated; spaces/symbols become single dashes;
+ * result is lowercased ASCII [a-z0-9-]. Falls back to "salon" if empty.
+ */
+export function slugifySalonName(name: string): string {
+  const transliterated = [...name]
+    .map((ch) => ARABIC_TO_LATIN[ch] ?? ch)
+    .join('')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/[\s-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return transliterated || 'salon';
+}
+
+/**
+ * Resolves which salon an unauthenticated request belongs to.
+ * Priority:
+ *   1. ?salonSlug=... query/body param (path-based multi-tenancy, e.g. /salon-zomz)
+ *   2. Request host vs salons.domain / salons.slug (domain-based)
+ *   3. DEFAULT_SALON_ID fallback while only one salon exists
+ */
+export async function resolvePublicSalonId(c: { req: { header: (name: string) => string | undefined; query: (name: string) => string | undefined }; env: { DB: any } }): Promise<number> {
+  const r = await resolvePublicSalonWithSource(c);
+  // READ-only endpoints keep the documented DEFAULT_SALON_ID fallback (root
+  // home page branding etc). Identity/INSERT endpoints must NOT rely on this
+  // wrapper — they use resolvePublicSalonStrict() which rejects instead.
+  return r.source ? r.id : DEFAULT_SALON_ID;
+}
+
+/**
+ * Resolution WITH provenance.
+ *   "slug"  → explicit ?salonSlug= param (path-based tenant)
+ *   "host"  → custom-domain match against salons.domain/slug
+ *   null    → nothing matched; caller decides whether DEFAULT_SALON_ID
+ *             fallback is acceptable (READ-ONLY branding) or must be
+ *             rejected (any identity/INSERT operation — see auth routes).
+ */
+export async function resolvePublicSalonWithSource(
+  c: { req: { header: (name: string) => string | undefined; query: (name: string) => string | undefined }; env: { DB: any } },
+): Promise<{ id: number; source: 'slug' | 'host' | null }> {
+  try {
+    // 1) Explicit path slug (passed by /[salonSlug]/* pages)
+    const slug = c.req.query?.('salonSlug');
+    if (slug && /^[a-zA-Z0-9-_]{1,60}$/.test(slug)) {
+      const bySlug = await c.env.DB.prepare('SELECT id FROM salons WHERE slug = ?')
+        .bind(slug.toLowerCase())
+        .first();
+      const typed = bySlug as unknown as { id: number } | null;
+      if (typed?.id) return { id: typed.id, source: 'slug' };
+    }
+
+    // 2) Host-based matching
+    const host = (c.req.header('x-forwarded-host') || c.req.header('host') || '')
+      .split(':')[0]
+      .toLowerCase();
+    if (!host) return { id: 0, source: null };
+
+    const row = await c.env.DB.prepare(
+      `SELECT id FROM salons WHERE LOWER(domain) = ?
+         OR (? LIKE '%' || slug || '%')
+       LIMIT 1`,
+    )
+      .bind(host, host)
+      .first();
+
+    const typed = row as unknown as { id: number } | null;
+    if (typed?.id) return { id: typed.id, source: 'host' };
+  } catch {
+    // fall through to default
+  }
+  return { id: 0, source: null };
+}
+
+/**
+ * STRICT resolution for identity/INSERT operations (register, login, etc).
+ * Returns null when the tenant cannot be established with FULL confidence —
+ * callers MUST reject instead of silently falling back to a default salon.
+ * This eliminates the silent salon_id=1 corruption class of bugs.
+ */
+export async function resolvePublicSalonStrict(c: { req: { header: (name: string) => string | undefined; query: (name: string) => string | undefined }; env: { DB: any } }): Promise<number | null> {
+  const r = await resolvePublicSalonWithSource(c);
+  if (!r.source) return null;
+
+  // Extra hardening: the salon row itself MUST exist — blocks writes into a
+  // deleted/legacy salon id even if resolution somehow returns one.
+  const exists = await c.env.DB.prepare('SELECT id FROM salons WHERE id = ?')
+    .bind(r.id)
+    .first();
+  return exists ? r.id : null;
+}
 
 // ---------- crypto / tokens ----------
 

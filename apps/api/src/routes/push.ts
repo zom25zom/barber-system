@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Bindings, Variables } from '../types';
 import { VAPID_PUBLIC_KEY, dispatchWebPush } from '../webpush';
-import { SALON_ID, formatTime12Ar } from '../utils';
+import { formatTime12Ar, resolvePublicSalonId } from '../utils';
 
 export const pushRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -21,26 +21,30 @@ pushRoutes.post('/subscribe', async (c) => {
   let userType: 'owner' | 'customer' = (role === 'owner' || explicitUserType === 'owner') ? 'owner' : 'customer';
   let customerId: number | null = null;
 
-  // Check token in database
+  // Resolve tenant + user type strictly from the token's own record
+  let salonId: number | null = null;
   if (token) {
     const ownerRow = await c.env.DB.prepare(
-      `SELECT s.owner_id FROM sessions s JOIN owners o ON o.id = s.owner_id WHERE s.token = ? AND s.expires_at > datetime('now') AND o.salon_id = ?`,
+      `SELECT s.owner_id, s.salon_id FROM sessions s JOIN owners o ON o.id = s.owner_id WHERE s.token = ? AND s.expires_at > datetime('now')`,
     )
-      .bind(token, SALON_ID)
-      .first<{ owner_id: number }>();
+      .bind(token)
+      .first<{ owner_id: number; salon_id: number }>();
 
     if (ownerRow) {
       userType = 'owner';
+      salonId = ownerRow.salon_id;
     } else {
-      const custRow = await c.env.DB.prepare('SELECT id FROM customers WHERE token = ? AND salon_id = ?')
-        .bind(token, SALON_ID)
-        .first<{ id: number }>();
+      const custRow = await c.env.DB.prepare('SELECT id, salon_id FROM customers WHERE token = ?')
+        .bind(token)
+        .first<{ id: number; salon_id: number }>();
       if (custRow) {
         userType = 'customer';
         customerId = custRow.id;
+        salonId = custRow.salon_id;
       }
     }
   }
+  if (!salonId) salonId = await resolvePublicSalonId(c);
   if (!endpoint || typeof endpoint !== 'string' || !keys?.p256dh || !keys?.auth) {
     return c.json({ error: 'بيانات اشتراك الإشعارات غير مكتملة' }, 400);
   }
@@ -56,7 +60,7 @@ pushRoutes.post('/subscribe', async (c) => {
        salon_id = excluded.salon_id,
        created_at = CURRENT_TIMESTAMP`,
   )
-    .bind(userType, customerId, endpoint, keys.p256dh, keys.auth, SALON_ID)
+    .bind(userType, customerId, endpoint, keys.p256dh, keys.auth, salonId)
     .run();
 
   console.log(`[Push] ✓ Subscription saved: ${userType}${customerId != null ? ` (customer_id=${customerId})` : ''} → ${endpoint.substring(0, 50)}...`);
@@ -66,10 +70,11 @@ pushRoutes.post('/subscribe', async (c) => {
 
 // Unsubscribe endpoint
 pushRoutes.post('/unsubscribe', async (c) => {
+  const salonId = await resolvePublicSalonId(c);
   const { endpoint } = await c.req.json().catch(() => ({} as any));
   if (endpoint) {
     await c.env.DB.prepare('DELETE FROM push_subscriptions WHERE endpoint = ? AND salon_id = ?')
-      .bind(endpoint, SALON_ID)
+      .bind(endpoint, salonId)
       .run();
     console.log(`[Push] 🗑 Subscription removed: ${endpoint.substring(0, 50)}...`);
   }
@@ -84,13 +89,14 @@ pushRoutes.post('/unsubscribe', async (c) => {
  * and get back the HTTP status code from FCM/APNs/Mozilla Push.
  */
 pushRoutes.post('/test', async (c) => {
+  const salonId = await resolvePublicSalonId(c);
   const body = await c.req.json().catch(() => ({} as any));
   const userType: 'owner' | 'customer' = body.userType === 'owner' ? 'owner' : 'customer';
   const customerId: number | null = body.customerId ?? null;
 
   console.log(`[Push Test] ════ Starting test push for ${userType}${customerId != null ? ` (customer_id=${customerId})` : ''} ════`);
 
-  const results = await dispatchWebPush(c.env.DB, userType, customerId, SALON_ID, {
+  const results = await dispatchWebPush(c.env.DB, userType, customerId, salonId, {
     title: '🧪 إشعار تجريبي — صالون الحلاقة',
     message: `هذا إشعار تجريبي للتحقق من عمل Web Push. الوقت: ${formatTime12Ar(new Date())}`,
     url: userType === 'owner' ? '/admin/bookings' : '/my-bookings',
@@ -102,7 +108,7 @@ pushRoutes.post('/test', async (c) => {
   const { results: allSubs } = await c.env.DB.prepare(
     'SELECT id, user_type, customer_id, endpoint, created_at FROM push_subscriptions WHERE salon_id = ? ORDER BY created_at DESC',
   )
-    .bind(SALON_ID)
+    .bind(salonId)
     .all();
 
   return c.json({
@@ -122,10 +128,11 @@ pushRoutes.post('/test', async (c) => {
 
 // Debug: list all subscriptions
 pushRoutes.get('/subscriptions', async (c) => {
+  const salonId = await resolvePublicSalonId(c);
   const { results: subs } = await c.env.DB.prepare(
     'SELECT id, user_type, customer_id, endpoint, created_at FROM push_subscriptions WHERE salon_id = ? ORDER BY created_at DESC',
   )
-    .bind(SALON_ID)
+    .bind(salonId)
     .all();
 
   return c.json({

@@ -1,18 +1,12 @@
 import type { Bindings, ReminderMessage } from './types';
-import { SALON_ID } from './utils';
+
+import { SALON_TZ_OFFSET_MS } from './utils';
 
 const REMINDER_LEAD_MINUTES = 20;
 
-/**
- * Salon local timezone (Jordan — UTC+3 fixed, no DST since 2022).
- * Booking dates/times are stored as naive local strings in D1,
- * so we anchor them to +03:00 to compute real timestamps.
- */
-const SALON_TZ_OFFSET = '+03:00';
-
-/** Epoch ms of a naive salon-local date/time string */
+/** Epoch ms of a naive salon-local date/time string (Jordan UTC+3). */
 function salonLocalTimestamp(date: string, time: string): number {
-  return new Date(`${date}T${time}:00${SALON_TZ_OFFSET}`).getTime();
+  return new Date(`${date}T${time}:00Z`).getTime() - SALON_TZ_OFFSET_MS;
 }
 
 /**
@@ -31,6 +25,7 @@ function salonLocalTimestamp(date: string, time: string): number {
  */
 export async function scheduleBookingReminder(
   env: Pick<Bindings, 'DB' | 'REMINDER_QUEUE'>,
+  salonId: number,
   bookingId: number,
   bookingDate: string,
   startTime: string,
@@ -51,7 +46,7 @@ export async function scheduleBookingReminder(
     }
 
     const cappedDelay = Math.min(delaySeconds, QUEUE_MAX_DELAY_SECONDS);
-    const body: ReminderMessage = { bookingId, bookingDate, startTime };
+    const body: ReminderMessage = { salonId, bookingId, bookingDate, startTime };
     await env.REMINDER_QUEUE.send(body, { delaySeconds: cappedDelay });
     console.log(
       `[Reminder] Scheduled booking #${bookingId}: requested ${delaySeconds}s → queued ${cappedDelay}s (${bookingDate} ${startTime})`,
@@ -62,4 +57,4 @@ export async function scheduleBookingReminder(
 }
 
 export const QUEUE_MAX_DELAY_SECONDS = 86_400; // empirically-safe maximum (24h)
-export { SALON_ID };
+export { SALON_TZ_OFFSET_MS };

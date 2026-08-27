@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { getOwnerToken, clearOwnerToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { useLiveNotifications } from "@/lib/useNotifications";
-import { useSalonSettings } from "@/lib/salon";
+import { useOwnerSalonSettings } from "@/lib/salon";
 import ConfirmModal from "@/components/ConfirmModal";
 import InstallPrompt from "@/components/InstallPrompt";
 import IOSInstallGuide from "@/components/IOSInstallGuide";
@@ -27,7 +27,10 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
   const token = getOwnerToken();
   const [unread, setUnread] = useState(0);
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
-  const salon = useSalonSettings();
+  // Owner-session-scoped branding. Disabled on the login page (no session yet
+  // → previously fired a pointless GET /api/salon-settings that 404'd).
+  const isLoginPage = pathname === "/admin/login";
+  const salon = useOwnerSalonSettings(!isLoginPage && !!token);
 
   // Dynamically ensure Admin PWA manifest and title are active when in /admin
   useEffect(() => {

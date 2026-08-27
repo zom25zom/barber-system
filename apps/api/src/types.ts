@@ -2,6 +2,7 @@ import type { D1Database, DurableObjectNamespace, Fetcher, MessageBatch, Queue, 
 
 /** Payload sent to the booking-reminders queue */
 export type ReminderMessage = {
+  salonId: number;
   bookingId: number;
   bookingDate: string;
   startTime: string;
@@ -23,6 +24,8 @@ export type Customer = { id: number; username: string; phone: string };
 export type Variables = {
   owner: Owner;
   customer: Customer;
+  /** Derived from the authenticated session — set by requireOwner/requireCustomer */
+  salonId: number;
 };
 
 export type SalonSettings = {

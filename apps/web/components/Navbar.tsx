@@ -1,5 +1,7 @@
 "use client";
 
+import { useTenantLink } from "@/lib/salonTenant";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,6 +12,7 @@ import { IconPhone } from "@/components/icons";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const tLink = useTenantLink();
   const router = useRouter();
   const [customerName, setCustomerName] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -89,7 +92,7 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+        <Link href={tLink.href("/")} className="flex items-center gap-2.5 shrink-0">
           {salon.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -120,9 +123,9 @@ export default function Navbar() {
           </span>
         ) : (
           <Link
-            href="/login"
+            href={tLink.href("/login")}
             className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold transition-all ${
-              pathname === "/login"
+              pathname === tLink.href("/login")
                 ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
                 : "bg-amber-500 text-zinc-950 hover:bg-amber-400 active:scale-95"
             }`}

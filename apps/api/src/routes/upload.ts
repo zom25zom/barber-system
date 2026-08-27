@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { Bindings, Variables } from '../types';
+import { requireOwner } from './auth';
 
 export const uploadRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -14,9 +15,16 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
-// POST /api/upload
-uploadRoutes.post('/upload', async (c) => {
+/**
+ * Multi-tenant storage layout:
+ *   R2 / D1 key = salons/{salon_id}/{timestamp}_{rand}.{ext}
+ * The tenant is derived from the OWNER SESSION (never client input), so one
+ * salon can never write into — or read another salon's folder namespace.
+ */
+uploadRoutes.post('/upload', requireOwner, async (c) => {
   try {
+    const salonId: number = c.get('salonId');
+
     const formData = await c.req.formData();
     const file = (formData.get('file') || formData.get('image')) as File | null;
 
@@ -37,7 +45,8 @@ uploadRoutes.post('/upload', async (c) => {
 
     const extMatch = file.name.match(/\.([a-zA-Z0-9]+)$/);
     const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
-    const key = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    // Per-salon folder inside the bucket (e.g. salons/7/barbers_xyz.jpg)
+    const key = `salons/${salonId}/${Date.now()}_${crypto.randomUUID().slice(0, 8)}.${ext}`;
     const arrayBuffer = await file.arrayBuffer();
     const uint8 = new Uint8Array(arrayBuffer);
 
@@ -49,7 +58,7 @@ uploadRoutes.post('/upload', async (c) => {
         });
         uploadedToR2 = true;
       } catch (err) {
-        console.warn('R2 upload failed, falling back to D1 storage:', err);
+        console.warn(`[Upload] R2 upload failed for ${key}, falling back to D1 storage:`, err);
       }
     }
 
@@ -61,18 +70,40 @@ uploadRoutes.post('/upload', async (c) => {
         .run();
     }
 
-    const url = `/api/uploads/${key}`;
+    console.log(`[Upload] ✓ salon=${salonId} stored "${key}" via ${uploadedToR2 ? 'R2' : 'D1-fallback'} (${file.size} bytes, ${file.type})`);
+
+    // Absolute URL: in split deployments (SSR web worker ≠ API worker) the
+    // browser renders <img> from the WEB domain, so a relative path would
+    // resolve to the wrong origin and break. Build from this request's origin.
+    const fileOrigin = new URL(c.req.url).origin;
+    const url = `${fileOrigin}/api/uploads/${key}`;
     return c.json({ ok: true, url, key }, 201);
   } catch (err) {
-    console.error('Upload error:', err);
+    console.error('[Upload] error:', err);
     return c.json({ error: 'حدث خطأ أثناء رفع الصورة، يرجى المحاولة لاحقاً' }, 500);
   }
 });
 
-// GET /api/uploads/:key
-uploadRoutes.get('/uploads/:key', async (c) => {
-  const key = c.req.param('key');
-  if (!key || key.includes('/') || key.includes('\\') || key.includes('..')) {
+// GET /api/uploads/* — supports nested per-salon keys (salons/{id}/file.jpg).
+// Legacy flat keys (pre-multi-tenant uploads) are still served by the same handler.
+uploadRoutes.get('/uploads/*', async (c) => {
+  let rawKey = c.req.path.replace(/^\/api\/uploads\//, '');
+  try {
+    rawKey = decodeURIComponent(rawKey);
+  } catch {
+    // keep raw
+  }
+  const key = rawKey.split(/[?#]/)[0].trim();
+
+  // Safety validation: allow "/" separators (per-salon folders) but block
+  // traversal, backslashes, empty segments and control characters.
+  if (
+    !key ||
+    key.length > 512 ||
+    /[\u0000-\u001f\u007f]/.test(key) ||
+    key.includes('\\') ||
+    key.split('/').some((seg) => seg === '' || seg === '.' || seg === '..')
+  ) {
     return c.text('Invalid key', 400);
   }
 
@@ -91,7 +122,7 @@ uploadRoutes.get('/uploads/:key', async (c) => {
         return new Response(obj.body, { headers });
       }
     } catch (err) {
-      console.warn('R2 get failed, checking D1:', err);
+      console.warn('[Upload] R2 get failed, checking D1:', err);
     }
   }
 

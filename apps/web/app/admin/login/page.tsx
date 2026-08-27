@@ -7,9 +7,16 @@ import { setOwnerToken } from "@/lib/auth";
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toaster";
 
+interface LoginResponse {
+  token: string;
+  owner: { id: number; username: string };
+  salon?: { id: number; name: string; slug: string | null };
+}
+
 export default function AdminLoginPage() {
   const router = useRouter();
   const toast = useToast();
+  const [salonSlug, setSalonSlug] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -20,12 +27,22 @@ export default function AdminLoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const d = await apiFetch<{ token: string }>("/api/auth/owner/login", {
+      const d = await apiFetch<LoginResponse>("/api/auth/owner/login", {
         method: "POST",
-        body: { username, password },
+        body: {
+          username,
+          password,
+          // Multi-tenant: usernames are unique PER SALON only — the slug tells
+          // the backend which tenant this account belongs to.
+          ...(salonSlug.trim() ? { salonSlug: salonSlug.trim() } : {}),
+        },
       });
       setOwnerToken(d.token);
-      toast.success("مرحباً بك! تم تسجيل الدخول بنجاح ✓");
+      toast.success(
+        d.salon?.name
+          ? `مرحباً بك في إدارة «${d.salon.name}» — تم تسجيل الدخول بنجاح ✓`
+          : "مرحباً بك! تم تسجيل الدخول بنجاح ✓",
+      );
       router.push("/admin");
     } catch (err) {
       const msg = (err as Error).message || "اسم المستخدم أو كلمة المرور غير صحيحة";
@@ -35,6 +52,9 @@ export default function AdminLoginPage() {
       setLoading(false);
     }
   }
+
+  const inputCls =
+    "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 outline-none focus:border-amber-500";
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
@@ -47,13 +67,33 @@ export default function AdminLoginPage() {
 
         <form onSubmit={onSubmit} className="mt-8 space-y-4">
           <div>
+            <label className="mb-1.5 block text-sm font-semibold text-zinc-200">
+              معرّف الصالون <span className="text-xs font-normal text-zinc-500">(رابط حجز صالونك)</span>
+            </label>
+            <input
+              type="text"
+              dir="ltr"
+              value={salonSlug}
+              onChange={(e) => setSalonSlug(e.target.value)}
+              className={`${inputCls} text-left`}
+              placeholder="مثال: salon-nkhba"
+            />
+            <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">
+              هو الجزء الذي يأتي بعد الرابط الرئيسي في رابط حجز صالونك:
+              <span dir="ltr" className="mx-1 rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-[10px] text-amber-300/90">
+                example.com/<b>salon-slug</b>
+              </span>
+            </p>
+          </div>
+
+          <div>
             <label className="mb-1.5 block text-sm font-semibold text-zinc-200">اسم المستخدم</label>
             <input
               type="text"
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 outline-none focus:border-amber-500"
+              className={inputCls}
               placeholder="admin"
             />
           </div>
@@ -65,7 +105,7 @@ export default function AdminLoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 outline-none focus:border-amber-500"
+              className={inputCls}
               placeholder="••••••••"
             />
           </div>

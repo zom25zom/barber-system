@@ -9,10 +9,16 @@ import {
   isValidTime,
   dayOfWeek,
   todayISO,
-  SALON_ID,
   isValidPhone,
+  isValidUsername,
   isValidHexColor,
   isValidUrlOrDataUri,
+  resolvePublicSalonId,
+  getClientIP,
+  checkRateLimit,
+  randomToken,
+  sha256,
+  slugifySalonName,
   isPositiveInt,
 } from '../utils';
 
@@ -26,13 +32,17 @@ publicRoutes.get('/salon-settings', async (c) => {
             social_facebook, social_instagram, social_tiktok, social_whatsapp, maps_url 
      FROM salons WHERE id = ?`,
   )
-    .bind(SALON_ID)
+    .bind((await resolvePublicSalonId(c)))
     .first<SalonSettings>();
   if (!salon) return c.json({ error: 'Salon not found' }, 404);
   return c.json({ salon });
 });
 
 publicRoutes.put('/salon-settings', requireOwner, async (c) => {
+  // SECURITY: the target tenant is ALWAYS the owner's own session salon.
+  // (Previously this used resolvePublicSalonId() — an owner of salon B could
+  // overwrite salon A's settings by calling the endpoint without a slug.)
+  const sessionSalonId = c.get('salonId');
   const body = await c.req.json().catch(() => ({} as any));
   const {
     name,
@@ -70,7 +80,7 @@ publicRoutes.put('/salon-settings', requireOwner, async (c) => {
   // Fetch the old logo URL before overwriting it, then delete its file from storage
   if (cleanLogo !== undefined) {
     const current = await c.env.DB.prepare('SELECT logo_url FROM salons WHERE id = ?')
-      .bind(SALON_ID)
+      .bind(sessionSalonId)
       .first<{ logo_url: string | null }>();
 
     const cleanedUp = await deleteOldUpload(c.env.DB, c.env.BUCKET, current?.logo_url, cleanLogo);
@@ -101,7 +111,7 @@ publicRoutes.put('/salon-settings', requireOwner, async (c) => {
       cleanTiktok,
       cleanWhatsapp,
       cleanMaps,
-      SALON_ID,
+      sessionSalonId,
     )
     .run();
 
@@ -110,7 +120,7 @@ publicRoutes.put('/salon-settings', requireOwner, async (c) => {
             social_facebook, social_instagram, social_tiktok, social_whatsapp, maps_url 
      FROM salons WHERE id = ?`,
   )
-    .bind(SALON_ID)
+    .bind(sessionSalonId)
     .first<SalonSettings>();
 
   return c.json({ ok: true, salon: updated });
@@ -121,7 +131,7 @@ publicRoutes.get('/manifest.json', async (c) => {
   const salon = await c.env.DB.prepare(
     'SELECT name, primary_color, logo_url FROM salons WHERE id = ?',
   )
-    .bind(SALON_ID)
+    .bind((await resolvePublicSalonId(c)))
     .first<SalonSettings>();
 
   const name = salon?.name || 'صالون الحلاقة';
@@ -164,7 +174,7 @@ publicRoutes.get('/manifest-admin.json', async (c) => {
   const salon = await c.env.DB.prepare(
     'SELECT name, primary_color, logo_url FROM salons WHERE id = ?',
   )
-    .bind(SALON_ID)
+    .bind((await resolvePublicSalonId(c)))
     .first<SalonSettings>();
 
   const name = salon?.name || 'إدارة الصالون';
@@ -211,7 +221,7 @@ publicRoutes.get('/services', async (c) => {
      WHERE b.is_active = 1 AND b.salon_id = ?
      ORDER BY b.name, s.name`,
   )
-    .bind(SALON_ID)
+    .bind((await resolvePublicSalonId(c)))
     .all();
   return c.json({ services: results });
 });
@@ -221,13 +231,13 @@ publicRoutes.get('/barbers', async (c) => {
   const { results: barbers } = await c.env.DB.prepare(
     'SELECT id, name, photo_url FROM barbers WHERE is_active = 1 AND salon_id = ? ORDER BY name',
   )
-    .bind(SALON_ID)
+    .bind((await resolvePublicSalonId(c)))
     .all();
   const { results: services } = await c.env.DB.prepare(
     `SELECT id, barber_id, name, price, duration_minutes FROM services
      WHERE barber_id IN (SELECT id FROM barbers WHERE is_active = 1 AND salon_id = ?) ORDER BY name`,
   )
-    .bind(SALON_ID)
+    .bind((await resolvePublicSalonId(c)))
     .all();
   const byBarber = new Map<number, any[]>();
   for (const s of services as any[]) {
@@ -262,7 +272,7 @@ publicRoutes.get('/barbers/:id/availability', async (c) => {
   const barberCheck = await c.env.DB.prepare(
     'SELECT id FROM barbers WHERE id = ? AND salon_id = ? AND is_active = 1',
   )
-    .bind(barberId, SALON_ID)
+    .bind(barberId, (await resolvePublicSalonId(c)))
     .first();
   if (!barberCheck) return c.json({ error: 'الحلاق غير متاح' }, 404);
 
@@ -273,7 +283,7 @@ publicRoutes.get('/barbers/:id/availability', async (c) => {
   const timeOff = await c.env.DB.prepare(
     'SELECT id, reason FROM barber_time_off WHERE barber_id = ? AND date = ? AND salon_id = ?',
   )
-    .bind(barberId, date, SALON_ID)
+    .bind(barberId, date, (await resolvePublicSalonId(c)))
     .first<{ id: number; reason: string | null }>();
 
   if (timeOff) {
@@ -284,7 +294,7 @@ publicRoutes.get('/barbers/:id/availability', async (c) => {
   const schedule = await c.env.DB.prepare(
     'SELECT start_time, end_time, is_day_off FROM work_schedules WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
   )
-    .bind(barberId, dayOfWeek(date), SALON_ID)
+    .bind(barberId, dayOfWeek(date), (await resolvePublicSalonId(c)))
     .first<{ start_time: string; end_time: string; is_day_off: number }>();
 
   if (!schedule || schedule.is_day_off) return c.json({ date, slots: [], total_duration: totalDuration });
@@ -294,14 +304,14 @@ publicRoutes.get('/barbers/:id/availability', async (c) => {
     `SELECT start_time, end_time FROM bookings
      WHERE barber_id = ? AND booking_date = ? AND status = 'confirmed' AND salon_id = ?`,
   )
-    .bind(barberId, date, SALON_ID)
+    .bind(barberId, date, (await resolvePublicSalonId(c)))
     .all<{ start_time: string; end_time: string }>();
 
   // 4. Get breaks for that day of week (فترات الاستراحة)
   const { results: breaks } = await c.env.DB.prepare(
     'SELECT start_time, end_time FROM barber_breaks WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
   )
-    .bind(barberId, dayOfWeek(date), SALON_ID)
+    .bind(barberId, dayOfWeek(date), (await resolvePublicSalonId(c)))
     .all<{ start_time: string; end_time: string }>();
 
   const busy = [
@@ -352,3 +362,96 @@ export async function servicesDuration(
   if (results.length !== serviceIds.length) return null;
   return (results as any[]).reduce((sum, s) => sum + s.duration_minutes, 0);
 }
+
+
+// ---------- Self-service salon registration ----------
+
+/**
+ * POST /api/salons/register
+ * Body: { name, phone, adminUsername, password }
+ */
+publicRoutes.post('/salons/register', async (c) => {
+  const ip = getClientIP(c);
+  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, 0, `salon_register:${ip}`, 5, 3600);
+  if (!rl.allowed) {
+    const minutes = Math.ceil((rl.retryAfter || 60) / 60);
+    return c.json({ error: `تم تجاوز الحد المسموح لمحاولات التسجيل. يرجى المحاولة بعد ${minutes} دقيقة.` }, 429);
+  }
+
+  const body = await c.req.json().catch(() => ({} as any));
+  const { name, phone, adminUsername, password } = body;
+
+  if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) {
+    return c.json({ error: 'اسم الصالون مطلوب (بين 2 و 80 حرفاً)' }, 400);
+  }
+  if (phone && !isValidPhone(phone)) {
+    return c.json({ error: 'رقم هاتف غير صالح' }, 400);
+  }
+  if (!isValidUsername(adminUsername) || typeof adminUsername !== 'string') {
+    return c.json({ error: 'اسم مستخدم الأدمن مطلوب (بين 2 و 50 حرفاً بدون رموز خاصة)' }, 400);
+  }
+  if (typeof password !== 'string' || password.length < 6 || password.length > 100) {
+    return c.json({ error: 'كلمة المرور مطلوبة (6 خانات على الأقل وبحد أقصى 100 خانة)' }, 400);
+  }
+
+  const cleanName = name.trim();
+  const cleanPhone = phone ? String(phone).trim() : null;
+  const cleanUsername = adminUsername.trim();
+  const passwordHash = await sha256(password);
+
+  // Generate a unique URL-friendly slug from the salon name (Arabic transliteration supported)
+  let slug = slugifySalonName(cleanName);
+  for (let i = 2; ; i++) {
+    const taken = await c.env.DB.prepare('SELECT id FROM salons WHERE slug = ?').bind(slug).first();
+    if (!taken) break;
+    slug = `${slugifySalonName(cleanName)}-${i}`;
+    if (i > 100) return c.json({ error: 'تعذر توليد رابط فريد للصالون، حاول اسماً مختلفاً' }, 500);
+  }
+
+  // Create the tenant
+  const salonRes = await c.env.DB.prepare(
+    `INSERT INTO salons (name, phone, slug, subscription_status) VALUES (?, ?, ?, 'trial')
+     RETURNING id`,
+  )
+    .bind(cleanName, cleanPhone, slug)
+    .first<{ id: number }>();
+  const newSalonId = salonRes!.id;
+
+  // Owner username unique WITHIN this salon only
+  const ownerTaken = await c.env.DB.prepare(
+    'SELECT id FROM owners WHERE salon_id = ? AND username = ?',
+  )
+    .bind(newSalonId, cleanUsername)
+    .first();
+  if (ownerTaken) {
+    await c.env.DB.prepare('DELETE FROM salons WHERE id = ?').bind(newSalonId).run();
+    return c.json({ error: 'اسم المستخدم محجوز، اختر اسماً آخر' }, 409);
+  }
+
+  const ownerRes = await c.env.DB.prepare(
+    'INSERT INTO owners (username, password_hash, salon_id) VALUES (?, ?, ?) RETURNING id',
+  )
+    .bind(cleanUsername, passwordHash, newSalonId)
+    .first<{ id: number }>();
+
+  // Immediate session — carries the new tenant id inside it
+  const token = randomToken();
+  const expires = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+  await c.env.DB.prepare(
+    'INSERT INTO sessions (token, owner_id, expires_at, salon_id) VALUES (?, ?, ?, ?)',
+  )
+    .bind(token, ownerRes!.id, expires, newSalonId)
+    .run();
+
+  const origin = new URL(c.req.url).origin;
+  return c.json(
+    {
+      ok: true,
+      token,
+      owner: { id: ownerRes!.id, username: cleanUsername },
+      salon: { id: newSalonId, name: cleanName, slug },
+      publicUrl: `${origin}/${slug}`,
+    },
+    201,
+  );
+});

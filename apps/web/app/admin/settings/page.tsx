@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getOwnerToken } from "@/lib/auth";
-import { useSalonSettings, updateSalonSettingsClient, type SalonSettings } from "@/lib/salon";
+import { useOwnerSalonSettings, updateSalonSettingsClient, type SalonSettings } from "@/lib/salon";
 import { useToast } from "@/components/Toaster";
 import ImageUploader from "@/components/ImageUploader";
 
@@ -22,7 +22,8 @@ type SectionKey = "basic" | "branding" | "social";
 export default function AdminSettingsPage() {
   const token = getOwnerToken();
   const showToast = useToast();
-  const salon = useSalonSettings();
+  // Session-scoped settings — always the logged-in owner's own salon
+  const salon = useOwnerSalonSettings(!!token);
 
   // ── Section collapse state (first section open by default) ──
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "./api";
+import { getOwnerToken } from "./auth";
 
 export type SalonSettings = {
   id: number;
@@ -105,10 +106,20 @@ export function updateSalonSettingsClient(newSettings: SalonSettings) {
  * Hook that returns the live salon settings and subscribes to live updates.
  * Guarantees consistent initial render between Server and Client to eliminate React #418 Hydration Mismatch.
  */
-export function useSalonSettings(): SalonSettings {
+export function useSalonSettings(salonSlug?: string | null): SalonSettings {
   const [settings, setSettings] = useState<SalonSettings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
+    if (salonSlug) {
+      // Tenant-specific view: always fetch fresh for THIS slug (skip shared cache)
+      apiFetch<{ salon: SalonSettings }>(`/api/salon-settings?salonSlug=${encodeURIComponent(salonSlug)}`)
+        .then((d) => {
+          if (d.salon) setSettings(d.salon);
+        })
+        .catch(() => {});
+      return;
+    }
+
     // 1. Check cached settings in memory or localStorage on client mount
     if (cachedSettings) {
       setSettings(cachedSettings);
@@ -126,7 +137,7 @@ export function useSalonSettings(): SalonSettings {
     }
 
     // 2. Fetch fresh settings from server
-    apiFetch<{ salon: SalonSettings }>("/api/salon-settings")
+    apiFetch<{ salon: SalonSettings }>(salonSlug ? `/api/salon-settings?salonSlug=${encodeURIComponent(salonSlug)}` : "/api/salon-settings")
       .then((d) => {
         if (d.salon) {
           cachedSettings = d.salon;
@@ -149,7 +160,47 @@ export function useSalonSettings(): SalonSettings {
 
     window.addEventListener("salon-settings-changed", handler);
     return () => window.removeEventListener("salon-settings-changed", handler);
-  }, []);
+  }, [salonSlug]);
+
+  return settings;
+}
+
+/**
+ * Owner-scoped salon settings for the ADMIN panel.
+ *
+ * Fetches GET /api/owner/salon-settings — the tenant is derived from the
+ * owner session server-side, so it can never leak another salon's branding
+ * and never depends on a path/host slug.
+ *
+ * Pass enabled=false where there is no session yet (e.g. /admin/login) so
+ * no request is fired at all — this eliminates the old 404 /api/salon-settings
+ * noise coming from the login page.
+ */
+export function useOwnerSalonSettings(enabled: boolean = true): SalonSettings {
+  const [settings, setSettings] = useState<SalonSettings>(DEFAULT_SETTINGS);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const token = getOwnerToken();
+    if (!token) return;
+
+    apiFetch<{ salon: SalonSettings }>("/api/owner/salon-settings", { token })
+      .then((d) => {
+        if (d.salon) {
+          setSettings(d.salon);
+          applySalonToDOM(d.salon);
+        }
+      })
+      .catch(() => {});
+
+    // Live updates broadcast by the settings page after a successful save
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<SalonSettings>).detail;
+      if (detail) setSettings(detail);
+    };
+    window.addEventListener("salon-settings-changed", handler);
+    return () => window.removeEventListener("salon-settings-changed", handler);
+  }, [enabled]);
 
   return settings;
 }

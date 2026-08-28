@@ -15,6 +15,9 @@ export type SalonSettings = {
   social_tiktok?: string | null;
   social_whatsapp?: string | null;
   maps_url?: string | null;
+  // Returned only by the session-scoped owner endpoint (/api/owner/salon-settings).
+  // Used to build the tenant's public booking page link (e.g. "/{slug}").
+  slug?: string | null;
 };
 
 const DEFAULT_SETTINGS: SalonSettings = {

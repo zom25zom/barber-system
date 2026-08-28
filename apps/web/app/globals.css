@@ -28,6 +28,22 @@ html {
   scroll-behavior: smooth;
 }
 
+/* ── horizontal scroll strips (date pills / carousels): fast + fluid ──
+   Native touch momentum on mobile is untouched; desktop wheel pans the strip
+   directly (no smooth() easing delay), and over-scroll chaining to the page
+   is contained so panning never stutters. */
+.bs-hscroll {
+  display: flex;
+  overflow-x: auto;
+  scroll-behavior: auto; /* instant follow — smoothness comes from momentum */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+.bs-hscroll > * {
+  flex-shrink: 0;
+}
+
 /* ── native input dark mode ── */
 input[type="date"],
 input[type="time"],

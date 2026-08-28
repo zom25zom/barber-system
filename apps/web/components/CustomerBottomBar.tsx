@@ -13,6 +13,7 @@ import {
   Bell,
   UserRound,
 } from "lucide-react";
+import { shouldHideSharedChrome } from "@/lib/chrome";
 
 const items = [
   { href: "/", label: "الرئيسية", Icon: Home, exact: true },
@@ -48,7 +49,8 @@ export default function CustomerBottomBar() {
   }, [pathname, loadUnread]);
 
   // Hidden entirely on admin panel (it has its own navigation)
-  if (pathname.startsWith("/admin")) return null;
+  // and on public/unauthenticated pages (signup, admin login).
+  if (pathname.startsWith("/admin") || shouldHideSharedChrome(pathname)) return null;
 
   // Tenant-aware href — the ONLY way links are built here (ARCHITECTURE.md)
   const effHref = (href: string) => buildTenantUrl(href);

@@ -299,9 +299,9 @@ export function MyBookingsClient({ salonSlug }: { salonSlug?: string }) {
                     </div>
                   </div>
 
-                  {/* actions */}
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[11px] text-[var(--bs-text-faint)]">
+                  {/* actions — wraps gracefully on narrow screens */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <span className="min-w-0 flex-1 text-[11px] leading-snug text-[var(--bs-text-faint)]">
                       يتم تحديث الدور تلقائياً فور انتهاء الزبون السابق
                     </span>
                     <Button

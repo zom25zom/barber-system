@@ -275,30 +275,34 @@ function ScheduleContent() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="bs-skin space-y-8">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <header>
         <Link
           href="/admin/barbers"
-          className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-2 text-sm text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition"
+          className="mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-[var(--bs-text-faint)] transition hover:text-[var(--bs-primary)]"
         >
           ← العودة للحلاقين
         </Link>
-        <h1 className="text-2xl font-bold text-[var(--bs-text)]">
+        <p className="mb-1 flex items-center gap-2.5 text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
+          <span className="inline-block h-px w-8 bg-[var(--bs-primary)]/60" />
+          إدارة الوقت
+        </p>
+        <h1 className="text-2xl font-black text-[var(--bs-text)] sm:text-3xl">
           جدول عمل {barberName ? `الحلاق ${barberName}` : `الحلاق #${id}`}
         </h1>
-      </div>
+      </header>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-1.5">
+      {/* Tabs — quiet underline control */}
+      <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-[var(--bs-border)]">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`flex-1 min-w-[120px] rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
+            className={`-mb-px border-b-2 pb-3 text-sm transition-colors ${
               activeTab === t.key
-                ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)] shadow-lg shadow-[var(--bs-primary)]/20"
-                : "text-[var(--bs-text-muted)] hover:text-[var(--bs-text)] hover:bg-[var(--bs-surface-raised)]/60"
+                ? "border-[var(--bs-primary)] font-bold text-[var(--bs-primary)]"
+                : "border-transparent font-medium text-[var(--bs-text-muted)] hover:text-[var(--bs-text)]"
             }`}
           >
             {t.label}
@@ -330,17 +334,15 @@ function ScheduleContent() {
           )}
 
           {!loading && (
-            <form onSubmit={saveSchedule} className="space-y-3">
+            <form onSubmit={saveSchedule} className="divide-y divide-[var(--bs-border)] border-y border-[var(--bs-border)]">
               {days.map((d) => (
                 <div
                   key={d.day_of_week}
-                  className={`flex flex-wrap items-center gap-4 rounded-2xl border p-4 transition-colors ${
-                    d.is_day_off
-                      ? "border-[var(--bs-border)]/60 bg-[var(--bs-surface)]/40 opacity-60"
-                      : "border-[var(--bs-border)] bg-[var(--bs-surface)] shadow-sm"
+                  className={`flex flex-wrap items-center gap-x-5 gap-y-3 py-4 transition-colors ${
+                    d.is_day_off ? "opacity-50" : ""
                   }`}
                 >
-                  <span className="w-20 text-sm font-bold text-[var(--bs-primary)]">
+                  <span className="w-20 text-sm font-black text-[var(--bs-text)]">
                     {WEEKDAYS_AR[d.day_of_week]}
                   </span>
 

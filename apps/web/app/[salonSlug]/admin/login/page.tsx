@@ -7,7 +7,6 @@ import { setOwnerToken } from "@/lib/auth";
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toaster";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CircleAlert, Scissors, Store } from "lucide-react";
@@ -44,9 +43,11 @@ export default function SalonAdminLoginPage() {
     setError(null);
     setLoading(true);
     try {
+      // No slug is sent: the backend resolves the salon from username+password
+      // alone and binds the session server-side to the correct salon_id.
       const d = await apiFetch<LoginResponse>("/api/auth/owner/login", {
         method: "POST",
-        body: { username, password, salonSlug },
+        body: { username, password },
       });
       setOwnerToken(d.token);
       toast.success(
@@ -65,26 +66,32 @@ export default function SalonAdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <Card className="w-full max-w-md p-8 shadow-xl">
-        <div className="text-center">
-          <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]">
-            <Scissors className="h-7 w-7" />
-          </span>
-          <h1 className="mt-3 text-2xl font-bold text-[var(--bs-primary)]">لوحة تحكم الصالون</h1>
+    <div className="bs-skin mx-auto max-w-4xl py-6">
+      <div className="bs-panel grid overflow-hidden md:grid-cols-[1fr_1.15fr]">
+        {/* ── form side (reads first in RTL — right column) ── */}
+        <section className="p-7 sm:p-10">
+          {/* compact brand header — mobile only */}
+          <div className="mb-6 flex items-center gap-2 md:hidden">
+            <Scissors className="h-5 w-5 text-[var(--bs-primary)]" />
+            <span className="text-[10px] font-bold tracking-[0.3em] text-[var(--bs-primary)]" dir="ltr">
+              ADMIN PANEL
+            </span>
+          </div>
+
+          <p className="text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">الإدارة</p>
+          <h1 className="mt-2 text-3xl font-black text-[var(--bs-text)] sm:text-4xl">لوحة تحكم الصالون</h1>
           {validSlug ? (
             <p
-              className="mt-2 inline-flex items-center gap-2 rounded-lg border border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)] px-3 py-1 text-xs font-bold text-[var(--bs-primary)]"
+              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)] px-3 py-1 text-xs font-bold text-[var(--bs-primary)]"
               dir="ltr"
             >
               <Store className="h-3.5 w-3.5" /> /{salonSlug}
             </p>
           ) : (
-            <p className="mt-2 rounded-lg border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-2 text-xs text-[var(--bs-error)]">
+            <p className="mt-3 rounded-lg border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-2 text-xs text-[var(--bs-error)]">
               معرّف الصالون في الرابط غير صالح
             </p>
           )}
-        </div>
 
         <form onSubmit={onSubmit} className="mt-8 space-y-4">
           <div className="space-y-1.5">
@@ -118,18 +125,59 @@ export default function SalonAdminLoginPage() {
             </div>
           )}
 
-          <Button type="submit" disabled={loading || !validSlug} className="w-full py-3">
+          <Button type="submit" disabled={loading || !validSlug} className="w-full py-3 text-base">
             {loading ? (
               <>
                 <Spinner size="sm" color="zinc" />
                 <span>جاري التحقق والدخول…</span>
               </>
             ) : (
-              "دخول لوحة التحكم"
+              "دخول لوحة التحكم ←"
             )}
           </Button>
         </form>
-      </Card>
+        </section>
+
+        {/* ── brand side — editorial statement panel (desktop only) ── */}
+        <aside className="relative hidden overflow-hidden md:block" aria-hidden="true">
+          <div className="absolute inset-0 bg-[var(--bs-surface-raised)]" />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse 90% 70% at 80% -10%, rgba(201,162,39,0.22), transparent 60%)",
+            }}
+          />
+          <div className="bs-grain" />
+
+          <div className="relative flex h-full flex-col justify-between p-10">
+            <div className="flex items-center gap-3">
+              <Scissors className="h-7 w-7 text-[var(--bs-primary)]" />
+              <span className="text-[10px] font-bold tracking-[0.3em] text-[var(--bs-primary)]" dir="ltr">
+                ADMIN PANEL
+              </span>
+            </div>
+
+            <div>
+              <p className="text-5xl font-black leading-[1.15] text-[var(--bs-text)]">
+                كراسي
+                <br />
+                <span className="text-[var(--bs-primary)]">صالونك</span>
+                <br />
+                تُدار من هنا.
+              </p>
+              <div className="bs-hairline mt-8 max-w-[8rem]" />
+              <p className="mt-5 max-w-[16rem] text-sm leading-relaxed text-[var(--bs-text-muted)]">
+                جلسة إدارة مرتبطة بهذا الصالون فقط — دخول آمن لعقلك وسلمك.
+              </p>
+            </div>
+
+            <p className="text-[11px] text-[var(--bs-text-faint)]">
+              <span className="font-bold text-[var(--bs-text-muted)]">دخول آمن</span> — جلسة مرتبطة بصالونك فقط
+            </p>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

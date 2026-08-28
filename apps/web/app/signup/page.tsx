@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { setOwnerToken } from "@/lib/auth";
@@ -29,14 +29,6 @@ export default function SignupPage() {
   const [success, setSuccess] = useState<SignupResponse | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Auto-redirect to the dashboard shortly after successful signup
-  useEffect(() => {
-    if (!success) return;
-    setOwnerToken(success.token);
-    const t = setTimeout(() => router.push("/admin"), 6000);
-    return () => clearTimeout(t);
-  }, [success, router]);
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -58,6 +50,9 @@ export default function SignupPage() {
         },
       });
       // Public link built from OUR origin (web worker), not the API origin
+      // Session token is stored immediately so the explicit dashboard button
+      // below works whenever the user decides to click it.
+      setOwnerToken(d.token);
       setSuccess({ ...d, publicUrl: `${window.location.origin}/${d.salon.slug}` });
     } catch (err) {
       setError((err as Error).message);
@@ -228,7 +223,7 @@ export default function SignupPage() {
             </div>
 
             <p className="text-xs text-zinc-500">
-              سيتم نقلك تلقائياً إلى لوحة التحكم خلال لحظات…
+              احتفظ برابط صالونك — يمكنك نسخه ومشاركته مع زبائنك في أي وقت.
             </p>
 
             <button
@@ -236,7 +231,7 @@ export default function SignupPage() {
               onClick={() => router.push("/admin")}
               className="w-full rounded-xl bg-emerald-500 py-3 font-bold text-zinc-950 transition hover:bg-emerald-400 active:scale-95"
             >
-              الدخول إلى لوحة التحكم الآن ←
+              الانتقال إلى لوحة التحكم ←
             </button>
           </div>
         )}

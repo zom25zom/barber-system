@@ -140,7 +140,7 @@ function ServicesContent() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="bs-skin space-y-10">
       {/* ── Delete Confirmation Modal ── */}
       <ConfirmModal
         isOpen={deleteModalOpen}
@@ -163,24 +163,29 @@ function ServicesContent() {
         }}
       />
 
-      <div className="flex items-center gap-3">
-        <Link
-          href="/admin/barbers"
-          className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-2 text-sm text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition"
+      <header className="space-y-4">
+        <div>
+          <Link
+            href="/admin/barbers"
+            className="mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-[var(--bs-text-faint)] transition hover:text-[var(--bs-primary)]"
+          >
+            ← العودة للحلاقين
+          </Link>
+          <p className="mb-1 flex items-center gap-2.5 text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
+            <span className="inline-block h-px w-8 bg-[var(--bs-primary)]/60" />
+            قائمة الأسعار
+          </p>
+          <h1 className="text-2xl font-black text-[var(--bs-text)] sm:text-3xl">
+            خدمات {barberName ? `الحلاق ${barberName}` : `الحلاق #${id}`}
+          </h1>
+        </div>
+        <button
+          onClick={openAdd}
+          className="rounded-xl bg-[var(--bs-primary)] px-5 py-2.5 text-sm font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] shadow-md transition active:scale-95"
         >
-          ← العودة للحلاقين
-        </Link>
-        <h1 className="text-2xl font-bold text-[var(--bs-text)]">
-          خدمات {barberName ? `الحلاق ${barberName}` : `الحلاق #${id}`}
-        </h1>
-      </div>
-
-      <button
-        onClick={openAdd}
-        className="rounded-xl bg-[var(--bs-primary)] px-5 py-2.5 text-sm font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] shadow-md transition active:scale-95"
-      >
-        + إضافة خدمة جديدة
-      </button>
+          + إضافة خدمة جديدة
+        </button>
+      </header>
 
       {error && (
         <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
@@ -191,10 +196,14 @@ function ServicesContent() {
         </div>
       )}
 
-      {/* ── form ── */}
+      {/* ── form — floating wizard panel ── */}
       {showForm && (
-        <div className="rounded-2xl border border-[var(--bs-primary)]/40 bg-[var(--bs-surface)] p-6 shadow-xl animate-in fade-in">
-          <h2 className="mb-4 text-lg font-bold text-[var(--bs-primary)]">
+        <div className="bs-panel relative overflow-hidden p-6 animate-in fade-in sm:p-8">
+          <span className="bs-ghost-numeral" dir="ltr" aria-hidden="true">✂</span>
+          <p className="text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
+            {editId ? "تعديل خدمة" : "خدمة جديدة"}
+          </p>
+          <h2 className="mt-1 mb-5 text-xl font-black text-[var(--bs-text)]">
             {editId ? "تعديل بيانات الخدمة" : "إضافة خدمة جديدة"}
           </h2>
           <form onSubmit={save} className="space-y-4">
@@ -276,36 +285,41 @@ function ServicesContent() {
         </div>
       )}
 
-      <div className="space-y-2.5">
-        {services.map((s) => (
-          <div
-            key={s.id}
-            className="flex items-center justify-between rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)] p-4 shadow-md transition hover:border-[var(--bs-border-strong)]"
-          >
-            <div>
-              <p className="font-bold text-[var(--bs-text)] text-base">{s.name}</p>
-              <p className="text-xs text-[var(--bs-text-muted)] mt-0.5">⏱ المدة: {s.duration_minutes} دقيقة</p>
+      {/* ── services menu board — dotted leaders, hairline rows ── */}
+      {!loading && services.length > 0 && (
+        <div className="divide-y divide-[var(--bs-border)] border-y border-[var(--bs-border)]">
+          {services.map((s) => (
+            <div key={s.id} className="py-4">
+              <div className="bs-leader">
+                <span className="min-w-0">
+                  <span className="block truncate text-base font-bold text-[var(--bs-text)]">{s.name}</span>
+                  <span className="mt-0.5 block text-[11px] text-[var(--bs-text-faint)]">
+                    ⏱ المدة: {s.duration_minutes} دقيقة
+                  </span>
+                </span>
+                <span className="bs-leader-dots" aria-hidden="true" />
+                <span className="shrink-0 text-lg font-black text-[var(--bs-primary)]">
+                  {s.price} <span className="text-xs font-bold">د.أ</span>
+                </span>
+              </div>
+              <div className="mt-2.5 flex gap-2">
+                <button
+                  onClick={() => openEdit(s)}
+                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3 py-1.5 text-xs sm:text-sm text-[var(--bs-primary)] transition hover:bg-[var(--bs-surface-raised)]"
+                >
+                  ✏️ تعديل
+                </button>
+                <button
+                  onClick={() => triggerDelete(s)}
+                  className="rounded-xl border border-[var(--bs-error)]/40 px-3 py-1.5 text-xs sm:text-sm text-[var(--bs-error)] transition hover:bg-[var(--bs-error-soft)]"
+                >
+                  🗑 حذف
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="rounded-full bg-[var(--bs-primary-soft)] border border-[var(--bs-primary)]/40 px-3.5 py-1 text-sm font-bold text-[var(--bs-primary)]">
-                {s.price} د.أ
-              </span>
-              <button
-                onClick={() => openEdit(s)}
-                className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3 py-1.5 text-xs sm:text-sm text-[var(--bs-primary)] hover:bg-[var(--bs-surface-raised)] transition"
-              >
-                ✏️ تعديل
-              </button>
-              <button
-                onClick={() => triggerDelete(s)}
-                className="rounded-xl border border-[var(--bs-error)]/40 px-3 py-1.5 text-xs sm:text-sm text-[var(--bs-error)] hover:bg-[var(--bs-error-soft)] transition"
-              >
-                🗑 حذف
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

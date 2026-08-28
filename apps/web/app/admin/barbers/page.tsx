@@ -128,7 +128,7 @@ export default function AdminBarbersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="bs-skin space-y-10">
       {/* ── Confirm Delete Modal ── */}
       <ConfirmModal
         isOpen={deleteModalOpen}
@@ -151,15 +151,21 @@ export default function AdminBarbersPage() {
         }}
       />
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[var(--bs-text)]">إدارة الحلاقين</h1>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="mb-2 flex items-center gap-2.5 text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
+            <span className="inline-block h-px w-8 bg-[var(--bs-primary)]/60" />
+            الفريق
+          </p>
+          <h1 className="text-2xl font-black text-[var(--bs-text)] sm:text-3xl">إدارة الحلاقين</h1>
+        </div>
         <button
           onClick={openAdd}
           className="rounded-xl bg-[var(--bs-primary)] px-5 py-2.5 text-sm font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] shadow-md transition active:scale-95"
         >
           + إضافة حلاق جديد
         </button>
-      </div>
+      </header>
 
       {error && (
         <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
@@ -170,10 +176,14 @@ export default function AdminBarbersPage() {
         </div>
       )}
 
-      {/* ── add / edit form ── */}
+      {/* ── add / edit form — floating wizard panel ── */}
       {showAdd && (
-        <div className="rounded-2xl border border-[var(--bs-primary)]/40 bg-[var(--bs-surface)] p-6 shadow-xl animate-in fade-in">
-          <h2 className="mb-4 text-lg font-bold text-[var(--bs-primary)]">
+        <div className="bs-panel relative overflow-hidden p-6 animate-in fade-in sm:p-8">
+          <span className="bs-ghost-numeral" dir="ltr" aria-hidden="true">✂</span>
+          <p className="text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
+            {editId ? "تعديل بيانات" : "عضو جديد"}
+          </p>
+          <h2 className="mt-1 mb-5 text-xl font-black text-[var(--bs-text)]">
             {editId ? "تعديل بيانات الحلاق" : "إضافة حلاق جديد"}
           </h2>
           <form onSubmit={saveBarber} className="space-y-4">
@@ -230,77 +240,86 @@ export default function AdminBarbersPage() {
       )}
 
       {!loading && barbers.length === 0 && (
-        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/40 p-8 text-center text-[var(--bs-text-muted)]">
+        <div className="rounded-2xl bg-[var(--bs-surface)]/40 p-10 text-center text-[var(--bs-text-muted)]">
           لا يوجد حلاقين مسجلين حالياً. اضغط على زر &quot;إضافة حلاق جديد&quot; للبدء.
         </div>
       )}
 
-      <div className="space-y-3">
-        {barbers.map((b) => (
-          <div key={b.id} className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)] p-4 shadow-md transition hover:border-[var(--bs-border-strong)]">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                {b.photo_url ? (
-                  <img
-                    src={b.photo_url}
-                    alt={b.name}
-                    className="h-14 w-14 rounded-full border-2 border-[var(--bs-primary)]/40 object-cover shadow-sm"
-                  />
-                ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--bs-primary)]/40 bg-[var(--bs-surface-raised)] text-2xl shadow-inner">
-                    💈
-                  </div>
-                )}
-                <div>
-                  <h3 className="text-lg font-bold text-[var(--bs-text)]">{b.name}</h3>
-                  <span
-                    className={`text-xs font-bold ${b.is_active ? "text-[var(--bs-success)]" : "text-[var(--bs-text-faint)]"}`}
-                  >
-                    {b.is_active ? "● نشط ويستقبل حجوزات" : "○ غير نشط (معطل)"}
+      {/* ── barbers index — numbered editorial rows, hairline-separated ── */}
+      {!loading && barbers.length > 0 && (
+        <div className="divide-y divide-[var(--bs-border)] border-y border-[var(--bs-border)]">
+          {barbers.map((b, idx) => (
+            <div key={b.id} className="py-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-4">
+                  <span className="w-7 shrink-0 text-sm font-black text-[var(--bs-text-faint)]" dir="ltr">
+                    {String(idx + 1).padStart(2, "0")}
                   </span>
+                  {b.photo_url ? (
+                    <img
+                      src={b.photo_url}
+                      alt={b.name}
+                      className="h-14 w-14 rounded-2xl border border-[var(--bs-border-strong)] object-cover shadow-lg"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)] text-xl shadow-lg">
+                      💈
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h3 className="truncate text-lg font-black text-[var(--bs-text)]">{b.name}</h3>
+                    <span
+                      className={`flex items-center gap-1.5 text-xs font-bold ${
+                        b.is_active ? "text-[var(--bs-success)]" : "text-[var(--bs-text-faint)]"
+                      }`}
+                    >
+                      <span className={`h-2 w-2 rounded-full ${b.is_active ? "bg-[var(--bs-success)]" : "bg-[var(--bs-text-faint)]"}`} />
+                      {b.is_active ? "نشط ويستقبل حجوزات" : "غير نشط (معطل)"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 sm:justify-end">
+                  <Link
+                    href={`/admin/barbers/services?id=${b.id}`}
+                    className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-text-muted)] transition hover:bg-[var(--bs-surface-raised)] hover:text-[var(--bs-text)]"
+                  >
+                    ✂ الخدمات
+                  </Link>
+                  <Link
+                    href={`/admin/barbers/schedule?id=${b.id}`}
+                    className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-text-muted)] transition hover:bg-[var(--bs-surface-raised)] hover:text-[var(--bs-text)]"
+                  >
+                    📅 الجدول
+                  </Link>
+                  <button
+                    onClick={() => openEdit(b)}
+                    className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-primary)] transition hover:bg-[var(--bs-surface-raised)]"
+                  >
+                    ✏️ تعديل
+                  </button>
+                  <button
+                    onClick={() => toggleActive(b)}
+                    className={`rounded-xl border px-3.5 py-1.5 text-xs sm:text-sm transition ${
+                      b.is_active
+                        ? "border-[var(--bs-warning)]/40 text-[var(--bs-warning)] hover:bg-[var(--bs-warning-soft)]"
+                        : "border-[var(--bs-success)]/40 text-[var(--bs-success)] hover:bg-[var(--bs-success-soft)]"
+                    }`}
+                  >
+                    {b.is_active ? "تعطيل" : "تفعيل"}
+                  </button>
+                  <button
+                    onClick={() => triggerDelete(b)}
+                    className="rounded-xl border border-[var(--bs-error)]/40 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-error)] transition hover:bg-[var(--bs-error-soft)]"
+                  >
+                    🗑 حذف
+                  </button>
                 </div>
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  href={`/admin/barbers/services?id=${b.id}`}
-                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition"
-                >
-                  ✂ الخدمات
-                </Link>
-                <Link
-                  href={`/admin/barbers/schedule?id=${b.id}`}
-                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition"
-                >
-                  📅 الجدول
-                </Link>
-                <button
-                  onClick={() => openEdit(b)}
-                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-primary)] hover:bg-[var(--bs-surface-raised)] transition"
-                >
-                  ✏️ تعديل
-                </button>
-                <button
-                  onClick={() => toggleActive(b)}
-                  className={`rounded-xl border px-3.5 py-1.5 text-xs sm:text-sm transition ${
-                    b.is_active
-                      ? "border-[var(--bs-warning)]/40 text-[var(--bs-warning)] hover:bg-[var(--bs-warning-soft)]"
-                      : "border-[var(--bs-success)]/40 text-[var(--bs-success)] hover:bg-[var(--bs-success-soft)]"
-                  }`}
-                >
-                  {b.is_active ? "تعطيل" : "تفعيل"}
-                </button>
-                <button
-                  onClick={() => triggerDelete(b)}
-                  className="rounded-xl border border-[var(--bs-error)]/40 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-error)] hover:bg-[var(--bs-error-soft)] transition"
-                >
-                  🗑 حذف
-                </button>
-              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

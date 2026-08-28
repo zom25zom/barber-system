@@ -77,15 +77,15 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
 
   const desktopLinkCls = (href: string) => {
     const active = isItemActive(href);
-    return `flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
+    return `relative flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm transition-all ${
       active
-        ? "bg-[var(--bs-primary)] font-bold text-[var(--bs-on-primary)] shadow-md shadow-[var(--bs-primary)]/20"
-        : "text-[var(--bs-text-muted)] hover:bg-[var(--bs-primary-soft)] hover:text-[var(--bs-text)]"
+        ? "bg-[var(--bs-primary-soft)] font-bold text-[var(--bs-primary)]"
+        : "font-medium text-[var(--bs-text-muted)] hover:bg-[var(--bs-primary-soft)]/50 hover:text-[var(--bs-text)]"
     }`;
   };
 
   return (
-    <div className="w-full lg:flex lg:gap-8">
+    <div className="bs-skin w-full lg:flex lg:gap-8">
       {/* ── Logout Confirmation Modal ── */}
       <ConfirmModal
         isOpen={logoutModalOpen}
@@ -105,19 +105,26 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
 
       {/* ── Desktop Sidebar (Visible only on lg screens) ── */}
       <aside className="hidden lg:block shrink-0 space-y-1.5 lg:w-64 sticky top-20 h-fit">
-        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 p-3 shadow-xl space-y-1">
+        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/60 p-2 space-y-0.5">
           {nav.map((item) => {
             const active = isItemActive(item.href);
             return (
               <Link key={item.href} href={item.href} className={desktopLinkCls(item.href)}>
+                {/* gold edge marker on the active item (RTL: right side) */}
+                {active && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-y-2 right-0 w-0.5 rounded-full bg-[var(--bs-primary)]"
+                  />
+                )}
                 <item.icon className="h-5 w-5 shrink-0" />
                 <span>{item.label}</span>
                 {item.href === "/admin/notifications" && unread > 0 && (
                   <span
                     className={`mr-auto rounded-full px-2 py-0.5 text-xs font-black ${
                       active
-                        ? "bg-[var(--bs-bg)] text-[var(--bs-primary)]"
-                        : "bg-[var(--bs-primary)] text-[var(--bs-on-primary)]"
+                        ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)]"
+                        : "bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]"
                     }`}
                   >
                     {unread}

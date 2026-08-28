@@ -7,7 +7,7 @@ import { formatTime12 } from "@/lib/time";
 import { useToast } from "@/components/Toaster";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CircleAlert, Database, Image as ImageIcon, BellRing, ClipboardList, RefreshCw, Stethoscope } from "lucide-react";
+import { CircleAlert, ClipboardList, RefreshCw } from "lucide-react";
 
 interface ServiceHealth {
   name: string;
@@ -93,24 +93,27 @@ export default function AdminHealthPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="bs-skin space-y-10">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <div className="flex items-center gap-3">
-            <Button asChild variant="outline" size="sm">
-              <Link href="/admin">← الإدارة</Link>
-            </Button>
-            <h1 className="flex items-center gap-2 text-2xl font-extrabold text-[var(--bs-text)]">
-              <Stethoscope className="h-6 w-6 text-[var(--bs-primary)]" /> فحص حالة النظام والخدمات
-            </h1>
-          </div>
-          <p className="mt-1 text-xs text-[var(--bs-text-muted)]">
+          <Link
+            href="/admin"
+            className="mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-[var(--bs-text-faint)] transition hover:text-[var(--bs-primary)]"
+          >
+            ← الإدارة
+          </Link>
+          <p className="mb-1 flex items-center gap-2.5 text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
+            <span className="inline-block h-px w-8 bg-[var(--bs-primary)]/60" />
+            تشخيص النظام
+          </p>
+          <h1 className="text-2xl font-black text-[var(--bs-text)] sm:text-3xl">فحص حالة النظام والخدمات</h1>
+          <p className="mt-2 max-w-lg text-xs leading-relaxed text-[var(--bs-text-muted)]">
             صفحة تشخيصية سرية للتأكد من سلامة اتصال D1 Database و Push Notifications والتخزين بعد النشر.
           </p>
         </div>
 
-        <Button type="button" onClick={() => checkHealth(true)} disabled={loading}>
+        <Button type="button" onClick={() => checkHealth(true)} disabled={loading} className="shrink-0">
           {loading ? (
             <>
               <Spinner size="sm" color="zinc" />
@@ -123,7 +126,7 @@ export default function AdminHealthPage() {
             </>
           )}
         </Button>
-      </div>
+      </header>
 
       {error && (
         <div className="rounded-2xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
@@ -136,58 +139,51 @@ export default function AdminHealthPage() {
         </div>
       )}
 
-      {/* Overall Health Status Banner */}
+      {/* Overall Health Status — the focal element of this page */}
       {data && (
         <div
-          className={`rounded-2xl border p-5 transition-all ${
+          className={`relative overflow-hidden rounded-3xl border p-6 transition-all sm:p-8 ${
             data.ok
-              ? "border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)]/60 shadow-lg"
-              : "border-[var(--bs-warning)]/40 bg-[var(--bs-warning-soft)]/60"
+              ? "border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)]/50"
+              : "border-[var(--bs-warning)]/40 bg-[var(--bs-warning-soft)]/50"
           }`}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface-raised)] text-2xl shadow-inner">
-                {data.ok ? "🟢" : "🟡"}
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-[var(--bs-text)]">
-                  {data.ok ? "جميع خدمات النظام تعمل بكفاءة عالية" : "بعض الخدمات تواجه بطء أو استجابة جزئية"}
-                </h2>
-                <p className="text-xs text-[var(--bs-text-muted)]">
-                  زمن الاستجابة الكلي: <span className="font-mono text-[var(--bs-primary)]">{data.totalLatencyMs}ms</span> | آخر فحص: {lastChecked}
-                </p>
-              </div>
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <p className="text-[11px] font-bold tracking-[0.2em] text-[var(--bs-text-muted)]">الحالة العامة للنظام</p>
+              <h2 className="mt-2 text-2xl font-black text-[var(--bs-text)] sm:text-3xl">
+                {data.ok ? "جميع الخدمات تعمل بكفاءة عالية" : "بعض الخدمات تواجه بطء أو استجابة جزئية"}
+              </h2>
+              <p className="mt-2 text-xs text-[var(--bs-text-muted)]">
+                زمن الاستجابة الكلي: <span className="font-mono font-bold text-[var(--bs-primary)]">{data.totalLatencyMs}ms</span> · آخر فحص: {lastChecked}
+              </p>
             </div>
             {getStatusBadge(data.status)}
           </div>
         </div>
       )}
 
-      {/* Services Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Card 1: Cloudflare D1 Database */}
-        <Card className="space-y-4 p-5 shadow-md">
+      {/* Services — asymmetric grid: DB gets the wide primary treatment */}
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* Card 1: Cloudflare D1 Database — primary, floating */}
+        <Card className="bs-panel space-y-4 p-5 lg:col-span-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <Database className="h-5 w-5 text-[var(--bs-primary)]" />
-              <h3 className="text-sm font-bold text-[var(--bs-text)]">قاعدة البيانات D1</h3>
-            </div>
+            <h3 className="text-sm font-black text-[var(--bs-text)]">قاعدة البيانات D1</h3>
             {data ? getStatusBadge(data.services.database.status) : <Spinner size="sm" />}
           </div>
 
-          <div className="space-y-2 border-t border-[var(--bs-border)]/80 pt-3 text-xs text-[var(--bs-text-muted)]">
-            <div className="flex justify-between">
+          <div className="divide-y divide-[var(--bs-border)] border-t border-[var(--bs-border)] pt-1 text-xs text-[var(--bs-text-muted)]">
+            <div className="flex justify-between py-2">
               <span>المزود:</span>
               <span className="font-mono text-[var(--bs-text)]">Cloudflare D1 (barber_db)</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between py-2">
               <span>زمن الاستعلام (Latency):</span>
-              <span className="font-mono text-[var(--bs-primary)]">
+              <span className="font-mono font-bold text-[var(--bs-primary)]">
                 {data?.services.database.latencyMs != null ? `${data.services.database.latencyMs}ms` : "—"}
               </span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between py-2">
               <span>عدد الجداول النشطة:</span>
               <span className="font-mono text-[var(--bs-text)]">{data?.services.database.tablesCount ?? "—"} جداول</span>
             </div>
@@ -195,27 +191,24 @@ export default function AdminHealthPage() {
         </Card>
 
         {/* Card 2: Push Notifications & Durable Objects */}
-        <Card className="space-y-4 p-5 shadow-md">
+        <Card className="space-y-4 rounded-3xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/60 p-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <BellRing className="h-5 w-5 text-[var(--bs-primary)]" />
-              <h3 className="text-sm font-bold text-[var(--bs-text)]">خدمة الإشعارات الفورية</h3>
-            </div>
+            <h3 className="text-sm font-black text-[var(--bs-text)]">الإشعارات الفورية</h3>
             {data ? getStatusBadge(data.services.pushService.status) : <Spinner size="sm" />}
           </div>
 
-          <div className="space-y-2 border-t border-[var(--bs-border)]/80 pt-3 text-xs text-[var(--bs-text-muted)]">
-            <div className="flex justify-between">
+          <div className="divide-y divide-[var(--bs-border)] border-t border-[var(--bs-border)] pt-1 text-xs text-[var(--bs-text-muted)]">
+            <div className="flex justify-between py-2">
               <span>المزود:</span>
-              <span className="font-mono text-[var(--bs-text)]">Durable Objects + WebSockets</span>
+              <span className="font-mono text-[var(--bs-text)]">Durable Objects + WS</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between py-2">
               <span>زمن الاتصال (Hub Ping):</span>
-              <span className="font-mono text-[var(--bs-primary)]">
+              <span className="font-mono font-bold text-[var(--bs-primary)]">
                 {data?.services.pushService.latencyMs != null ? `${data.services.pushService.latencyMs}ms` : "—"}
               </span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between py-2">
               <span>حالة الربط:</span>
               <span className="font-medium text-[var(--bs-success)]">NotificationHub Ready</span>
             </div>
@@ -223,27 +216,24 @@ export default function AdminHealthPage() {
         </Card>
 
         {/* Card 3: Storage & Uploads */}
-        <Card className="space-y-4 p-5 shadow-md sm:col-span-2 lg:col-span-1">
+        <Card className="space-y-4 rounded-3xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/60 p-5 lg:col-span-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <ImageIcon className="h-5 w-5 text-[var(--bs-primary)]" />
-              <h3 className="text-sm font-bold text-[var(--bs-text)]">تخزين ورفع الصور</h3>
-            </div>
+            <h3 className="text-sm font-black text-[var(--bs-text)]">تخزين ورفع الصور</h3>
             {data ? getStatusBadge(data.services.storage.status) : <Spinner size="sm" />}
           </div>
 
-          <div className="space-y-2 border-t border-[var(--bs-border)]/80 pt-3 text-xs text-[var(--bs-text-muted)]">
-            <div className="flex justify-between">
+          <div className="divide-y divide-[var(--bs-border)] border-t border-[var(--bs-border)] pt-1 text-xs text-[var(--bs-text-muted)]">
+            <div className="flex justify-between py-2">
               <span>طريقة التخزين:</span>
               <span className="font-mono text-[var(--bs-text)]">
                 {data?.services.storage.r2Bound ? "Cloudflare R2 Bucket" : "D1 High-Perf Blob Storage"}
               </span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between py-2">
               <span>نقطة الرفع:</span>
               <span className="font-mono text-[var(--bs-text)]">POST /api/upload</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between py-2">
               <span>نقطة العرض:</span>
               <span className="font-mono text-[var(--bs-text)]">GET /api/uploads/:key</span>
             </div>

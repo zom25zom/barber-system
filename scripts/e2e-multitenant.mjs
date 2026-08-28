@@ -43,19 +43,26 @@ function tomorrowISO() {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
+  // Unique credentials per run — the persistent local D1 accumulates owners
+  // from earlier runs, and credentials-only tenant resolution correctly
+  // refuses logins whose username+password match multiple salons.
+  const RUN = Math.random().toString(36).slice(2, 10);
+  const passA = `secret-${RUN}`;
+  const passB = `otherpass-${RUN}`;
+
   console.log("\n══════════════════════════════════════════════════");
   console.log(" مرحلة 1: إنشاء صالونين بنفس اسم مستخدم الأدمن «admin»");
   console.log("══════════════════════════════════════════════════");
 
   // Register salon A and salon B via self-service signup — SAME username "admin"
   const regA = await http("POST", "/api/salons/register", {
-    body: { name: "صالون النخبة", phone: "+962790000001", adminUsername: "admin", password: "secret123" },
+    body: { name: "صالون النخبة", phone: "+962790000001", adminUsername: "admin", password: passA },
   });
   check("تسجيل صالون A عبر /signup", regA.status === 201 && !!regA.data?.salon?.slug, `slug=${regA.data?.salon?.slug} id=${regA.data?.salon?.id}`);
   const slugA = regA.data.salon.slug, idA = regA.data.salon.id, tokenA1 = regA.data.token;
 
   const regB = await http("POST", "/api/salons/register", {
-    body: { name: "باربر كلوب", phone: "+962790000002", adminUsername: "admin", password: "otherpass456" },
+    body: { name: "باربر كلوب", phone: "+962790000002", adminUsername: "admin", password: passB },
   });
   check("تسجيل صالون B بنفس اسم المستخدم «admin» (فريد لكل صالون)", regB.status === 201, `slug=${regB.data?.salon?.slug} id=${regB.data?.salon?.id}`);
   const slugB = regB.data.salon.slug, idB = regB.data.salon.id, tokenB1 = regB.data.token;
@@ -65,26 +72,34 @@ async function main() {
   console.log(" مرحلة 2: تسجيل دخول الأدمن (النقطة الحرجة #1)");
   console.log("══════════════════════════════════════════════════");
 
-  // Login WITHOUT slug: falls back to DEFAULT_SALON_ID=1 → only salon-A's owner can match.
-  // Salon-B's owner MUST fail here (this reproduces the original reported bug for non-default salons).
-  const noSlugB = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: "otherpass456" } });
-  check("أدمن صالون B بدون تحديد الصالون → يُرفض (لا تسرب خاطئ)", noSlugB.status === 401 || noSlugB.status === 400, `status=${noSlugB.status}`);
-
-  // Login WITH explicit slug → deterministic correct tenant for BOTH salons
-  const loginA = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: "secret123", salonSlug: slugA } });
-  check("أدمن صالون A مع معرّف الصالون → نجاح", loginA.status === 200 && loginA.data?.token, "");
+  // Login with username+password ONLY (no salon-slug input exists anymore):
+  // the backend resolves the tenant purely from the credentials themselves.
+  const loginA = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: passA } });
+  check("أدمن صالون A (اسم مستخدم + كلمة مرور فقط) → نجاح", loginA.status === 200 && loginA.data?.token, "");
   check("الاستجابة تعيد بيانات الصالون الصحيح A", loginA.data?.salon?.id === idA && loginA.data?.salon?.slug === slugA, JSON.stringify(loginA.data?.salon));
 
-  const loginB = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: "otherpass456", salonSlug: slugB } });
-  check("أدمن صالون B بنفس اسم المستخدم ومعرّفه → نجاح", loginB.status === 200 && !!loginB.data?.token, "");
-  check("الاستجابة تعيد بيانات الصالون الصحيح B (وليس A)", loginB.data?.salon?.id === idB, JSON.stringify(loginB.data?.salon));
+  const loginB = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: passB } });
+  check("أدمن صالون B بنفس اسم المستخدم «admin» وكلمة مروره → نجاح", loginB.status === 200 && !!loginB.data?.token, "");
+  check("الاستجابة تعيد بيانات الصالون الصحيح B (وليس A)", loginB.data?.salon?.id === idB && loginB.data?.salon?.slug === slugB, JSON.stringify(loginB.data?.salon));
 
-  // Wrong-salon password cross-attempt
-  const crossLogin = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: "secret123", salonSlug: slugB } });
-  check("محاولة كلمة مرور صالون A على صالون B → مرفوضة 401", crossLogin.status === 401);
+  // Wrong password → generic 401 (no tenant leakage either way)
+  const badPass = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: "wrong-password" } });
+  check("كلمة مرور خاطئة → 401 بدون أي تسرب", badPass.status === 401, `msg=${badPass.data?.error}`);
 
-  const badSlug = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: "secret123", salonSlug: "no-such-salon" } });
-  check("معرّف صالون غير موجود → خطأ واضح 404", badSlug.status === 404, `msg=${badSlug.data?.error}`);
+  // Ambiguity guard: register salon C with the SAME username AND password as
+  // salon A → credentials alone cannot pick a tenant → the API must refuse
+  // instead of guessing (zero ambiguity, zero cross-tenant session mixing).
+  const regC = await http("POST", "/api/salons/register", {
+    body: { name: "صالون ثالث", phone: "+962790000003", adminUsername: "admin", password: passA },
+  });
+  check("تسجيل صالون C بنفس اسم المستخدم وكلمة المرور مثل A", regC.status === 201, `id=${regC.data?.salon?.id}`);
+
+  const ambLogin = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: passA } });
+  check("بيانات دخول تطابق أكثر من صالون → 409 (لا تخمين ولا خلط جلسات)", ambLogin.status === 409, `msg=${ambLogin.data?.error}`);
+
+  // Salon B's credentials remain unambiguous and still resolve to B
+  const loginBAgain = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: passB } });
+  check("دخول صالون B بعد تسجيل C → ما زال يعمل ويُرجع B", loginBAgain.status === 200 && loginBAgain.data?.salon?.id === idB, "");
 
   const tokenA = loginA.data.token, tokenB = loginB.data.token;
 
@@ -157,6 +172,35 @@ async function main() {
   const svA = (await http("GET", `/api/owner/barbers/${barberA}/services`, { token: tokenA })).data.services;
   const svB = (await http("GET", `/api/owner/barbers/${barberB}/services`, { token: tokenB })).data.services;
   check("جلب الخدمات لكل حلاق ضمن صالونه", svA.length === 1 && svB.length === 1);
+
+  // ── Session-scoped availability (admin manual booking flow) ──
+  const availOwn = await http(
+    "GET",
+    `/api/owner/barbers/${barberA}/availability?date=${tDate}&serviceIds=${svA[0].id}&clientTime=00:00`,
+    { token: tokenA },
+  );
+  check(
+    "توفّر الحلاق عبر جلسة الأدمن (نقطة يدوية) → فترات متاحة فعلاً",
+    availOwn.status === 200 && (availOwn.data?.slots?.length ?? 0) > 0,
+    `slots=${availOwn.data?.slots?.length}`,
+  );
+
+  // Cross-tenant guard: barber A belongs to salon A — salon B's session must NOT read it
+  const availCross = await http(
+    "GET",
+    `/api/owner/barbers/${barberA}/availability?date=${tDate}&serviceIds=${svA[0].id}&clientTime=00:00`,
+    { token: tokenB },
+  );
+  check("جلسة صالون B لا يمكنها قراءة توفّر حلاق صالون A عبر /api/owner → 404", availCross.status === 404, `status=${availCross.status}`);
+
+  // Regression proof: the PUBLIC endpoint without salonSlug falls back to
+  // DEFAULT_SALON_ID — exactly why the admin form must use the owner endpoint.
+  const availPublicNoCtx = await http(
+    "GET",
+    `/api/barbers/${barberA}/availability?date=${tDate}&serviceIds=${svA[0].id}&clientTime=00:00`,
+  );
+  check("نقطة التوفّر العامة بدون salonSlug → 404 (حلاق A ليس في الصالون الافتراضي)", availPublicNoCtx.status === 404, `status=${availPublicNoCtx.status}`);
+
   const bookAok = await http("POST", "/api/customer/bookings", { token: tokA, body: { barber_id: barberA, service_ids: [svA[0].id], date: tDate, start_time: "15:00" } });
   const bookBok = await http("POST", "/api/customer/bookings", { token: tokB, body: { barber_id: barberB, service_ids: [svB[0].id], date: tDate, start_time: "15:00" } });
   check("حجز زبون A غداً 15:00", bookAok.status === 201, `id=${bookAok.data?.id} price=${bookAok.data?.total_price}`);

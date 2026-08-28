@@ -252,7 +252,7 @@ publicRoutes.get('/barbers', async (c) => {
 // Available time slots for a barber on a date, given selected services — PRD 3.5
 publicRoutes.get('/barbers/:id/availability', async (c) => {
   const barberId = Number(c.req.param('id'));
-  const date = c.req.query('date');
+  const date = c.req.query('date') ?? '';
   const serviceIds = (c.req.query('serviceIds') ?? '')
     .split(',')
     .map((s) => Number(s))
@@ -261,57 +261,78 @@ publicRoutes.get('/barbers/:id/availability', async (c) => {
   if (!isValidDate(date)) return c.json({ error: 'تاريخ غير صالح' }, 400);
   if (serviceIds.length === 0) return c.json({ error: 'اختر خدمة واحدة على الأقل' }, 400);
 
-  // One-week advance booking window — PRD 3.5(4)
-  const today = todayISO();
-  const maxDate = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-  if (date < today || date > maxDate) {
-    return c.json({ error: 'الحجز متاح خلال أسبوع واحد فقط من تاريخ اليوم' }, 400);
-  }
+  const salonId = await resolvePublicSalonId(c);
 
   // Verify barber belongs to this salon
   const barberCheck = await c.env.DB.prepare(
     'SELECT id FROM barbers WHERE id = ? AND salon_id = ? AND is_active = 1',
   )
-    .bind(barberId, (await resolvePublicSalonId(c)))
+    .bind(barberId, salonId)
     .first();
   if (!barberCheck) return c.json({ error: 'الحلاق غير متاح' }, 404);
 
-  const totalDuration = await servicesDuration(c.env.DB, barberId, serviceIds);
-  if (totalDuration == null) return c.json({ error: 'خدمات غير صالحة لهذا الحلاق' }, 400);
+  return c.json(await computeBarberAvailability(c.env.DB, salonId, barberId, date, serviceIds, c.req.query('clientTime')));
+});
+
+/**
+ * Core slot computation shared by the PUBLIC availability endpoint and the
+ * session-scoped OWNER endpoint (/api/owner/barbers/:id/availability used by
+ * the admin manual booking form — tenant derived from the owner session, so
+ * the admin panel never falls back to DEFAULT_SALON_ID).
+ * Returns either { error, status } or the availability payload.
+ */
+export async function computeBarberAvailability(
+  db: D1Database,
+  salonId: number,
+  barberId: number,
+  date: string,
+  serviceIds: number[],
+  clientTime: string | null | undefined,
+): Promise<
+  | { error: string; status: number }
+  | { date: string; slots: { start_time: string; end_time: string }[]; total_duration: number; is_time_off?: boolean; reason?: string | null }
+> {
+  // One-week advance booking window — PRD 3.5(4)
+  const today = todayISO();
+  const maxDate = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  if (date < today || date > maxDate) {
+    return { error: 'الحجز متاح خلال أسبوع واحد فقط من تاريخ اليوم', status: 400 };
+  }
+
+  const totalDuration = await servicesDuration(db, barberId, serviceIds);
+  if (totalDuration == null) return { error: 'خدمات غير صالحة لهذا الحلاق', status: 400 };
 
   // 1. Check specific date time-off (إجازة مخصصة بتاريخ محدد)
-  const timeOff = await c.env.DB.prepare(
-    'SELECT id, reason FROM barber_time_off WHERE barber_id = ? AND date = ? AND salon_id = ?',
-  )
-    .bind(barberId, date, (await resolvePublicSalonId(c)))
+  const timeOff = await db
+    .prepare('SELECT id, reason FROM barber_time_off WHERE barber_id = ? AND date = ? AND salon_id = ?')
+    .bind(barberId, date, salonId)
     .first<{ id: number; reason: string | null }>();
 
   if (timeOff) {
-    return c.json({ date, slots: [], total_duration: totalDuration, is_time_off: true, reason: timeOff.reason });
+    return { date, slots: [], total_duration: totalDuration, is_time_off: true, reason: timeOff.reason };
   }
 
   // 2. Check weekly schedule
-  const schedule = await c.env.DB.prepare(
-    'SELECT start_time, end_time, is_day_off FROM work_schedules WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
-  )
-    .bind(barberId, dayOfWeek(date), (await resolvePublicSalonId(c)))
+  const schedule = await db
+    .prepare('SELECT start_time, end_time, is_day_off FROM work_schedules WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?')
+    .bind(barberId, dayOfWeek(date), salonId)
     .first<{ start_time: string; end_time: string; is_day_off: number }>();
 
-  if (!schedule || schedule.is_day_off) return c.json({ date, slots: [], total_duration: totalDuration });
+  if (!schedule || schedule.is_day_off) return { date, slots: [], total_duration: totalDuration };
 
   // 3. Get existing bookings for that date
-  const { results: bookings } = await c.env.DB.prepare(
-    `SELECT start_time, end_time FROM bookings
+  const { results: bookings } = await db
+    .prepare(
+      `SELECT start_time, end_time FROM bookings
      WHERE barber_id = ? AND booking_date = ? AND status = 'confirmed' AND salon_id = ?`,
-  )
-    .bind(barberId, date, (await resolvePublicSalonId(c)))
+    )
+    .bind(barberId, date, salonId)
     .all<{ start_time: string; end_time: string }>();
 
   // 4. Get breaks for that day of week (فترات الاستراحة)
-  const { results: breaks } = await c.env.DB.prepare(
-    'SELECT start_time, end_time FROM barber_breaks WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
-  )
-    .bind(barberId, dayOfWeek(date), (await resolvePublicSalonId(c)))
+  const { results: breaks } = await db
+    .prepare('SELECT start_time, end_time FROM barber_breaks WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?')
+    .bind(barberId, dayOfWeek(date), salonId)
     .all<{ start_time: string; end_time: string }>();
 
   const busy = [
@@ -323,7 +344,6 @@ publicRoutes.get('/barbers/:id/availability', async (c) => {
   const close = toMinutes(schedule.end_time);
 
   // Check client time if passed, or fallback to local Arab time (UTC+3)
-  const clientTime = c.req.query('clientTime');
   let currentMinutes = -1;
   if (clientTime && isValidTime(clientTime)) {
     currentMinutes = toMinutes(clientTime);
@@ -345,8 +365,8 @@ publicRoutes.get('/barbers/:id/availability', async (c) => {
     const overlaps = busy.some(([bs, be]) => t < be && end > bs);
     if (!overlaps) slots.push({ start_time: toHHMM(t), end_time: toHHMM(end) });
   }
-  return c.json({ date, slots, total_duration: totalDuration });
-});
+  return { date, slots, total_duration: totalDuration };
+}
 
 /** Sum durations of the given services, verifying they all belong to the barber. */
 export async function servicesDuration(

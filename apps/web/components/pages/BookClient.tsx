@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, Fragment } from "react";
+import { useEffect, useRef, useState, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { withSlug, getSalonSlugParam, useTenantLink } from "@/lib/salonTenant";
@@ -27,6 +27,24 @@ function BookContent() {
   /* ── state ── */
   const [step, setStep] = useState(0);
   const [barbers, setBarbers] = useState<Barber[]>([]);
+
+  // Horizontal strip (date pills) — desktop wheel pans it directly for a fast,
+  // fluid feel. Touch keeps native momentum scrolling (untouched on mobile).
+  const dateStripRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = dateStripRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      // Only hijack vertical wheel intent when the strip can actually scroll
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      if (el.scrollWidth <= el.clientWidth) return;
+      e.preventDefault();
+      // Direct scrollLeft update — no smooth() easing delay, per-event momentum
+      el.scrollLeft += e.deltaY + e.deltaX;
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
   const [selectedBarber, setSelectedBarber] = useState<Barber | null>(null);
   const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -437,12 +455,13 @@ function BookContent() {
           <p className="mt-2 text-sm text-[var(--bs-text-muted)]">الأوقات محدثة لحظياً حسب جدول {selectedBarber.name}</p>
 
           {/* date pills */}
-          <div className="mt-6 flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+          {/* date pills — fast & fluid horizontal strip (bs-hscroll) */}
+          <div ref={dateStripRef} className="bs-hscroll mt-6 gap-2 pb-2">
             {next7Days().map((d) => (
               <button
                 key={d.iso}
                 onClick={() => setSelectedDate(d.iso)}
-                className={`shrink-0 rounded-xl border px-4 py-2.5 text-center transition-all ${
+                className={`shrink-0 rounded-xl border px-4 py-2.5 text-center transition-colors duration-100 ${
                   selectedDate === d.iso
                     ? "border-[var(--bs-primary)] bg-[var(--bs-primary)] text-[var(--bs-on-primary)] shadow-md shadow-[var(--bs-primary)]/25"
                     : "border-[var(--bs-border)] bg-[var(--bs-bg)] text-[var(--bs-text-muted)] hover:border-[var(--bs-primary)]/50"
@@ -588,11 +607,14 @@ function WizardNav({
   submitIcon?: React.ReactNode;
 }) {
   return (
-    <div className="mt-8 flex gap-3 border-t border-[var(--bs-border)] pt-6">
-      <Button onClick={onBack} variant="outline">
+    /* Stacked full-width on mobile (long labels like "التالي — تأكيد الحجز"
+       never squeeze/clip at 360px+); side-by-side from sm up. RTL: primary
+       action renders on top via flex-col-reverse. */
+    <div className="mt-8 flex flex-col-reverse gap-3 border-t border-[var(--bs-border)] pt-6 sm:flex-row sm:items-center">
+      <Button onClick={onBack} variant="outline" className="w-full sm:w-auto">
         السابق · {backLabel}
       </Button>
-      <Button onClick={onNext} disabled={nextDisabled} className="flex-1">
+      <Button onClick={onNext} disabled={nextDisabled} className="w-full min-w-0 sm:w-auto sm:flex-1">
         {submitting ? (
           <>
             <Spinner size="sm" color="zinc" />
@@ -601,7 +623,7 @@ function WizardNav({
         ) : (
           <>
             {submitIcon}
-            <span>{nextLabel}</span>
+            <span className="whitespace-nowrap">{nextLabel}</span>
           </>
         )}
       </Button>

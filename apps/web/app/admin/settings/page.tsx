@@ -115,32 +115,31 @@ export default function AdminSettingsPage() {
     "w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2.5 text-[var(--bs-text)] placeholder:text-[var(--bs-text-faint)] outline-none transition focus:border-[var(--bs-primary)] focus:ring-1 focus:ring-[var(--bs-primary)]";
 
   return (
-    <div className="space-y-8">
+    <div className="bs-skin mx-auto max-w-3xl space-y-8">
       {/* ── Header ── */}
-      <div>
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">⚙️</span>
-          <h1 className="text-2xl font-extrabold text-[var(--bs-text)] sm:text-3xl">إعدادات الصالون</h1>
-        </div>
-        <p className="mt-1 text-sm text-[var(--bs-text-muted)]">
+      <header>
+        <p className="mb-2 flex items-center gap-2.5 text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
+          <span className="inline-block h-px w-8 bg-[var(--bs-primary)]/60" />
+          الإعدادات
+        </p>
+        <h1 className="text-2xl font-black text-[var(--bs-text)] sm:text-3xl">إعدادات الصالون</h1>
+        <p className="mt-2 text-sm text-[var(--bs-text-muted)]">
           عدّل كل قسم على حدة واضغط زر الحفظ الخاص به فقط — باقي الأقسام لن تتأثر.
         </p>
-      </div>
+      </header>
 
       {/* ══════════ Section 1: Basic Salon Info ══════════ */}
-      <section className="overflow-hidden rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 shadow-lg">
+      <section className="overflow-hidden rounded-3xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/70">
         <button
           type="button"
           onClick={() => toggleSection("basic")}
-          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-right transition hover:bg-[var(--bs-surface-raised)]/40"
+          className="flex w-full items-center justify-between gap-3 px-5 py-5 text-right transition hover:bg-[var(--bs-surface-raised)]/40"
           aria-expanded={openSections.basic}
         >
-          <div className="flex items-center gap-3">
-            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${openSections.basic ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)]" : "border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]"}`}>
-              🏪
-            </span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-black tracking-widest text-[var(--bs-primary)]" dir="ltr">01</span>
             <div>
-              <h2 className="text-base font-bold text-[var(--bs-text)]">معلومات الصالون الأساسية</h2>
+              <h2 className="text-base font-black text-[var(--bs-text)]">معلومات الصالون الأساسية</h2>
               <p className="mt-0.5 hidden text-xs text-[var(--bs-text-faint)] sm:block">اسم الصالون ورقم التواصل</p>
             </div>
           </div>
@@ -196,19 +195,17 @@ export default function AdminSettingsPage() {
       </section>
 
       {/* ══════════ Section 2: Visual Branding ══════════ */}
-      <section className="overflow-hidden rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 shadow-lg">
+      <section className="overflow-hidden rounded-3xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/70">
         <button
           type="button"
           onClick={() => toggleSection("branding")}
-          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-right transition hover:bg-[var(--bs-surface-raised)]/40"
+          className="flex w-full items-center justify-between gap-3 px-5 py-5 text-right transition hover:bg-[var(--bs-surface-raised)]/40"
           aria-expanded={openSections.branding}
         >
-          <div className="flex items-center gap-3">
-            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${openSections.branding ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)]" : "border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]"}`}>
-              🎨
-            </span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-black tracking-widest text-[var(--bs-primary)]" dir="ltr">02</span>
             <div>
-              <h2 className="text-base font-bold text-[var(--bs-text)]">الهوية البصرية</h2>
+              <h2 className="text-base font-black text-[var(--bs-text)]">الهوية البصرية</h2>
               <p className="mt-0.5 hidden text-xs text-[var(--bs-text-faint)] sm:block">شعار الصالون واللون الأساسي</p>
             </div>
           </div>
@@ -281,19 +278,17 @@ export default function AdminSettingsPage() {
       </section>
 
       {/* ══════════ Section 3: Social Media & Maps ══════════ */}
-      <section className="overflow-hidden rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 shadow-lg">
+      <section className="overflow-hidden rounded-3xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/70">
         <button
           type="button"
           onClick={() => toggleSection("social")}
-          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-right transition hover:bg-[var(--bs-surface-raised)]/40"
+          className="flex w-full items-center justify-between gap-3 px-5 py-5 text-right transition hover:bg-[var(--bs-surface-raised)]/40"
           aria-expanded={openSections.social}
         >
-          <div className="flex items-center gap-3">
-            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${openSections.social ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)]" : "border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]"}`}>
-              🌐
-            </span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-black tracking-widest text-[var(--bs-primary)]" dir="ltr">03</span>
             <div>
-              <h2 className="text-base font-bold text-[var(--bs-text)]">التواصل الاجتماعي والخريطة</h2>
+              <h2 className="text-base font-black text-[var(--bs-text)]">التواصل الاجتماعي والخريطة</h2>
               <p className="mt-0.5 hidden text-xs text-[var(--bs-text-faint)] sm:block">فيسبوك، إنستغرام، تيك توك، واتساب، خرائط Google</p>
             </div>
           </div>
@@ -393,32 +388,13 @@ export default function AdminSettingsPage() {
         )}
       </section>
 
-      {/* ══════════ Section 4: Security → direct reset lives in /admin/profile ══════════ */}
-      <section className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 p-5 shadow-lg">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] text-lg text-[var(--bs-success)]">🔒</span>
-            <div>
-              <h2 className="text-base font-bold text-[var(--bs-text)]">كلمة مرور المدير</h2>
-              <p className="mt-0.5 text-xs text-[var(--bs-text-faint)]">إعادة تعيين مباشرة بدون كلمة المرور الحالية</p>
-            </div>
-          </div>
-          <a
-            href="/admin/profile"
-            className="shrink-0 rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-4 py-2 text-xs font-bold text-[var(--bs-success)] transition hover:brightness-110 active:scale-95"
-          >
-            الانتقال لإعادة التعيين ←
-          </a>
-        </div>
-      </section>
-
-      {/* ══════════ Section 5: Appearance → light/dark mode (Phase 1 foundation) ══════════ */}
-      <section className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 p-5 shadow-lg">
+      {/* ══════════ Section 4: Appearance → light/dark mode (Phase 1 foundation) ══════════ */}
+      <section className="rounded-3xl border border-dashed border-[var(--bs-border-strong)] p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-lg text-[var(--bs-primary)]">🎨</span>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-black tracking-widest text-[var(--bs-primary)]" dir="ltr">04</span>
             <div>
-              <h2 className="text-base font-bold text-[var(--bs-text)]">وضع العرض</h2>
+              <h2 className="text-base font-black text-[var(--bs-text)]">وضع العرض</h2>
               <p className="mt-0.5 text-xs text-[var(--bs-text-faint)]">فاتح، داكن، أو حسب إعداد نظامك — يتم حفظ اختيارك تلقائياً</p>
             </div>
           </div>

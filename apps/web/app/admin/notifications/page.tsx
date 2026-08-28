@@ -8,10 +8,8 @@ import { formatDateTime } from "@/lib/time";
 import { useLiveNotifications } from "@/lib/useNotifications";
 import { enableWebPushNotifications } from "@/lib/push";
 import Spinner from "@/components/Spinner";
-import PushDiagnostics from "@/components/PushDiagnostics";
 import { useToast } from "@/components/Toaster";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { BellRing } from "lucide-react";
 import type { AppNotification } from "@/lib/types";
 
@@ -76,9 +74,22 @@ export default function AdminNotificationsPage() {
   const unread = notifications.filter((n) => !n.is_read).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-[var(--bs-text)]">إشعارات وتنبيهات الإدارة</h1>
+    <div className="bs-skin space-y-8">
+      <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <p className="mb-2 flex items-center gap-2.5 text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
+            <span className="inline-block h-px w-8 bg-[var(--bs-primary)]/60" />
+            مركز التنبيهات
+          </p>
+          <h1 className="text-2xl font-black text-[var(--bs-text)] sm:text-3xl">
+            إشعارات الإدارة
+            {unread > 0 && (
+              <span className="mr-3 align-middle text-base font-bold text-[var(--bs-text-faint)]">
+                {unread} غير مقروءة
+              </span>
+            )}
+          </h1>
+        </div>
         <div className="flex items-center gap-2">
           {pushEnabled && (
             <Button variant="secondary" size="sm" onClick={handleEnablePush}>
@@ -91,7 +102,7 @@ export default function AdminNotificationsPage() {
             </Button>
           )}
         </div>
-      </div>
+      </header>
 
       {pushStatus && (
         <div className="rounded-xl border border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)] p-3 text-xs sm:text-sm text-[var(--bs-primary)] text-center">
@@ -100,56 +111,64 @@ export default function AdminNotificationsPage() {
       )}
 
       {loading && (
-        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-12 text-center">
+        <div className="py-14 text-center">
           <Spinner size="lg" label="جاري تحميل الإشعارات…" />
         </div>
       )}
 
       {!loading && notifications.length === 0 && (
-        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/40 p-8 text-center text-[var(--bs-text-muted)]">
+        <div className="py-14 text-center text-sm text-[var(--bs-text-muted)]">
+          <span className="mb-3 block text-4xl">🔔</span>
           لا توجد إشعارات حالياً.
         </div>
       )}
 
-      <div className="space-y-3">
-        {notifications.map((n) => (
-          <Card
-            key={n.id}
-            className={`relative p-4 transition-all ${
-              n.is_read
-                ? "border-[var(--bs-border)]/60 bg-[var(--bs-surface)]/40 opacity-70"
-                : "border-[var(--bs-primary)]/40 bg-[var(--bs-surface)] shadow-md"
-            }`}
-          >
-            {/* Gold unread dot — consistent with Navbar/AdminClientLayout/customer inbox */}
-            {!n.is_read && (
+      {/* ── timeline: vertical rule + unread dots, no boxed cards ── */}
+      {!loading && notifications.length > 0 && (
+        <ol className="relative space-y-1 border-r border-[var(--bs-border)] pr-5">
+          {notifications.map((n) => (
+            <li key={n.id} className="relative">
+              {/* timeline dot — gold filled when unread, hollow when read */}
               <span
-                aria-label="غير مقروء"
-                className="absolute -right-1.5 top-5 h-2.5 w-2.5 rounded-full bg-[var(--bs-primary)] shadow-sm shadow-[var(--bs-primary)]/60"
+                aria-label={n.is_read ? undefined : "غير مقروء"}
+                className={`absolute -right-[26px] top-5 h-3 w-3 rounded-full border-2 ${
+                  n.is_read
+                    ? "border-[var(--bs-border-strong)] bg-[var(--bs-bg)]"
+                    : "border-[var(--bs-primary)] bg-[var(--bs-primary)] shadow-md shadow-[var(--bs-primary)]/50"
+                }`}
               />
-            )}
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <span className="inline-block rounded-lg bg-[var(--bs-primary-soft)] border border-[var(--bs-primary)]/20 px-2.5 py-0.5 text-xs font-bold text-[var(--bs-primary)]">
-                  {n.type === "new_booking"
-                    ? "حجز جديد"
-                    : n.type === "cancellation"
-                      ? "إلغاء حجز"
-                      : "الموعد متاح"}
-                </span>
-                <p className={`mt-1 text-sm font-medium ${n.is_read ? "text-[var(--bs-text-muted)]" : "text-[var(--bs-text)]"}`}>
-                  {n.message}
-                </p>
-              </div>
-              <span className="text-xs text-[var(--bs-text-faint)] shrink-0">
-                {formatDateTime(n.created_at)}
-              </span>
-            </div>
-          </Card>
-        ))}
-      </div>
 
-      <PushDiagnostics role="owner" />
+              <div
+                className={`rounded-2xl px-4 py-4 transition-colors ${
+                  n.is_read ? "text-[var(--bs-text-muted)]" : "bg-[var(--bs-surface)] shadow-md"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 space-y-1.5">
+                    <span className="block text-[11px] font-bold tracking-[0.2em] text-[var(--bs-primary)]">
+                      {n.type === "new_booking"
+                        ? "حجز جديد"
+                        : n.type === "cancellation"
+                          ? "إلغاء حجز"
+                          : "الموعد متاح"}
+                    </span>
+                    <p
+                      className={`text-sm leading-relaxed ${
+                        n.is_read ? "text-[var(--bs-text-muted)]" : "font-medium text-[var(--bs-text)]"
+                      }`}
+                    >
+                      {n.message}
+                    </p>
+                  </div>
+                  <span className="shrink-0 pt-0.5 text-[11px] text-[var(--bs-text-faint)]">
+                    {formatDateTime(n.created_at)}
+                  </span>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }

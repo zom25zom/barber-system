@@ -79,20 +79,25 @@ export default function AdminProfilePage() {
     "w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2.5 text-[var(--bs-text)] placeholder:text-[var(--bs-text-faint)] outline-none transition focus:border-[var(--bs-primary)] focus:ring-1 focus:ring-[var(--bs-primary)]";
 
   return (
-    <div className="mx-auto max-w-md space-y-6">
-      {/* ── Account header ── */}
-      <div className="rounded-2xl border border-[var(--bs-border)] bg-gradient-to-b from-[var(--bs-surface)] to-[var(--bs-bg)] p-6 text-center shadow-xl">
-        <span className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border-2 border-[var(--bs-primary)]/40 bg-[var(--bs-surface-raised)] text-3xl font-black text-[var(--bs-primary)]">
+    <div className="bs-skin mx-auto max-w-lg space-y-8 pb-4">
+      {/* ── Account header: the avatar letter is the focal point ── */}
+      <header className="flex items-center gap-5">
+        <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-3xl font-black text-[var(--bs-primary)] shadow-lg">
           {(username || "A").charAt(0).toUpperCase()}
         </span>
-        <h1 className="text-xl font-black text-[var(--bs-text)]">{username || "المدير"}</h1>
-        <p className="mt-0.5 text-xs text-[var(--bs-text-faint)]">حساب إدارة {salon.name}</p>
-      </div>
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">حساب الإدارة</p>
+          <h1 className="mt-1 truncate text-2xl font-black text-[var(--bs-text)] sm:text-3xl">{username || "المدير"}</h1>
+          <p className="mt-1 text-xs text-[var(--bs-text-faint)]">حساب إدارة {salon.name}</p>
+        </div>
+      </header>
+
+      <div className="bs-hairline" />
 
       {/* ── Reset password (no current password required) ── */}
-      <section className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 p-6 shadow-lg">
-        <h2 className="text-base font-bold text-[var(--bs-text)]">كلمة المرور</h2>
-        <p className="mt-0.5 text-xs text-[var(--bs-text-faint)]">
+      <section>
+        <h2 className="text-lg font-black text-[var(--bs-text)]">كلمة المرور</h2>
+        <p className="mt-1 text-xs text-[var(--bs-text-faint)]">
           إعادة تعيين مباشرة — سيتم تسجيل خروجك من جميع الأجهزة بعد التغيير
         </p>
 

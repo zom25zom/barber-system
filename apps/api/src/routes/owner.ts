@@ -5,7 +5,7 @@ import { requireOwner } from './auth';
 import { sendNotification } from '../notify';
 import { scheduleBookingReminder } from '../reminders';
 import { deleteOldUpload } from '../cleanup';
-import { servicesDuration } from './public';
+import { servicesDuration, computeBarberAvailability } from './public';
 import {
   isValidDate,
   isValidTime,
@@ -440,6 +440,38 @@ ownerRoutes.delete('/barbers/:id/breaks/:breakId', async (c) => {
 });
 
 // ---------- Bookings management — PRD 3.6 / 3.7 / 3.10 ----------
+
+/**
+ * Availability for the ADMIN manual booking form — session-scoped.
+ * The tenant comes from the owner session (c.get('salonId')), NOT from a
+ * slug/host/DEFAULT_SALON_ID fallback. The admin panel must never query
+ * another salon's schedules just because it has no ?salonSlug= context —
+ * that was the bug behind "لا توجد فترات عمل متاحة بهذا اليوم" showing for
+ * barbers with valid schedules.
+ */
+ownerRoutes.get('/barbers/:id/availability', async (c) => {
+  const barberId = Number(c.req.param('id'));
+  const date = c.req.query('date') ?? '';
+  const serviceIds = (c.req.query('serviceIds') ?? '')
+    .split(',')
+    .map((s) => Number(s))
+    .filter((n) => Number.isInteger(n) && n > 0);
+
+  if (!isValidDate(date)) return c.json({ error: 'تاريخ غير صالح' }, 400);
+  if (serviceIds.length === 0) return c.json({ error: 'اختر خدمة واحدة على الأقل' }, 400);
+
+  const salonId: number = c.get('salonId');
+
+  // Barber must belong to the session's own salon
+  const barberCheck = await c.env.DB.prepare(
+    'SELECT id FROM barbers WHERE id = ? AND salon_id = ? AND is_active = 1',
+  )
+    .bind(barberId, salonId)
+    .first();
+  if (!barberCheck) return c.json({ error: 'الحلاق غير موجود' }, 404);
+
+  return c.json(await computeBarberAvailability(c.env.DB, salonId, barberId, date, serviceIds, c.req.query('clientTime')));
+});
 
 ownerRoutes.get('/bookings', async (c) => {
   const salonId: number = c.get('salonId');

@@ -4,7 +4,6 @@ import type { Bindings, Variables, Customer } from '../types';
 import {
   sha256,
   randomToken,
-  resolvePublicSalonId,
   resolvePublicSalonStrict,
   getClientIP,
   checkRateLimit,
@@ -20,52 +19,16 @@ authRoutes.post('/owner/login', async (c) => {
   const ip = getClientIP(c);
   const body = await c.req.json().catch(() => ({} as any));
 
-  // ── Tenant resolution (multi-tenant) ──
-  // Since migration 0009, owners.username is unique PER SALON only — never
-  // globally. So the salon MUST be identifiable here. Priority:
-  //   1. salonSlug sent explicitly in the JSON body (admin login form field,
-  //      or the per-salon page /{salonSlug}/admin/login)
-  //   2. ?salonSlug= query param / Host matching (resolvePublicSalonId)
-  //   3. DEFAULT_SALON_ID fallback (single default-salon deployments only)
-  let salonId: number;
-  let salonInfo: { id: number; name: string; slug: string | null };
-
-  const rawSlug = typeof body.salonSlug === 'string' ? body.salonSlug.trim() : '';
-  if (rawSlug) {
-    const slug = rawSlug.toLowerCase();
-    if (!/^[a-zA-Z0-9-_]{1,60}$/.test(slug)) {
-      return c.json({ error: 'معرّف الصالون غير صالح' }, 400);
-    }
-    const salon = await c.env.DB.prepare('SELECT id, name, slug FROM salons WHERE slug = ?')
-      .bind(slug)
-      .first<{ id: number; name: string; slug: string | null }>();
-    if (!salon) {
-      return c.json(
-        { error: 'لم يتم العثور على صالون بهذا المعرّف. تأكد من رابط صالونك (مثال: salon-nkhba).' },
-        404,
-      );
-    }
-    salonId = salon.id;
-    salonInfo = { id: salon.id, name: salon.name, slug: salon.slug };
-  } else {
-    const fallbackId = await resolvePublicSalonId(c);
-    const salon = await c.env.DB.prepare('SELECT id, name, slug FROM salons WHERE id = ?')
-      .bind(fallbackId)
-      .first<{ id: number; name: string; slug: string | null }>();
-    if (!salon) {
-      return c.json(
-        {
-          error:
-            'تعذر تحديد الصالون تلقائياً. يرجى إدخال حقل «معرّف الصالون» لتسجيل الدخول.',
-        },
-        400,
-      );
-    }
-    salonId = salon.id;
-    salonInfo = { id: salon.id, name: salon.name, slug: salon.slug };
+  // ── Validation ──
+  const { username, password } = body;
+  if (!isValidUsername(username) || typeof password !== 'string' || password.length < 1 || password.length > 100) {
+    return c.json({ error: 'اسم المستخدم وكلمة المرور مطلوبان بشكل صحيح' }, 400);
   }
 
-  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, salonId, `owner_login:${ip}`, 5, 300);
+  // ── Rate limit (pre-auth, per IP) ──
+  // The salon is NOT known yet — it is resolved from the credentials below,
+  // never from client input. Attempts are counted in the shared `salon-0` DO room.
+  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, 0, `owner_login:${ip}`, 5, 300);
   if (!rl.allowed) {
     const minutes = Math.ceil((rl.retryAfter || 60) / 60);
     return c.json(
@@ -74,18 +37,45 @@ authRoutes.post('/owner/login', async (c) => {
     );
   }
 
-  const { username, password } = body;
-  if (!isValidUsername(username) || typeof password !== 'string' || password.length < 1 || password.length > 100) {
-    return c.json({ error: 'اسم المستخدم وكلمة المرور مطلوبان بشكل صحيح' }, 400);
+  // ── Tenant resolution (multi-tenant) ──
+  // Since migration 0009, owners.username is unique PER SALON only — never
+  // globally (project-architecture.md §4). Therefore the same username may
+  // exist in several salons, and ONLY username+password together disambiguate.
+  // No client-supplied slug is trusted: the tenant is derived purely from the
+  // credentials, then bound into the session server-side.
+  const passwordHash = await sha256(password);
+  const candidates = await c.env.DB.prepare(
+    'SELECT id, username, password_hash, salon_id FROM owners WHERE username = ?',
+  )
+    .bind(username.trim())
+    .all<{ id: number; username: string; password_hash: string; salon_id: number }>();
+
+  const matches = (candidates.results ?? []).filter((o) => o.password_hash === passwordHash);
+
+  if (matches.length === 0) {
+    return c.json({ error: 'بيانات الدخول غير صحيحة' }, 401);
   }
 
-  const owner = await c.env.DB.prepare(
-    'SELECT id, username, password_hash, salon_id FROM owners WHERE username = ? AND salon_id = ?',
-  )
-    .bind(username.trim(), salonId)
-    .first<{ id: number; username: string; password_hash: string; salon_id: number }>();
+  if (matches.length > 1) {
+    // Same username AND same password exist across multiple salons — the
+    // credentials alone cannot pick a tenant. Refuse rather than guess:
+    // zero ambiguity, zero risk of cross-tenant session mixing. The salon
+    // owner must unify these credentials (e.g. via /admin/profile).
+    return c.json(
+      {
+        error:
+          'بيانات الدخول هذه مستخدمة لأكثر من صالون. لا يمكن تحديد صالونك تلقائياً — يرجى توحيد بيانات الدخول عبر لوحة تحكم كل صالون.',
+      },
+      409,
+    );
+  }
 
-  if (!owner || owner.password_hash !== (await sha256(password))) {
+  const owner = matches[0];
+
+  const salon = await c.env.DB.prepare('SELECT id, name, slug FROM salons WHERE id = ?')
+    .bind(owner.salon_id)
+    .first<{ id: number; name: string; slug: string | null }>();
+  if (!salon) {
     return c.json({ error: 'بيانات الدخول غير صحيحة' }, 401);
   }
 
@@ -100,7 +90,7 @@ authRoutes.post('/owner/login', async (c) => {
     .bind(token, owner.id, expires, owner.salon_id)
     .run();
 
-  return c.json({ token, owner: { id: owner.id, username: owner.username }, salon: salonInfo });
+  return c.json({ token, owner: { id: owner.id, username: owner.username }, salon });
 });
 
 authRoutes.post('/owner/logout', async (c) => {

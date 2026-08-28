@@ -10,9 +10,12 @@
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import process from "node:process";
 
-const WEB = new URL("../apps/web", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+// fileURLToPath: URL.pathname leaves %20 (e.g. spaces in the repo folder)
+// encoded, which makes readdirSync fail silently on Windows → empty audit.
+const WEB = fileURLToPath(new URL("../apps/web", import.meta.url));
 const SCAN_DIRS = ["app", "components"];
 const EXTS = [".tsx", ".ts"];
 

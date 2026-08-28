@@ -6,11 +6,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getCustomerProfile, getOwnerToken, clearOwnerToken } from "@/lib/auth";
-import { useSalonSettings } from "@/lib/salon";
+import { useSalonSettings, useOwnerSalonSettings } from "@/lib/salon";
+import { buildTenantUrl } from "@/lib/salonTenant";
 import ConfirmModal from "@/components/ConfirmModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Phone, Globe } from "lucide-react";
+import { shouldHideSharedChrome } from "@/lib/chrome";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -20,6 +22,9 @@ export default function Navbar() {
   const [isOwner, setIsOwner] = useState(false);
   const [ownerLogoutOpen, setOwnerLogoutOpen] = useState(false);
   const salon = useSalonSettings();
+  // Owner-session-scoped settings (includes the salon slug) — used by the
+  // admin topbar's «الموقع» button to reach THIS salon's public booking page.
+  const ownerSalon = useOwnerSalonSettings(isOwner);
 
   useEffect(() => {
     const sync = () => {
@@ -30,6 +35,10 @@ export default function Navbar() {
     window.addEventListener("auth-changed", sync);
     return () => window.removeEventListener("auth-changed", sync);
   }, [pathname]);
+
+  // Public/unauthenticated pages render only their own form content.
+  // (Placed after all hooks so the hook order stays stable across navigations.)
+  if (shouldHideSharedChrome(pathname)) return null;
 
   if (pathname.startsWith("/admin")) {
     return (
@@ -69,7 +78,10 @@ export default function Navbar() {
           <nav className="flex items-center gap-2">
             <ThemeToggle />
             <Button asChild variant="ghost" size="sm">
-              <Link href="/">
+              {/* Tenant's public booking page — NOT the root domain. The slug
+                  comes from the owner session server-side and goes through the
+                  mandatory tenant-link helper (check-tenant-links.mjs). */}
+              <Link href={ownerSalon.slug ? buildTenantUrl("/", ownerSalon.slug) : "/"}>
                 <Globe className="h-4 w-4" />
                 الموقع
               </Link>

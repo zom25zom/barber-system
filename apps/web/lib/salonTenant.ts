@@ -80,6 +80,9 @@ export function buildTenantUrl(path: string, slugOverride?: string | null): stri
   // Never scope admin routes — the admin panel is session-global, not tenant-pathed
   if (path === "/admin" || path.startsWith("/admin/") || path.startsWith("/signup")) return path;
 
+  // Root path → tenant homepage (no trailing slash, matches /{slug} route)
+  if (path === "/") return `/${slug}`;
+
   return `/${slug}${path}`;
 }
 

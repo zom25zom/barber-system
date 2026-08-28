@@ -7,20 +7,8 @@ import { WEEKDAYS_AR, formatTime12 } from "@/lib/time";
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toaster";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { StatCard } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Banknote,
-  CalendarDays,
-  Receipt,
-  UserX,
-  Download,
-  Table2,
-  Flame,
-  TrendingUp,
-  X,
-} from "lucide-react";
+import { Download, Table2, Flame } from "lucide-react";
 
 interface ReportSummary {
   total_revenue: number;
@@ -199,7 +187,7 @@ export default function AdminReportsPage() {
   /* Gold intensity ramp: cream/soft gold at low → deep bronze at peak.
      Token-driven so contrast holds in BOTH light and dark mode. */
   const getHeatmapColor = (count: number) => {
-    if (count === 0) return "bg-[var(--bs-surface-raised)]/60 border-[var(--bs-border)]/60 text-[var(--bs-text-faint)]";
+    if (count === 0) return "bg-[var(--bs-surface-raised)]/60 border-[var(--bs-border)]/60 text-transparent";
     const ratio = count / maxPeakCount;
     if (ratio < 0.25)
       return "bg-[var(--bs-primary-soft)] border-[var(--bs-primary)]/30 text-[var(--bs-primary-strong)]";
@@ -211,21 +199,15 @@ export default function AdminReportsPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-12">
       {/* ── Page Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--bs-border)] bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]">
-              <TrendingUp className="h-5 w-5" />
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--bs-text)]">
-              التقارير المالية وساعات الذروة
-            </h1>
-          </div>
-          <p className="mt-1 text-xs sm:text-sm text-[var(--bs-text-muted)]">
-            تحليل شامل للإيرادات، أداء الحلاقين، الخدمات الأكثر طلباً، وخريطة الكثافة وساعات الذروة.
+          <p className="mb-2 flex items-center gap-2.5 text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
+            <span className="inline-block h-px w-8 bg-[var(--bs-primary)]/60" />
+            التحليل المالي
           </p>
+          <h1 className="text-3xl font-black text-[var(--bs-text)] sm:text-4xl">التقارير وساعات الذروة</h1>
         </div>
 
         {/* Export Buttons */}
@@ -239,62 +221,39 @@ export default function AdminReportsPage() {
             تصدير الذروة (CSV)
           </Button>
         </div>
-      </div>
+      </header>
 
-      {/* ── Period Filter Tabs ── */}
-      <Card className="flex flex-wrap items-center justify-between gap-4 p-2 shadow-sm">
-        <div className="flex flex-wrap gap-1.5">
+      {/* ── Period Filter Tabs — quiet underline control ── */}
+      <div className="border-b border-[var(--bs-border)]">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           {[
             { key: "today", label: "اليوم" },
             { key: "this_week", label: "هذا الأسبوع" },
             { key: "this_month", label: "هذا الشهر" },
             { key: "week", label: "آخر 7 أيام" },
             { key: "month", label: "آخر 30 يوم" },
-            { key: "custom", label: "فترة مخصصة 🗓️" },
+            { key: "custom", label: "فترة مخصصة" },
           ].map((t) => (
-            <Button
+            <button
               key={t.key}
               type="button"
-              size="sm"
-              variant={period === t.key ? "default" : "ghost"}
               onClick={() => setPeriod(t.key as any)}
-              className="px-4"
+              className={`-mb-px border-b-2 pb-3 text-sm transition-colors ${
+                period === t.key
+                  ? "border-[var(--bs-primary)] font-bold text-[var(--bs-primary)]"
+                  : "border-transparent font-medium text-[var(--bs-text-muted)] hover:text-[var(--bs-text)]"
+              }`}
             >
               {t.label}
-            </Button>
+            </button>
           ))}
-        </div>
 
-        {/* Custom Date Range Selectors */}
-        {period === "custom" && (
-          <div className="flex flex-wrap items-center gap-3 px-2">
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-[var(--bs-text-muted)]">من:</label>
-              <Input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="h-8 w-auto px-3 py-1.5 text-xs"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-[var(--bs-text-muted)]">إلى:</label>
-              <Input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="h-8 w-auto px-3 py-1.5 text-xs"
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-3 px-2">
           {(period !== "this_month" || fromDate !== weekAgo || toDate !== today) && (
             <Button
               type="button"
               variant="ghost"
               size="sm"
+              className="mr-auto"
               onClick={() => {
                 setPeriod("this_month");
                 setFromDate(weekAgo);
@@ -305,14 +264,32 @@ export default function AdminReportsPage() {
               مسح الفلاتر ✕
             </Button>
           )}
-
-          {data && (
-            <div className="text-xs text-[var(--bs-text-faint)]">
-              الفترة المحددة: <span className="font-mono text-[var(--bs-text-muted)]">{data.from}</span> إلى <span className="font-mono text-[var(--bs-text-muted)]">{data.to}</span>
-            </div>
-          )}
         </div>
-      </Card>
+      </div>
+
+      {/* Custom Date Range Selectors */}
+      {period === "custom" && (
+        <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-[var(--bs-surface)]/60 p-4">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-[var(--bs-text-muted)]">من:</label>
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="h-9 w-auto px-3 py-1.5 text-xs"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-[var(--bs-text-muted)]">إلى:</label>
+            <Input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="h-9 w-auto px-3 py-1.5 text-xs"
+            />
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
@@ -324,87 +301,90 @@ export default function AdminReportsPage() {
       )}
 
       {loading && (
-        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-16 text-center">
+        <div className="py-16 text-center">
           <Spinner size="lg" label="جاري تجميع وتحليل البيانات المالية…" />
         </div>
       )}
 
       {!loading && data && (
-        <div className="space-y-8 animate-in fade-in">
-          {/* ═══════ 1. KPI Summary Cards (StatCard) ═══════ */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              icon={<Banknote className="h-5 w-5" />}
-              label="إجمالي الإيرادات"
-              value={
-                <>
-                  {data.summary.total_revenue.toLocaleString()}{" "}
-                  <span className="text-base font-bold text-[var(--bs-text-muted)]">د.أ</span>
-                </>
-              }
-              hint={`منها ${data.summary.completed_revenue.toLocaleString()} د.أ محصلة فعلياً`}
+        <div className="space-y-14">
+          {/* ═══════════════════════════════════════════════════════════
+              1. REVENUE HERO — the one dominant number on this page
+              ═══════════════════════════════════════════════════════════ */}
+          <section className="bs-panel relative overflow-hidden">
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(ellipse 55% 90% at 88% -20%, rgba(201,162,39,0.14), transparent 65%)",
+              }}
             />
-            <StatCard
-              icon={<CalendarDays className="h-5 w-5" />}
-              label="إجمالي الحجوزات"
-              value={
-                <>
-                  {data.summary.total_bookings}{" "}
-                  <span className="text-base font-normal text-[var(--bs-text-muted)]">حجز</span>
-                </>
-              }
-              hint={`${data.summary.completed_count} مكتمل • ${data.summary.confirmed_count} قادم`}
-            />
-            <StatCard
-              icon={<Receipt className="h-5 w-5" />}
-              label="متوسط قيمة الفاتورة"
-              value={
-                <>
-                  {data.summary.avg_ticket}{" "}
-                  <span className="text-base font-normal text-[var(--bs-text-muted)]">د.أ</span>
-                </>
-              }
-              hint="متوسط الإيراد المتوقع لكل زبون"
-            />
-            <StatCard
-              icon={<UserX className="h-5 w-5" />}
-              label="الإلغاء وعدم الحضور"
-              value={
-                <span className="flex items-baseline gap-2">
-                  <span className="text-xl font-bold text-[var(--bs-error)]">{data.summary.cancelled_count} ملغي</span>
-                  <span className="text-[var(--bs-text-faint)]">/</span>
-                  <span className="text-base font-semibold text-[var(--bs-warning)]">{data.summary.no_show_count} غياب</span>
-                </span>
-              }
-              hint={`معدل الالتزام: ${
-                data.summary.total_bookings > 0
-                  ? `${Math.round(
-                      ((data.summary.completed_count + data.summary.confirmed_count) /
-                        data.summary.total_bookings) *
-                        100
-                    )}%`
-                  : "100%"
-              }`}
-            />
-          </div>
+            <div className="bs-grain" />
+
+            <div className="relative flex flex-col gap-8 p-6 sm:p-10 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.2em] text-[var(--bs-primary)]">
+                  إجمالي الإيرادات
+                </p>
+                <p className="mt-3 text-5xl font-black leading-none tabular-nums text-[var(--bs-text)] sm:text-7xl lg:text-8xl" dir="ltr">
+                  {data.summary.total_revenue.toLocaleString()}
+                  <span className="mr-2 text-xl font-bold text-[var(--bs-text-faint)] sm:mr-3 sm:text-3xl">د.أ</span>
+                </p>
+                <p className="mt-4 text-sm text-[var(--bs-text-muted)]">
+                  منها <span className="font-bold text-[var(--bs-success)]">{data.summary.completed_revenue.toLocaleString()} د.أ</span> محصلة فعلياً
+                </p>
+              </div>
+
+              {/* quiet stacked side-stats */}
+              <div className="divide-y divide-[var(--bs-border)] border-t border-[var(--bs-border)] lg:min-w-[16rem] lg:border-t-0 lg:border-r lg:pr-8">
+                <div className="flex items-baseline justify-between gap-6 py-3.5 lg:justify-end">
+                  <span className="text-xs text-[var(--bs-text-muted)]">إجمالي الحجوزات</span>
+                  <span className="text-2xl font-black tabular-nums text-[var(--bs-text)]">
+                    {data.summary.total_bookings}
+                    <span className="mr-1.5 text-xs font-semibold text-[var(--bs-text-faint)]">({data.summary.completed_count} مكتمل · {data.summary.confirmed_count} قادم)</span>
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between gap-6 py-3.5 lg:justify-end">
+                  <span className="text-xs text-[var(--bs-text-muted)]">متوسط قيمة الفاتورة</span>
+                  <span className="text-2xl font-black tabular-nums text-[var(--bs-text)]">{data.summary.avg_ticket} د.أ</span>
+                </div>
+                <div className="flex items-baseline justify-between gap-6 py-3.5 lg:justify-end">
+                  <span className="text-xs text-[var(--bs-text-muted)]">معدل الالتزام</span>
+                  <span className="text-2xl font-black tabular-nums text-[var(--bs-success)]">
+                    {data.summary.total_bookings > 0
+                      ? `${Math.round(
+                          ((data.summary.completed_count + data.summary.confirmed_count) /
+                            data.summary.total_bookings) *
+                            100
+                        )}%`
+                      : "100%"}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between gap-6 py-3.5 lg:justify-end">
+                  <span className="text-xs text-[var(--bs-text-muted)]">إلغاء / غياب</span>
+                  <span className="text-lg font-black tabular-nums">
+                    <span className="text-[var(--bs-error)]">{data.summary.cancelled_count}</span>
+                    <span className="mx-1 text-[var(--bs-text-faint)]">/</span>
+                    <span className="text-[var(--bs-warning)]">{data.summary.no_show_count}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
 
           {/* ═══════ 2. Barber Revenue & Service Performance ═══════ */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Barber Breakdown */}
-            <Card className="space-y-4 p-6 shadow-lg">
-              <div className="flex items-center justify-between border-b border-[var(--bs-border)] pb-3">
-                <h2 className="flex items-center gap-2 text-base font-bold text-[var(--bs-text)]">
-                  💈 الإيرادات حسب الحلاق
-                </h2>
-                <span className="text-xs text-[var(--bs-text-muted)]">
-                  {data.revenue_by_barber.length} حلاقين
-                </span>
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-8">
+            {/* Barber Breakdown — editorial share bars */}
+            <section>
+              <div className="flex items-center justify-between border-b border-[var(--bs-border)] pb-4">
+                <h2 className="text-xl font-black text-[var(--bs-text)]">الإيرادات حسب الحلاق</h2>
+                <span className="text-xs text-[var(--bs-text-faint)]">{data.revenue_by_barber.length} حلاقين</span>
               </div>
 
               {data.revenue_by_barber.length === 0 ? (
-                <p className="py-6 text-center text-xs text-[var(--bs-text-faint)]">لا توجد بيانات لهذه الفترة</p>
+                <p className="py-10 text-center text-xs text-[var(--bs-text-faint)]">لا توجد بيانات لهذه الفترة</p>
               ) : (
-                <div className="space-y-3">
+                <div className="divide-y divide-[var(--bs-border)]">
                   {data.revenue_by_barber.map((b) => {
                     const pct =
                       data.summary.total_revenue > 0
@@ -412,36 +392,36 @@ export default function AdminReportsPage() {
                         : 0;
 
                     return (
-                      <div key={b.barber_id} className="space-y-1.5 rounded-xl border border-[var(--bs-border)]/80 bg-[var(--bs-bg)]/60 p-3.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
+                      <div key={b.barber_id} className="py-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3.5">
                             {b.photo_url ? (
                               <img
                                 src={b.photo_url}
                                 alt={b.barber_name}
-                                className="h-9 w-9 rounded-full border border-[var(--bs-primary)]/40 object-cover"
+                                className="h-11 w-11 rounded-full border border-[var(--bs-border-strong)] object-cover"
                               />
                             ) : (
-                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--bs-surface-raised)] text-sm">
+                              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)] text-base">
                                 💈
                               </div>
                             )}
-                            <div>
-                              <p className="text-sm font-bold text-[var(--bs-text)]">{b.barber_name}</p>
-                              <p className="text-xs text-[var(--bs-text-muted)]">
+                            <div className="min-w-0">
+                              <p className="truncate text-base font-black text-[var(--bs-text)]">{b.barber_name}</p>
+                              <p className="text-xs text-[var(--bs-text-faint)]">
                                 {b.bookings_count} حجز ({b.completed_count} منجز)
                               </p>
                             </div>
                           </div>
 
-                          <div className="text-left">
-                            <p className="font-mono text-sm font-bold text-[var(--bs-primary)]">{b.revenue} د.أ</p>
+                          <div className="shrink-0 text-left">
+                            <p className="text-base font-black tabular-nums text-[var(--bs-primary)]">{b.revenue} د.أ</p>
                             <p className="text-[11px] text-[var(--bs-text-faint)]">{pct}% من الإجمالي</p>
                           </div>
                         </div>
 
-                        {/* Progress Bar — gold data color */}
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--bs-surface-raised)]">
+                        {/* thin gold share bar */}
+                        <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-[var(--bs-surface-raised)]">
                           <div
                             className="h-full rounded-full bg-[var(--bs-primary)] transition-all duration-500"
                             style={{ width: `${Math.min(pct, 100)}%` }}
@@ -452,54 +432,54 @@ export default function AdminReportsPage() {
                   })}
                 </div>
               )}
-            </Card>
+            </section>
 
-            {/* Service Breakdown */}
-            <Card className="space-y-4 p-6 shadow-lg">
-              <div className="flex items-center justify-between border-b border-[var(--bs-border)] pb-3">
-                <h2 className="flex items-center gap-2 text-base font-bold text-[var(--bs-text)]">
-                  ✂️ الخدمات الأكثر طلباً وإيراداً
-                </h2>
-                <span className="text-xs text-[var(--bs-text-muted)]">
-                  {data.revenue_by_service.length} خدمات مسجلة
-                </span>
+            {/* Service Breakdown — dotted-leader menu board */}
+            <section>
+              <div className="flex items-center justify-between border-b border-[var(--bs-border)] pb-4">
+                <h2 className="text-xl font-black text-[var(--bs-text)]">الخدمات الأكثر طلباً وإيراداً</h2>
+                <span className="text-xs text-[var(--bs-text-faint)]">{data.revenue_by_service.length} خدمات</span>
               </div>
 
               {data.revenue_by_service.length === 0 ? (
-                <p className="py-6 text-center text-xs text-[var(--bs-text-faint)]">لا توجد بيانات لهذه الفترة</p>
+                <p className="py-10 text-center text-xs text-[var(--bs-text-faint)]">لا توجد بيانات لهذه الفترة</p>
               ) : (
-                <div className="space-y-2">
+                <div className="pt-2">
                   {data.revenue_by_service.map((s, idx) => (
-                    <div
+                    <button
                       key={s.service_name}
-                      className="flex items-center justify-between rounded-xl border border-[var(--bs-border)]/80 bg-[var(--bs-bg)]/60 p-3 transition hover:border-[var(--bs-border-strong)]"
+                      type="button"
+                      tabIndex={-1}
+                      className="bs-leader group w-full border-b border-[var(--bs-border)]/60 py-4 text-start"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--bs-surface-raised)] text-xs font-bold text-[var(--bs-primary)]">
-                          {idx + 1}
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-bold text-[var(--bs-text)]">
+                          <span className="ml-2 text-[11px] font-black text-[var(--bs-text-faint)]" dir="ltr">
+                            {String(idx + 1).padStart(2, "0")}
+                          </span>
+                          {s.service_name}
                         </span>
-                        <div>
-                          <p className="text-sm font-semibold text-[var(--bs-text)]">{s.service_name}</p>
-                          <p className="text-xs text-[var(--bs-text-muted)]">تم طلبها {s.count} مرة</p>
-                        </div>
-                      </div>
-
-                      <div className="text-left">
-                        <span className="font-mono text-sm font-bold text-[var(--bs-primary)]">{s.revenue} د.أ</span>
-                      </div>
-                    </div>
+                        <span className="mt-0.5 block text-[11px] text-[var(--bs-text-faint)]">
+                          تم طلبها {s.count} مرة
+                        </span>
+                      </span>
+                      <span className="bs-leader-dots" aria-hidden="true" />
+                      <span className="shrink-0 text-base font-black text-[var(--bs-primary)]">
+                        {s.revenue} <span className="text-[11px] font-bold">د.أ</span>
+                      </span>
+                    </button>
                   ))}
                 </div>
               )}
-            </Card>
+            </section>
           </div>
 
           {/* ═══════ 3. Peak Hours Heatmap (خريطة ساعات الذروة) ═══════ */}
-          <Card className="space-y-5 p-6 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--bs-border)] pb-4">
+          <section>
+            <div className="flex flex-col justify-between gap-4 border-b border-[var(--bs-border)] pb-4 sm:flex-row sm:items-end">
               <div>
-                <h2 className="flex items-center gap-2 text-base sm:text-lg font-bold text-[var(--bs-text)]">
-                  <Flame className="h-5 w-5 text-[var(--bs-primary)]" /> خريطة الكثافة وساعات الذروة (Heatmap)
+                <h2 className="flex items-center gap-2.5 text-xl font-black text-[var(--bs-text)]">
+                  <Flame className="h-5 w-5 text-[var(--bs-primary)]" /> خريطة الكثافة وساعات الذروة
                 </h2>
                 <p className="mt-1 text-xs text-[var(--bs-text-muted)]">
                   توزيع الحجوزات الفعلية عبر أيام الأسبوع وساعات العمل لمساعدتك في تنظيم طاقم الحلاقين.
@@ -519,14 +499,14 @@ export default function AdminReportsPage() {
               </div>
             </div>
 
-            {/* Heatmap Grid */}
-            <div className="overflow-x-auto pb-2">
-              <div className="min-w-[650px] space-y-2">
+            {/* Heatmap Grid — contained horizontal scroll on small screens */}
+            <div className="overflow-x-auto pt-5">
+              <div className="min-w-[680px] space-y-1.5">
                 {/* Header Row: Hours */}
-                <div className="flex items-center gap-1.5 border-b border-[var(--bs-border)]/60 pb-1 font-mono text-xs text-[var(--bs-text-muted)]">
-                  <div className="w-24 shrink-0 font-sans font-bold text-[var(--bs-text)]">اليوم / الساعة</div>
+                <div className="flex items-center gap-1.5 border-b border-[var(--bs-border)]/60 pb-1.5 text-[11px] text-[var(--bs-text-muted)]">
+                  <div className="w-24 shrink-0 font-bold text-[var(--bs-text)]">اليوم / الساعة</div>
                   {HOURS_RANGE.map((h) => (
-                    <div key={h} className="flex-1 text-center font-medium">
+                    <div key={h} className="flex-1 text-center">
                       {formatTime12(h)}
                     </div>
                   ))}
@@ -548,7 +528,7 @@ export default function AdminReportsPage() {
                         <div
                           key={h}
                           title={`${dayName} الساعة ${formatTime12(h)} — ${count} حجز`}
-                          className={`group relative flex h-10 flex-1 cursor-default items-center justify-center rounded-xl border font-mono text-xs transition-all hover:scale-105 ${cellColor}`}
+                          className={`group relative flex h-10 flex-1 cursor-default items-center justify-center rounded-lg border text-xs transition-all hover:scale-105 ${cellColor}`}
                         >
                           <span>{count > 0 ? count : ""}</span>
 
@@ -563,7 +543,7 @@ export default function AdminReportsPage() {
                 ))}
               </div>
             </div>
-          </Card>
+          </section>
         </div>
       )}
     </div>

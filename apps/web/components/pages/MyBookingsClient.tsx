@@ -10,13 +10,22 @@ import { useLiveNotifications } from "@/lib/useNotifications";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
 import BookingCountdown from "@/components/BookingCountdown";
+import { Button } from "@/components/ui/button";
+import { CircleAlert, Hourglass, ClipboardList } from "lucide-react";
 import type { Booking, QueueItem } from "@/lib/types";
 
-const statusColor: Record<string, string> = {
-  confirmed: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  cancelled: "bg-red-500/15 text-red-400 border-red-500/30",
-  completed: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  no_show: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+/* status → colored dot + text (quiet, editorial — no pill boxes) */
+const statusDot: Record<string, string> = {
+  confirmed: "bg-[var(--bs-primary)]",
+  cancelled: "bg-[var(--bs-error)]",
+  completed: "bg-[var(--bs-success)]",
+  no_show: "bg-[var(--bs-warning)]",
+};
+const statusText: Record<string, string> = {
+  confirmed: "text-[var(--bs-primary)]",
+  cancelled: "text-[var(--bs-error)]",
+  completed: "text-[var(--bs-success)]",
+  no_show: "text-[var(--bs-warning)]",
 };
 
 export function MyBookingsClient({ salonSlug }: { salonSlug?: string }) {
@@ -95,7 +104,7 @@ export function MyBookingsClient({ salonSlug }: { salonSlug?: string }) {
   const activeQueueCount = queue.length;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="bs-skin mx-auto max-w-2xl pb-4">
       {/* ── Confirm Cancel Modal ── */}
       <ConfirmModal
         isOpen={confirmModalOpen}
@@ -114,113 +123,127 @@ export function MyBookingsClient({ salonSlug }: { salonSlug?: string }) {
         }}
       />
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">حجوزاتي ومتابعة الدور</h1>
-        <button
-          onClick={() => tLink.push("/book")}
-          className="rounded-xl bg-amber-500 px-4 py-2 text-xs sm:text-sm font-bold text-zinc-950 hover:bg-amber-400 shadow-sm transition"
-        >
+      {/* ── page header ── */}
+      <header className="flex items-end justify-between gap-4">
+        <div>
+          <p className="mb-2 flex items-center gap-2.5 text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
+            <span className="inline-block h-px w-8 bg-[var(--bs-primary)]/60" />
+            حسابك
+          </p>
+          <h1 className="text-2xl font-black text-[var(--bs-text)] sm:text-3xl">حجوزاتي ومتابعة الدور</h1>
+        </div>
+        <Button size="sm" onClick={() => tLink.push("/book")} className="shrink-0">
           + حجز جديد
-        </button>
-      </div>
+        </Button>
+      </header>
 
-      {/* tabs */}
-      <div className="flex gap-2 border-b border-zinc-800 pb-2">
+      {/* ── underline tabs (operations-board style, no pill boxes) ── */}
+      <div className="mt-7 flex gap-6 border-b border-[var(--bs-border)]">
         <button
           onClick={() => setTab("queue")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all ${
+          className={`-mb-px flex items-center gap-2 border-b-2 pb-3 text-sm font-bold transition-colors ${
             tab === "queue"
-              ? "bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-sm"
-              : "text-zinc-400 hover:text-zinc-200"
+              ? "border-[var(--bs-primary)] text-[var(--bs-primary)]"
+              : "border-transparent text-[var(--bs-text-muted)] hover:text-[var(--bs-text)]"
           }`}
         >
-          <span>⏳ الدور المباشر</span>
+          <Hourglass className="h-4 w-4" /> الدور المباشر
           {activeQueueCount > 0 && (
-            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-zinc-950">
+            <span className="rounded-full bg-[var(--bs-primary)] px-2 py-0.5 text-[10px] font-black text-[var(--bs-on-primary)]">
               {activeQueueCount}
             </span>
           )}
         </button>
         <button
           onClick={() => setTab("bookings")}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all ${
+          className={`-mb-px flex items-center gap-2 border-b-2 pb-3 text-sm font-bold transition-colors ${
             tab === "bookings"
-              ? "bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-sm"
-              : "text-zinc-400 hover:text-zinc-200"
+              ? "border-[var(--bs-primary)] text-[var(--bs-primary)]"
+              : "border-transparent text-[var(--bs-text-muted)] hover:text-[var(--bs-text)]"
           }`}
         >
-          <span>📋 سجل الحجوزات</span>
-          <span className="text-xs text-zinc-500">({bookings.length})</span>
+          <ClipboardList className="h-4 w-4" /> سجل الحجوزات
+          <span className="text-xs font-normal text-[var(--bs-text-faint)]">({bookings.length})</span>
         </button>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-400 flex items-center justify-between">
-          <span>⚠️ {error}</span>
-          <button onClick={() => setError(null)} className="text-xs text-red-300 hover:underline">
+        <div className="mt-5 flex items-center justify-between rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)]">
+          <span className="flex items-center gap-2">
+            <CircleAlert className="h-4 w-4 shrink-0" /> {error}
+          </span>
+          <button onClick={() => setError(null)} className="text-xs underline opacity-80 hover:opacity-100">
             إغلاق
           </button>
         </div>
       )}
 
       {loading && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-12 text-center">
+        <div className="py-16 text-center">
           <Spinner size="lg" label="جاري تحميل الدور وسجل الحجوزات…" />
         </div>
       )}
 
       {/* ═══════ Tab 1: Live Queue (الدور) ═══════ */}
       {tab === "queue" && !loading && (
-        <div className="space-y-4">
+        <div className="mt-6 space-y-5">
           {queue.length === 0 ? (
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 text-center space-y-3">
-              <span className="text-4xl">💈</span>
-              <h3 className="text-base font-bold text-zinc-200">لا يوجد لديك حجز نشط في الدور حالياً</h3>
-              <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+            <div className="py-14 text-center">
+              <span className="text-5xl">💈</span>
+              <h3 className="mt-5 text-lg font-bold text-[var(--bs-text)]">لا يوجد لديك حجز نشط في الدور حالياً</h3>
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[var(--bs-text-muted)]">
                 عند قيامك بحجز موعد، سيظهر هنا ترتيبك المباشر في الدور والوقت المتوقع لدخولك.
               </p>
-              <button
-                onClick={() => tLink.push("/book")}
-                className="mt-2 inline-block rounded-xl bg-amber-500 px-6 py-2.5 text-xs font-bold text-zinc-950 hover:bg-amber-400 transition"
-              >
+              <Button onClick={() => tLink.push("/book")} className="mt-6">
                 احجز موعدك الآن
-              </button>
+              </Button>
             </div>
           ) : (
             queue.map((item) => (
-              <div
+              /* the one dominant focal card on this page */
+              <article
                 key={item.booking_id}
-                className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-xl space-y-4 p-5"
+                className="bs-panel relative overflow-hidden"
               >
-                {/* Header: Turn banner */}
-                {item.is_my_turn ? (
-                  <div className="animate-pulse rounded-xl border-2 border-emerald-500 bg-emerald-500/20 p-4 text-center">
-                    <span className="text-3xl inline-block mb-1">🎉</span>
-                    <h2 className="text-lg sm:text-xl font-black text-emerald-300">
-                      دورك الآن! تفضل بالتوجه إلى كرسي الحلاق 💈✂️
-                    </h2>
-                    <p className="text-xs text-emerald-200/90 mt-1">
-                      الحلاق {item.barber_name} بانتظارك الآن
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
+                {/* top accent band */}
+                <div
+                  className="h-1 w-full"
+                  style={{
+                    background: item.is_my_turn
+                      ? "linear-gradient(to left, transparent, var(--bs-success), transparent)"
+                      : "linear-gradient(to left, transparent, var(--bs-primary), transparent)",
+                  }}
+                />
+
+                <div className="p-5 sm:p-7">
+                  {/* turn banner / queue position */}
+                  {item.is_my_turn ? (
+                    <div className="animate-pulse rounded-2xl border-2 border-[var(--bs-success)] bg-[var(--bs-success-soft)] p-5 text-center">
+                      <span className="mb-1 inline-block text-3xl">🎉</span>
+                      <h2 className="text-lg font-black text-[var(--bs-success)] sm:text-xl">
+                        دورك الآن! تفضل بالتوجه إلى كرسي الحلاق 💈✂️
+                      </h2>
+                      <p className="mt-1 text-xs text-[var(--bs-success)]/80">
+                        الحلاق {item.barber_name} بانتظارك الآن
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-end justify-between gap-4">
                       <div>
-                        <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
+                        <span className="text-[11px] font-bold tracking-[0.2em] text-[var(--bs-primary)]">
                           موقعك في الطابور
                         </span>
-                        <div className="flex items-baseline gap-2 mt-0.5">
-                          <span className="text-2xl sm:text-3xl font-black text-amber-400">
-                            رقم {item.queue_number}
+                        <div className="mt-1 flex items-baseline gap-2">
+                          <span className="text-5xl font-black leading-none text-[var(--bs-primary)]">
+                            {item.queue_number}
                           </span>
-                          <span className="text-xs text-zinc-300">في الدور</span>
+                          <span className="text-sm text-[var(--bs-text-muted)]">في الدور</span>
                         </div>
                       </div>
 
-                      <div className="text-left sm:text-right bg-zinc-950/60 border border-zinc-800 px-3.5 py-2 rounded-xl">
-                        <p className="text-xs text-zinc-400">الزبائن قبلك</p>
-                        <p className="text-base font-bold text-zinc-100">
+                      <div className="text-left">
+                        <p className="text-[11px] text-[var(--bs-text-faint)]">الزبائن قبلك</p>
+                        <p className="text-lg font-bold text-[var(--bs-text)]">
                           {item.people_ahead === 0
                             ? "أنت التالي مباشرة"
                             : item.people_ahead === 1
@@ -229,121 +252,127 @@ export function MyBookingsClient({ salonSlug }: { salonSlug?: string }) {
                         </p>
                       </div>
                     </div>
+                  )}
 
-                    {item.people_ahead > 0 && (
-                      <div className="mt-3 pt-3 border-t border-amber-500/20 flex items-center justify-between text-xs">
-                        <span className="text-zinc-300">⏳ الوقت التقريبي المتبقي للبدء:</span>
-                        <span className="font-bold text-amber-400 bg-amber-500/20 px-2.5 py-1 rounded-lg">
-                          حوالي {item.estimated_wait_minutes} دقيقة
-                        </span>
-                      </div>
-                    )}
+                  {item.people_ahead > 0 && !item.is_my_turn && (
+                    <div className="mt-4 flex items-center justify-between border-t border-[var(--bs-border)] pt-3 text-xs">
+                      <span className="text-[var(--bs-text-muted)]">⏳ الوقت التقريبي المتبقي للبدء:</span>
+                      <span className="rounded-lg bg-[var(--bs-primary-soft)] px-2.5 py-1 font-bold text-[var(--bs-primary)]">
+                        حوالي {item.estimated_wait_minutes} دقيقة
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Live Countdown Timer (calculation logic untouched) */}
+                  <div className="mt-5">
+                    <BookingCountdown
+                      bookingDate={item.booking_date}
+                      startTime={item.start_time}
+                      effectiveStartTime={item.effective_start_time}
+                      delayMinutes={item.delay_minutes}
+                      targetDatetimeIso={item.target_datetime_iso}
+                      isMyTurn={item.is_my_turn}
+                    />
                   </div>
-                )}
 
-                {/* Live Countdown Timer */}
-                <BookingCountdown
-                  bookingDate={item.booking_date}
-                  startTime={item.start_time}
-                  effectiveStartTime={item.effective_start_time}
-                  delayMinutes={item.delay_minutes}
-                  targetDatetimeIso={item.target_datetime_iso}
-                  isMyTurn={item.is_my_turn}
-                />
-
-                {/* Booking details card */}
-                <div className="space-y-2.5 rounded-xl border border-zinc-800/80 bg-zinc-950/60 p-4">
-                  <div className="flex items-center justify-between text-xs sm:text-sm">
-                    <span className="text-zinc-400">الحلاق:</span>
-                    <span className="font-bold text-zinc-100">✂ {item.barber_name}</span>
+                  {/* booking details — quiet definition rows */}
+                  <div className="mt-5 divide-y divide-[var(--bs-border)] border-t border-[var(--bs-border)]">
+                    <div className="flex items-center justify-between py-3 text-sm">
+                      <span className="text-[var(--bs-text-muted)]">الحلاق:</span>
+                      <span className="font-bold text-[var(--bs-text)]">{item.barber_name}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-3 text-sm">
+                      <span className="text-[var(--bs-text-muted)]">تاريخ وموعد الحجز:</span>
+                      <span className="font-medium text-[var(--bs-text)]">
+                        {item.booking_date} ({formatTime12(item.start_time)} - {formatTime12(item.end_time)})
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between py-3 text-sm">
+                      <span className="text-[var(--bs-text-muted)]">الخدمات المحجوزة:</span>
+                      <span className="font-medium text-[var(--bs-primary)]">
+                        {item.services.map((s) => s.name).join(" + ")}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between py-3">
+                      <span className="text-sm text-[var(--bs-text-muted)]">المجموع المطلوب (نقداً):</span>
+                      <span className="text-xl font-black text-[var(--bs-primary)]">{item.total_price} د.أ</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-xs sm:text-sm">
-                    <span className="text-zinc-400">تاريخ وموعد الحجز:</span>
-                    <span className="font-medium text-zinc-200">
-                      {item.booking_date} ({formatTime12(item.start_time)} - {formatTime12(item.end_time)})
+
+                  {/* actions */}
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[11px] text-[var(--bs-text-faint)]">
+                      يتم تحديث الدور تلقائياً فور انتهاء الزبون السابق
                     </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs sm:text-sm">
-                    <span className="text-zinc-400">الخدمات المحجوزة:</span>
-                    <span className="font-medium text-amber-400">
-                      {item.services.map((s) => s.name).join(" + ")}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs sm:text-sm pt-2 border-t border-zinc-800">
-                    <span className="text-zinc-400">المجموع المطلوب (نقداً):</span>
-                    <span className="text-base font-bold text-amber-400">{item.total_price} د.أ</span>
+                    <Button
+                      onClick={() => triggerCancelModal(item.booking_id)}
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 border-[var(--bs-error)]/40 text-[var(--bs-error)] hover:bg-[var(--bs-error-soft)]"
+                    >
+                      إلغاء الحجز
+                    </Button>
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-zinc-500">
-                    يتم تحديث الدور تلقائياً فور انتهاء الزبون السابق
-                  </span>
-                  <button
-                    onClick={() => triggerCancelModal(item.booking_id)}
-                    className="rounded-xl border border-red-500/30 px-4 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition active:scale-95"
-                  >
-                    إلغاء الحجز
-                  </button>
-                </div>
-              </div>
+              </article>
             ))
           )}
         </div>
       )}
 
-      {/* ═══════ Tab 2: Bookings History ═══════ */}
+      {/* ═══════ Tab 2: Bookings History — quiet ledger rows ═══════ */}
       {tab === "bookings" && !loading && (
-        <div className="space-y-3">
-          {bookings.length === 0 && <p className="text-zinc-500 text-sm">لا توجد حجوزات مسجلة.</p>}
-          {bookings.map((b) => (
-            <div key={b.id} className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-4 space-y-3 shadow-md">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-bold text-zinc-100 text-base">{b.barber_name}</p>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    {b.booking_date} — {formatTime12(b.start_time)} إلى {formatTime12(b.end_time)}
-                  </p>
-                </div>
-                <span
-                  className={`rounded-full border px-3 py-1 text-xs font-bold ${
-                    statusColor[b.status] ?? "bg-zinc-800 text-zinc-400"
-                  }`}
-                >
-                  {BOOKING_STATUS_AR[b.status] ?? b.status}
-                </span>
-              </div>
-
-              {b.services?.length > 0 && (
-                <div className="space-y-1.5 bg-zinc-950/40 rounded-xl p-2.5">
-                  {b.services.map((s, i) => (
-                    <div key={i} className="flex justify-between text-xs">
-                      <span className="text-zinc-300">{s.name} ({s.duration_minutes} دقيقة)</span>
-                      <span className="text-amber-400 font-semibold">{s.price} د.أ</span>
+        <div className="mt-6">
+          {bookings.length === 0 && (
+            <p className="py-10 text-center text-sm text-[var(--bs-text-faint)]">لا توجد حجوزات مسجلة.</p>
+          )}
+          {bookings.length > 0 && (
+            <div className="divide-y divide-[var(--bs-border)] border-y border-[var(--bs-border)]">
+              {bookings.map((b) => (
+                <div key={b.id} className="group py-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-base font-bold text-[var(--bs-text)]">{b.barber_name}</p>
+                      <p className="mt-1 text-xs text-[var(--bs-text-muted)]" dir="rtl">
+                        {b.booking_date} — {formatTime12(b.start_time)} إلى {formatTime12(b.end_time)}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <span className={`flex shrink-0 items-center gap-1.5 text-xs font-bold ${statusText[b.status] ?? "text-[var(--bs-text-muted)]"}`}>
+                      <span className={`h-2 w-2 rounded-full ${statusDot[b.status] ?? "bg-[var(--bs-border-strong)]"}`} />
+                      {BOOKING_STATUS_AR[b.status] ?? b.status}
+                    </span>
+                  </div>
 
-              <div className="flex items-center justify-between pt-1">
-                <p className="font-bold text-amber-400 text-sm sm:text-base">{b.total_price} د.أ</p>
-                {b.status === "confirmed" && (
-                  <button
-                    onClick={() => triggerCancelModal(b.id)}
-                    className="rounded-xl border border-red-500/40 px-4 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition active:scale-95"
-                  >
-                    إلغاء الحجز
-                  </button>
-                )}
-              </div>
+                  {b.services?.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                      {b.services.map((s, i) => (
+                        <div key={i} className="flex justify-between text-xs">
+                          <span className="text-[var(--bs-text-faint)]">{s.name} ({s.duration_minutes} دقيقة)</span>
+                          <span className="font-semibold text-[var(--bs-primary)]">{s.price} د.أ</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex items-center justify-between">
+                    <p className="text-base font-black text-[var(--bs-primary)]">{b.total_price} د.أ</p>
+                    {b.status === "confirmed" && (
+                      <button
+                        onClick={() => triggerCancelModal(b.id)}
+                        className="text-xs font-bold text-[var(--bs-error)] underline-offset-4 transition hover:underline"
+                      >
+                        إلغاء الحجز
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>
   );
 }
-
 
 export default MyBookingsClient;

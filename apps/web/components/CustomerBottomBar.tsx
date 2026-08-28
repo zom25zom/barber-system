@@ -7,16 +7,17 @@ import { apiFetch } from "@/lib/api";
 import { getCustomerToken } from "@/lib/auth";
 import { buildTenantUrl, useTenantLink } from "@/lib/salonTenant";
 import {
-  IconBell,
-  IconCalendarPlus,
-  IconClipboardList,
-  IconHome,
-} from "@/components/icons";
+  Home,
+  CalendarPlus,
+  ClipboardList,
+  Bell,
+  UserRound,
+} from "lucide-react";
 
 const items = [
-  { href: "/", label: "الرئيسية", Icon: IconHome, exact: true },
-  { href: "/book", label: "الحجز", Icon: IconCalendarPlus, exact: false },
-  { href: "/my-bookings", label: "حجوزاتي", Icon: IconClipboardList, exact: false },
+  { href: "/", label: "الرئيسية", Icon: Home, exact: true },
+  { href: "/book", label: "الحجز", Icon: CalendarPlus, exact: false },
+  { href: "/my-bookings", label: "حجوزاتي", Icon: ClipboardList, exact: false },
 ];
 
 export default function CustomerBottomBar() {
@@ -57,33 +58,35 @@ export default function CustomerBottomBar() {
     return exact ? pathname === eff : pathname === eff || pathname.startsWith(eff);
   };
 
+  // Floating-island style: active item gets a soft gold pill behind icon+label
   const linkCls = (active: boolean) =>
-    `relative flex flex-1 flex-col items-center justify-center gap-1 py-1.5 text-center transition-all ${
-      active ? "text-amber-400 font-bold scale-105" : "text-zinc-400 hover:text-zinc-200"
+    `relative flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-center transition-all ${
+      active
+        ? "bg-[var(--bs-primary-soft)] font-bold text-[var(--bs-primary)]"
+        : "text-[var(--bs-text-muted)] hover:text-[var(--bs-text)]"
     }`;
 
   return (
     <>
       {/* Spacer so fixed bar never covers page content */}
-      <div aria-hidden="true" className="h-20" />
+      <div aria-hidden="true" className="h-24" />
 
       <nav
         aria-label="التنقل السفلي"
-        className="fixed bottom-0 inset-x-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-lg shadow-2xl safe-area-pb"
+        className="bs-skin fixed bottom-0 left-1/2 z-50 w-[min(28rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-bg)]/95 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.6)] backdrop-blur-lg"
+        style={{ marginBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
       >
-        <div className="mx-auto flex max-w-md items-center justify-around px-2 py-1.5">
+        <div className="flex items-center justify-around px-2 py-1.5">
           {/* الرئيسية / الحجز / حجوزاتي */}
           {items.map((item) => {
             const active = isActive(item.href, item.exact);
             return (
               <Link key={item.href} href={effHref(item.href)} className={linkCls(active)}>
                 <item.Icon className="h-5 w-5" />
-                <span className="text-[10px] sm:text-[11px] leading-none">{item.label}</span>
-                <span
-                  className={`mt-0.5 h-1 w-5 rounded-full transition-all ${
-                    active ? "bg-amber-500 shadow-sm shadow-amber-500/50" : "bg-transparent"
-                  }`}
-                />
+                <span className="text-[10px] leading-none sm:text-[11px]">{item.label}</span>
+                {active && (
+                  <span className="absolute -bottom-px h-0.5 w-6 rounded-full bg-[var(--bs-primary)]" aria-hidden="true" />
+                )}
               </Link>
             );
           })}
@@ -91,41 +94,34 @@ export default function CustomerBottomBar() {
           {/* الإشعارات */}
           <Link href={effHref("/notifications")} className={linkCls(pathname === effHref("/notifications"))}>
             <div className="relative">
-              <IconBell className="h-5 w-5" />
+              <Bell className="h-5 w-5" />
               {unread > 0 && (
-                <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-black text-zinc-950 ring-2 ring-zinc-950">
+                <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--bs-primary)] px-1 text-[9px] font-black text-[var(--bs-on-primary)] ring-2 ring-[var(--bs-bg)]">
                   {unread > 9 ? "9+" : unread}
                 </span>
               )}
             </div>
-            <span className="text-[10px] sm:text-[11px] leading-none">الإشعارات</span>
-            <span
-              className={`mt-0.5 h-1 w-5 rounded-full transition-all ${
-                pathname === "/notifications" ? "bg-amber-500 shadow-sm shadow-amber-500/50" : "bg-transparent"
-              }`}
-            />
+            <span className="text-[10px] leading-none sm:text-[11px]">الإشعارات</span>
+            {pathname === effHref("/notifications") && (
+              <span className="absolute -bottom-px h-0.5 w-6 rounded-full bg-[var(--bs-primary)]" aria-hidden="true" />
+            )}
           </Link>
 
           {/* حسابي — صفحة البروفايل */}
-          <Link href={tLink.href("/my-profile")} className={linkCls(pathname.startsWith(tLink.href("/my-profile")))}>
+          <Link
+            href={tLink.href("/my-profile")}
+            className={linkCls(pathname.startsWith(tLink.href("/my-profile")))}
+          >
             <span
               className={`flex h-8 w-8 items-center justify-center rounded-xl border transition-all ${
                 pathname.startsWith("/my-profile")
-                  ? "border-amber-500/50 bg-amber-500 text-zinc-950"
-                  : "border-amber-500/30 bg-amber-500/10 text-amber-400"
+                  ? "border-[var(--bs-primary)]/50 bg-[var(--bs-primary)] text-[var(--bs-on-primary)]"
+                  : "border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]"
               }`}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7" />
-              </svg>
+              <UserRound className="h-4 w-4" />
             </span>
-            <span className="text-[10px] sm:text-[11px] leading-none">حسابي</span>
-            <span
-              className={`mt-0.5 h-1 w-5 rounded-full transition-all ${
-                pathname.startsWith("/my-profile") ? "bg-amber-500 shadow-sm shadow-amber-500/50" : "bg-transparent"
-              }`}
-            />
+            <span className="text-[10px] leading-none sm:text-[11px]">حسابي</span>
           </Link>
         </div>
       </nav>

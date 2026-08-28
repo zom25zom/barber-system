@@ -8,7 +8,9 @@ import { useEffect, useState } from "react";
 import { getCustomerProfile, getOwnerToken, clearOwnerToken } from "@/lib/auth";
 import { useSalonSettings } from "@/lib/salon";
 import ConfirmModal from "@/components/ConfirmModal";
-import { IconPhone } from "@/components/icons";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Button } from "@/components/ui/button";
+import { Phone, Globe } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -31,7 +33,7 @@ export default function Navbar() {
 
   if (pathname.startsWith("/admin")) {
     return (
-      <header className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-[var(--bs-border)] bg-[var(--bs-bg)]/95 backdrop-blur">
         {/* Admin Logout Confirmation Modal */}
         <ConfirmModal
           isOpen={ownerLogoutOpen}
@@ -55,32 +57,27 @@ export default function Navbar() {
               <img
                 src={salon.logo_url}
                 alt={salon.name}
-                className="h-8 w-8 rounded-full border border-amber-500/40 object-cover shadow-sm"
+                className="h-8 w-8 rounded-full border border-[var(--bs-primary)]/40 object-cover shadow-sm"
               />
             ) : (
               <span className="text-xl">💈</span>
             )}
-            <span className="font-bold text-amber-400 text-sm sm:text-base">لوحة تحكم {salon.name}</span>
+            <span className="text-sm font-bold text-[var(--bs-primary)] sm:text-base">
+              لوحة تحكم {salon.name}
+            </span>
           </Link>
           <nav className="flex items-center gap-2">
-            <Link
-              href="/"
-              className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition-all ${
-                pathname === "/"
-                  ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                  : "text-zinc-300 hover:text-amber-400 hover:bg-zinc-900"
-              }`}
-            >
-              الموقع
-            </Link>
+            <ThemeToggle />
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/">
+                <Globe className="h-4 w-4" />
+                الموقع
+              </Link>
+            </Button>
             {isOwner && (
-              <button
-                type="button"
-                onClick={() => setOwnerLogoutOpen(true)}
-                className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs sm:text-sm text-red-400 hover:bg-red-500/10"
-              >
+              <Button type="button" variant="destructive" size="sm" onClick={() => setOwnerLogoutOpen(true)}>
                 خروج
-              </button>
+              </Button>
             )}
           </nav>
         </div>
@@ -90,50 +87,52 @@ export default function Navbar() {
 
   // ── Customer header (navigation lives in the fixed bottom bar) ──
   return (
-    <header className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link href={tLink.href("/")} className="flex items-center gap-2.5 shrink-0">
+    <header className="bs-skin sticky top-0 z-40 bg-[var(--bs-bg)]/90 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
+        <Link href={tLink.href("/")} className="flex shrink-0 items-center gap-2.5">
           {salon.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={salon.logo_url}
               alt={salon.name}
-              className="h-9 w-9 rounded-full border border-amber-500/40 object-cover shadow-sm"
+              className="h-9 w-9 rounded-lg border border-[var(--bs-border-strong)] object-cover shadow-sm"
             />
           ) : (
             <span className="text-xl">💈</span>
           )}
-          <span className="font-extrabold text-amber-400 text-base sm:text-lg">{salon.name}</span>
+          <span className="text-base font-black tracking-tight text-[var(--bs-text)] sm:text-lg">
+            {salon.name}
+          </span>
         </Link>
 
-        {/* Phone contact — replaces the logout button here (logout lives in the profile page) */}
-        {salon.phone ? (
-          <a
-            href={`tel:${salon.phone}`}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-400 transition hover:bg-emerald-500/20 active:scale-95 sm:text-sm"
-            dir="ltr"
-            aria-label={`الاتصال بالصالون ${salon.phone}`}
-          >
-            <IconPhone className="h-4 w-4" />
-            <span>{salon.phone}</span>
-          </a>
-        ) : customerName ? (
-          <span className="text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full sm:text-sm">
-            👋 {customerName}
-          </span>
-        ) : (
-          <Link
-            href={tLink.href("/login")}
-            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold transition-all ${
-              pathname === tLink.href("/login")
-                ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                : "bg-amber-500 text-zinc-950 hover:bg-amber-400 active:scale-95"
-            }`}
-          >
-            تسجيل الدخول
-          </Link>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Theme toggle (Phase 1 foundation — page content unchanged) */}
+          <ThemeToggle />
+
+          {/* Phone contact — replaces the logout button here (logout lives in the profile page) */}
+          {salon.phone ? (
+            <a
+              href={`tel:${salon.phone}`}
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[var(--bs-success)]/30 bg-[var(--bs-success-soft)] px-3.5 py-2 text-xs font-bold text-[var(--bs-success)] transition hover:brightness-110 active:scale-95 sm:text-sm"
+              dir="ltr"
+              aria-label={`الاتصال بالصالون ${salon.phone}`}
+            >
+              <Phone className="h-4 w-4" />
+              <span>{salon.phone}</span>
+            </a>
+          ) : customerName ? (
+            <span className="rounded-xl bg-[var(--bs-surface)] px-3 py-1.5 text-xs text-[var(--bs-text-muted)] sm:text-sm">
+              👋 {customerName}
+            </span>
+          ) : (
+            <Button asChild size="sm" className="shrink-0 whitespace-nowrap">
+              <Link href={tLink.href("/login")}>تسجيل الدخول</Link>
+            </Button>
+          )}
+        </div>
       </div>
+      {/* hairline base — fades at both ends, softer than a hard border */}
+      <div className="bs-hairline" />
     </header>
   );
 }

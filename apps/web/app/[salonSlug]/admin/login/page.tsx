@@ -6,6 +6,11 @@ import { apiFetch } from "@/lib/api";
 import { setOwnerToken } from "@/lib/auth";
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toaster";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CircleAlert, Scissors, Store } from "lucide-react";
 
 interface LoginResponse {
   token: string;
@@ -59,63 +64,61 @@ export default function SalonAdminLoginPage() {
     }
   }
 
-  const inputCls =
-    "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 outline-none focus:border-amber-500";
-
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900/90 p-8 shadow-xl">
+      <Card className="w-full max-w-md p-8 shadow-xl">
         <div className="text-center">
-          <span className="text-4xl">✂</span>
-          <h1 className="mt-3 text-2xl font-bold text-amber-400">لوحة تحكم الصالون</h1>
+          <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]">
+            <Scissors className="h-7 w-7" />
+          </span>
+          <h1 className="mt-3 text-2xl font-bold text-[var(--bs-primary)]">لوحة تحكم الصالون</h1>
           {validSlug ? (
-            <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-300" dir="ltr">
-              🏪 /{salonSlug}
+            <p
+              className="mt-2 inline-flex items-center gap-2 rounded-lg border border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)] px-3 py-1 text-xs font-bold text-[var(--bs-primary)]"
+              dir="ltr"
+            >
+              <Store className="h-3.5 w-3.5" /> /{salonSlug}
             </p>
           ) : (
-            <p className="mt-2 rounded-lg border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-400">
+            <p className="mt-2 rounded-lg border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-2 text-xs text-[var(--bs-error)]">
               معرّف الصالون في الرابط غير صالح
             </p>
           )}
         </div>
 
         <form onSubmit={onSubmit} className="mt-8 space-y-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-zinc-200">اسم المستخدم</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="salon-admin-username">اسم المستخدم</Label>
+            <Input
+              id="salon-admin-username"
               type="text"
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className={inputCls}
               placeholder="admin"
             />
           </div>
 
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-zinc-200">كلمة المرور</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="salon-admin-password">كلمة المرور</Label>
+            <Input
+              id="salon-admin-password"
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={inputCls}
               placeholder="••••••••"
             />
           </div>
 
           {error && (
-            <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs sm:text-sm text-red-400 flex items-center gap-2">
-              <span>⚠️</span>
+            <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-xs sm:text-sm text-[var(--bs-error)] flex items-center gap-2">
+              <CircleAlert className="h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading || !validSlug}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 py-3 font-bold text-zinc-950 transition-colors hover:bg-amber-400 disabled:opacity-50 shadow-md active:scale-98"
-          >
+          <Button type="submit" disabled={loading || !validSlug} className="w-full py-3">
             {loading ? (
               <>
                 <Spinner size="sm" color="zinc" />
@@ -124,9 +127,9 @@ export default function SalonAdminLoginPage() {
             ) : (
               "دخول لوحة التحكم"
             )}
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
     </div>
   );
 }

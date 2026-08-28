@@ -6,6 +6,7 @@ import { getOwnerToken } from "@/lib/auth";
 import { useOwnerSalonSettings, updateSalonSettingsClient, type SalonSettings } from "@/lib/salon";
 import { useToast } from "@/components/Toaster";
 import ImageUploader from "@/components/ImageUploader";
+import { ThemeModeSelector } from "@/components/ThemeToggle";
 
 const PRESET_COLORS = [
   { name: "ذهبي كهرماني", hex: "#f59e0b" },
@@ -111,7 +112,7 @@ export default function AdminSettingsPage() {
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const inputCls =
-    "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500";
+    "w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2.5 text-[var(--bs-text)] placeholder:text-[var(--bs-text-faint)] outline-none transition focus:border-[var(--bs-primary)] focus:ring-1 focus:ring-[var(--bs-primary)]";
 
   return (
     <div className="space-y-8">
@@ -119,38 +120,38 @@ export default function AdminSettingsPage() {
       <div>
         <div className="flex items-center gap-3">
           <span className="text-2xl">⚙️</span>
-          <h1 className="text-2xl font-extrabold text-zinc-100 sm:text-3xl">إعدادات الصالون</h1>
+          <h1 className="text-2xl font-extrabold text-[var(--bs-text)] sm:text-3xl">إعدادات الصالون</h1>
         </div>
-        <p className="mt-1 text-sm text-zinc-400">
+        <p className="mt-1 text-sm text-[var(--bs-text-muted)]">
           عدّل كل قسم على حدة واضغط زر الحفظ الخاص به فقط — باقي الأقسام لن تتأثر.
         </p>
       </div>
 
       {/* ══════════ Section 1: Basic Salon Info ══════════ */}
-      <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/90 shadow-lg">
+      <section className="overflow-hidden rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 shadow-lg">
         <button
           type="button"
           onClick={() => toggleSection("basic")}
-          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-right transition hover:bg-zinc-800/40"
+          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-right transition hover:bg-[var(--bs-surface-raised)]/40"
           aria-expanded={openSections.basic}
         >
           <div className="flex items-center gap-3">
-            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${openSections.basic ? "bg-amber-500 text-zinc-950" : "border border-amber-500/30 bg-amber-500/10 text-amber-400"}`}>
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${openSections.basic ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)]" : "border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]"}`}>
               🏪
             </span>
             <div>
-              <h2 className="text-base font-bold text-zinc-100">معلومات الصالون الأساسية</h2>
-              <p className="mt-0.5 hidden text-xs text-zinc-500 sm:block">اسم الصالون ورقم التواصل</p>
+              <h2 className="text-base font-bold text-[var(--bs-text)]">معلومات الصالون الأساسية</h2>
+              <p className="mt-0.5 hidden text-xs text-[var(--bs-text-faint)] sm:block">اسم الصالون ورقم التواصل</p>
             </div>
           </div>
-          <span className={`shrink-0 text-zinc-500 transition-transform duration-200 ${openSections.basic ? "rotate-180" : ""}`}>▼</span>
+          <span className={`shrink-0 text-[var(--bs-text-faint)] transition-transform duration-200 ${openSections.basic ? "rotate-180" : ""}`}>▼</span>
         </button>
 
         {openSections.basic && (
-          <div className="space-y-4 border-t border-zinc-800 p-5 pt-5">
+          <div className="space-y-4 border-t border-[var(--bs-border)] p-5 pt-5">
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">
-                اسم الصالون <span className="text-amber-400">*</span>
+              <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">
+                اسم الصالون <span className="text-[var(--bs-primary)]">*</span>
               </label>
               <input
                 type="text"
@@ -160,13 +161,13 @@ export default function AdminSettingsPage() {
                 placeholder="مثال: صالون الأناقة الملكي"
                 className={inputCls}
               />
-              <p className="mt-1.5 text-xs text-zinc-400">
+              <p className="mt-1.5 text-xs text-[var(--bs-text-muted)]">
                 يظهر في رأس الصفحة، عنوان الموقع، وتطبيق الهاتف المحمول (PWA).
               </p>
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">رقم التواصل / الهاتف</label>
+              <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">رقم التواصل / الهاتف</label>
               <input
                 type="tel"
                 dir="ltr"
@@ -175,10 +176,10 @@ export default function AdminSettingsPage() {
                 placeholder="+962 7 9000 0000"
                 className={`${inputCls} text-left`}
               />
-              <p className="mt-1.5 text-xs text-zinc-400">رقم الهاتف المخصص لتواصل الزبائن والاستفسارات.</p>
+              <p className="mt-1.5 text-xs text-[var(--bs-text-muted)]">رقم الهاتف المخصص لتواصل الزبائن والاستفسارات.</p>
             </div>
 
-            <div className="flex items-center justify-end border-t border-zinc-800 pt-4">
+            <div className="flex items-center justify-end border-t border-[var(--bs-border)] pt-4">
               <SaveButton
                 onClick={() =>
                   saveSection("basic", "تم حفظ معلومات الصالون الأساسية ✓", () =>
@@ -195,27 +196,27 @@ export default function AdminSettingsPage() {
       </section>
 
       {/* ══════════ Section 2: Visual Branding ══════════ */}
-      <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/90 shadow-lg">
+      <section className="overflow-hidden rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 shadow-lg">
         <button
           type="button"
           onClick={() => toggleSection("branding")}
-          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-right transition hover:bg-zinc-800/40"
+          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-right transition hover:bg-[var(--bs-surface-raised)]/40"
           aria-expanded={openSections.branding}
         >
           <div className="flex items-center gap-3">
-            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${openSections.branding ? "bg-amber-500 text-zinc-950" : "border border-amber-500/30 bg-amber-500/10 text-amber-400"}`}>
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${openSections.branding ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)]" : "border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]"}`}>
               🎨
             </span>
             <div>
-              <h2 className="text-base font-bold text-zinc-100">الهوية البصرية</h2>
-              <p className="mt-0.5 hidden text-xs text-zinc-500 sm:block">شعار الصالون واللون الأساسي</p>
+              <h2 className="text-base font-bold text-[var(--bs-text)]">الهوية البصرية</h2>
+              <p className="mt-0.5 hidden text-xs text-[var(--bs-text-faint)] sm:block">شعار الصالون واللون الأساسي</p>
             </div>
           </div>
-          <span className={`shrink-0 text-zinc-500 transition-transform duration-200 ${openSections.branding ? "rotate-180" : ""}`}>▼</span>
+          <span className={`shrink-0 text-[var(--bs-text-faint)] transition-transform duration-200 ${openSections.branding ? "rotate-180" : ""}`}>▼</span>
         </button>
 
         {openSections.branding && (
-          <div className="space-y-4 border-t border-zinc-800 p-5 pt-5">
+          <div className="space-y-4 border-t border-[var(--bs-border)] p-5 pt-5">
             {/* Logo */}
             <ImageUploader
               label="شعار الصالون (Logo)"
@@ -227,9 +228,9 @@ export default function AdminSettingsPage() {
 
             {/* Primary color */}
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">اللون الأساسي للهوية</label>
+              <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">اللون الأساسي للهوية</label>
               <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-950 p-2">
+                <div className="flex items-center gap-2 rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] p-2">
                   <input
                     type="color"
                     value={primaryColor}
@@ -241,7 +242,7 @@ export default function AdminSettingsPage() {
                     dir="ltr"
                     value={primaryColor}
                     onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="w-24 bg-transparent text-sm font-mono uppercase text-zinc-200 outline-none"
+                    className="w-24 bg-transparent text-sm font-mono uppercase text-[var(--bs-text)] outline-none"
                   />
                 </div>
 
@@ -255,19 +256,19 @@ export default function AdminSettingsPage() {
                       style={{ backgroundColor: c.hex }}
                       className={`h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 ${
                         primaryColor.toLowerCase() === c.hex.toLowerCase()
-                          ? "scale-105 border-white ring-2 ring-amber-500 ring-offset-2 ring-offset-zinc-950"
-                          : "border-zinc-800 opacity-80 hover:opacity-100"
+                          ? "scale-105 border-white ring-2 ring-[var(--bs-primary)] ring-offset-2 ring-offset-[var(--bs-bg)]"
+                          : "border-[var(--bs-border)] opacity-80 hover:opacity-100"
                       }`}
                     />
                   ))}
                 </div>
               </div>
-              <p className="mt-1.5 text-xs text-zinc-400">
+              <p className="mt-1.5 text-xs text-[var(--bs-text-muted)]">
                 يحدد اللون الرئيسي للأزرار وشريط التطبيق وثيم شاشة الهاتف.
               </p>
             </div>
 
-            <div className="flex items-center justify-end border-t border-zinc-800 pt-4">
+            <div className="flex items-center justify-end border-t border-[var(--bs-border)] pt-4">
               <SaveButton
                 onClick={() => saveSection("branding", "تم حفظ الهوية البصرية وتحديث الثيم فوراً ✓")}
                 saving={saving.branding}
@@ -280,34 +281,34 @@ export default function AdminSettingsPage() {
       </section>
 
       {/* ══════════ Section 3: Social Media & Maps ══════════ */}
-      <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/90 shadow-lg">
+      <section className="overflow-hidden rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 shadow-lg">
         <button
           type="button"
           onClick={() => toggleSection("social")}
-          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-right transition hover:bg-zinc-800/40"
+          className="flex w-full items-center justify-between gap-3 px-5 py-4 text-right transition hover:bg-[var(--bs-surface-raised)]/40"
           aria-expanded={openSections.social}
         >
           <div className="flex items-center gap-3">
-            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${openSections.social ? "bg-amber-500 text-zinc-950" : "border border-amber-500/30 bg-amber-500/10 text-amber-400"}`}>
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${openSections.social ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)]" : "border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]"}`}>
               🌐
             </span>
             <div>
-              <h2 className="text-base font-bold text-zinc-100">التواصل الاجتماعي والخريطة</h2>
-              <p className="mt-0.5 hidden text-xs text-zinc-500 sm:block">فيسبوك، إنستغرام، تيك توك، واتساب، خرائط Google</p>
+              <h2 className="text-base font-bold text-[var(--bs-text)]">التواصل الاجتماعي والخريطة</h2>
+              <p className="mt-0.5 hidden text-xs text-[var(--bs-text-faint)] sm:block">فيسبوك، إنستغرام، تيك توك، واتساب، خرائط Google</p>
             </div>
           </div>
-          <span className={`shrink-0 text-zinc-500 transition-transform duration-200 ${openSections.social ? "rotate-180" : ""}`}>▼</span>
+          <span className={`shrink-0 text-[var(--bs-text-faint)] transition-transform duration-200 ${openSections.social ? "rotate-180" : ""}`}>▼</span>
         </button>
 
         {openSections.social && (
-          <div className="space-y-4 border-t border-zinc-800 p-5 pt-5">
-            <p className="text-xs text-zinc-400">
+          <div className="space-y-4 border-t border-[var(--bs-border)] p-5 pt-5">
+            <p className="text-xs text-[var(--bs-text-muted)]">
               جميع الحقول اختيارية — تظهر الروابط المُدخلة فقط في تذييل الصفحة الرئيسية للزبائن.
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--bs-text)]">
                   <span>📘</span> رابط صفحة فيسبوك (Facebook)
                 </label>
                 <input
@@ -321,7 +322,7 @@ export default function AdminSettingsPage() {
               </div>
 
               <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--bs-text)]">
                   <span>📸</span> رابط حساب إنستغرام (Instagram)
                 </label>
                 <input
@@ -335,7 +336,7 @@ export default function AdminSettingsPage() {
               </div>
 
               <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--bs-text)]">
                   <span>🎵</span> رابط حساب تيك توك (TikTok)
                 </label>
                 <input
@@ -349,7 +350,7 @@ export default function AdminSettingsPage() {
               </div>
 
               <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
+                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--bs-text)]">
                   <span>💬</span> رقم أو رابط واتساب (WhatsApp)
                 </label>
                 <input
@@ -364,7 +365,7 @@ export default function AdminSettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
+              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--bs-text)]">
                 <span>📍</span> رابط موقع الصالون على خرائط Google Maps
               </label>
               <input
@@ -375,12 +376,12 @@ export default function AdminSettingsPage() {
                 placeholder="https://maps.google.com/?q=..."
                 className={`${inputCls} py-2.5 text-left text-xs sm:text-sm`}
               />
-              <p className="mt-1 text-[11px] text-zinc-500">
+              <p className="mt-1 text-[11px] text-[var(--bs-text-faint)]">
                 الرابط الذي سيفتح للزبائن عند الضغط على &quot;موقعنا على الخريطة&quot;.
               </p>
             </div>
 
-            <div className="flex items-center justify-end border-t border-zinc-800 pt-4">
+            <div className="flex items-center justify-end border-t border-[var(--bs-border)] pt-4">
               <SaveButton
                 onClick={() => saveSection("social", "تم حفظ روابط التواصل الاجتماعي والخريطة ✓")}
                 saving={saving.social}
@@ -393,21 +394,35 @@ export default function AdminSettingsPage() {
       </section>
 
       {/* ══════════ Section 4: Security → direct reset lives in /admin/profile ══════════ */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-5 shadow-lg">
+      <section className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 p-5 shadow-lg">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-lg text-emerald-400">🔒</span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] text-lg text-[var(--bs-success)]">🔒</span>
             <div>
-              <h2 className="text-base font-bold text-zinc-100">كلمة مرور المدير</h2>
-              <p className="mt-0.5 text-xs text-zinc-500">إعادة تعيين مباشرة بدون كلمة المرور الحالية</p>
+              <h2 className="text-base font-bold text-[var(--bs-text)]">كلمة مرور المدير</h2>
+              <p className="mt-0.5 text-xs text-[var(--bs-text-faint)]">إعادة تعيين مباشرة بدون كلمة المرور الحالية</p>
             </div>
           </div>
           <a
             href="/admin/profile"
-            className="shrink-0 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-bold text-emerald-400 transition hover:bg-emerald-500/20 active:scale-95"
+            className="shrink-0 rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-4 py-2 text-xs font-bold text-[var(--bs-success)] transition hover:brightness-110 active:scale-95"
           >
             الانتقال لإعادة التعيين ←
           </a>
+        </div>
+      </section>
+
+      {/* ══════════ Section 5: Appearance → light/dark mode (Phase 1 foundation) ══════════ */}
+      <section className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 p-5 shadow-lg">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-lg text-[var(--bs-primary)]">🎨</span>
+            <div>
+              <h2 className="text-base font-bold text-[var(--bs-text)]">وضع العرض</h2>
+              <p className="mt-0.5 text-xs text-[var(--bs-text-faint)]">فاتح، داكن، أو حسب إعداد نظامك — يتم حفظ اختيارك تلقائياً</p>
+            </div>
+          </div>
+          <ThemeModeSelector />
         </div>
       </section>
     </div>
@@ -432,7 +447,7 @@ function SaveButton({
       onClick={onClick}
       disabled={saving}
       style={{ backgroundColor: color }}
-      className="inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-zinc-950 shadow-lg transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
+      className="inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-[var(--bs-on-primary)] shadow-lg transition-all hover:brightness-110 active:scale-95 disabled:opacity-50"
     >
       {saving ? (
         <>

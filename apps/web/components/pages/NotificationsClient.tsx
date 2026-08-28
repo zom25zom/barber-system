@@ -9,6 +9,8 @@ import { formatDateTime } from "@/lib/time";
 import { useLiveNotifications } from "@/lib/useNotifications";
 import { enableWebPushNotifications } from "@/lib/push";
 import Spinner from "@/components/Spinner";
+import { Button } from "@/components/ui/button";
+import { BellRing } from "lucide-react";
 import type { AppNotification } from "@/lib/types";
 
 export function NotificationsClient({ salonSlug }: { salonSlug?: string }) {
@@ -63,78 +65,104 @@ export function NotificationsClient({ salonSlug }: { salonSlug?: string }) {
   const unread = notifications.filter((n) => !n.is_read).length;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">الإشعارات والتنبيهات</h1>
-        <div className="flex items-center gap-2">
+    <div className="bs-skin mx-auto max-w-2xl pb-4">
+      {/* ── header ── */}
+      <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <p className="mb-2 flex items-center gap-2.5 text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
+            <span className="inline-block h-px w-8 bg-[var(--bs-primary)]/60" />
+            مركز التنبيهات
+          </p>
+          <h1 className="text-2xl font-black text-[var(--bs-text)] sm:text-3xl">
+            الإشعارات
+            {unread > 0 && (
+              <span className="mr-3 align-middle text-base font-bold text-[var(--bs-text-faint)]">
+                {unread} غير مقروءة
+              </span>
+            )}
+          </h1>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           {pushEnabled && (
-            <button
-              onClick={handleEnablePush}
-              className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-amber-400 hover:bg-amber-500/20 transition-colors"
-            >
-              🔔 تفعيل الإشعارات
-            </button>
+            <Button variant="secondary" size="sm" onClick={handleEnablePush}>
+              <BellRing className="h-4 w-4" /> تفعيل الإشعارات
+            </Button>
           )}
           {unread > 0 && (
-            <button
-              onClick={markAllRead}
-              className="rounded-xl border border-zinc-700 px-3.5 py-1.5 text-xs sm:text-sm text-zinc-400 hover:bg-zinc-800 transition"
-            >
+            <Button variant="outline" size="sm" onClick={markAllRead}>
               تعليم الكل كمقروء
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+      </header>
 
       {pushStatus && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs sm:text-sm text-amber-300 text-center">
+        <div className="mt-5 rounded-xl border border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)] p-3 text-center text-xs text-[var(--bs-primary)] sm:text-sm">
           {pushStatus}
         </div>
       )}
 
       {loading && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-12 text-center">
+        <div className="py-16 text-center">
           <Spinner size="lg" label="جاري تحميل الإشعارات…" />
         </div>
       )}
 
       {!loading && notifications.length === 0 && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-8 text-center text-zinc-400">
+        <div className="py-14 text-center text-sm text-[var(--bs-text-muted)]">
+          <span className="mb-3 block text-4xl">🔔</span>
           لا توجد إشعارات جديدة حالياً.
         </div>
       )}
 
-      <div className="space-y-3">
-        {notifications.map((n) => (
-          <div
-            key={n.id}
-            className={`rounded-2xl border p-4 transition-all ${
-              n.is_read
-                ? "border-zinc-800/60 bg-zinc-900/40 opacity-70"
-                : "border-amber-500/40 bg-zinc-900 shadow-md"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1">
-                <span className="inline-block rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-xs font-bold text-amber-400">
-                  {n.type === "new_booking"
-                    ? "حجز جديد"
-                    : n.type === "cancellation"
-                      ? "إلغاء حجز"
-                      : "الموعد متاح"}
-                </span>
-                <p className="text-sm font-medium text-zinc-200 mt-1">{n.message}</p>
+      {/* ── timeline: vertical rule + unread dots, no boxed cards ── */}
+      {!loading && notifications.length > 0 && (
+        <ol className="relative mt-8 space-y-1 border-r border-[var(--bs-border)] pr-5">
+          {notifications.map((n) => (
+            <li key={n.id} className="relative">
+              {/* timeline dot — gold filled when unread, hollow when read */}
+              <span
+                aria-label={n.is_read ? undefined : "غير مقروء"}
+                className={`absolute -right-[26px] top-5 h-3 w-3 rounded-full border-2 ${
+                  n.is_read
+                    ? "border-[var(--bs-border-strong)] bg-[var(--bs-bg)]"
+                    : "border-[var(--bs-primary)] bg-[var(--bs-primary)] shadow-md shadow-[var(--bs-primary)]/50"
+                }`}
+              />
+
+              <div
+                className={`rounded-2xl px-4 py-4 transition-colors ${
+                  n.is_read ? "text-[var(--bs-text-muted)]" : "bg-[var(--bs-surface)] shadow-md"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 space-y-1.5">
+                    <span className="block text-[11px] font-bold tracking-[0.2em] text-[var(--bs-primary)]">
+                      {n.type === "new_booking"
+                        ? "حجز جديد"
+                        : n.type === "cancellation"
+                          ? "إلغاء حجز"
+                          : "الموعد متاح"}
+                    </span>
+                    <p
+                      className={`text-sm leading-relaxed ${
+                        n.is_read ? "text-[var(--bs-text-muted)]" : "font-medium text-[var(--bs-text)]"
+                      }`}
+                    >
+                      {n.message}
+                    </p>
+                  </div>
+                  <span className="shrink-0 pt-0.5 text-[11px] text-[var(--bs-text-faint)]">
+                    {formatDateTime(n.created_at)}
+                  </span>
+                </div>
               </div>
-              <span className="text-xs text-zinc-500 shrink-0">
-                {formatDateTime(n.created_at)}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }
-
 
 export default NotificationsClient;

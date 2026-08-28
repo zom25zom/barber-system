@@ -110,8 +110,8 @@ function ScheduleContent() {
   if (!id) {
     return (
       <div className="space-y-4">
-        <p className="text-red-400">لم يتم تحديد الحلاق.</p>
-        <Link href="/admin/barbers" className="text-amber-400 underline">العودة للحلاقين</Link>
+        <p className="text-[var(--bs-error)]">لم يتم تحديد الحلاق.</p>
+        <Link href="/admin/barbers" className="text-[var(--bs-primary)] underline">العودة للحلاقين</Link>
       </div>
     );
   }
@@ -280,25 +280,25 @@ function ScheduleContent() {
       <div className="flex items-center gap-3">
         <Link
           href="/admin/barbers"
-          className="rounded-xl border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition"
+          className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-2 text-sm text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition"
         >
           ← العودة للحلاقين
         </Link>
-        <h1 className="text-2xl font-bold text-zinc-100">
+        <h1 className="text-2xl font-bold text-[var(--bs-text)]">
           جدول عمل {barberName ? `الحلاق ${barberName}` : `الحلاق #${id}`}
         </h1>
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-1.5">
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-1.5">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
             className={`flex-1 min-w-[120px] rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${
               activeTab === t.key
-                ? "bg-amber-500 text-zinc-950 shadow-lg shadow-amber-500/20"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)] shadow-lg shadow-[var(--bs-primary)]/20"
+                : "text-[var(--bs-text-muted)] hover:text-[var(--bs-text)] hover:bg-[var(--bs-surface-raised)]/60"
             }`}
           >
             {t.label}
@@ -310,21 +310,21 @@ function ScheduleContent() {
       {activeTab === "schedule" && (
         <div className="space-y-4">
           {error && (
-            <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-400 flex items-center justify-between">
+            <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
               <span>⚠️ {error}</span>
-              <button onClick={() => setError(null)} className="text-xs text-red-300 hover:underline">إغلاق</button>
+              <button onClick={() => setError(null)} className="text-xs text-[var(--bs-error)] hover:underline">إغلاق</button>
             </div>
           )}
 
           {success && (
-            <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-400 flex items-center justify-between">
+            <div className="rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] p-4 text-sm text-[var(--bs-success)] flex items-center justify-between">
               <span>✨ تم حفظ وتحديث جدول العمل بنجاح!</span>
-              <button onClick={() => setSuccess(false)} className="text-xs text-emerald-300 hover:underline">إغلاق</button>
+              <button onClick={() => setSuccess(false)} className="text-xs text-[var(--bs-success)] hover:underline">إغلاق</button>
             </div>
           )}
 
           {loading && (
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-12 text-center">
+            <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-12 text-center">
               <Spinner size="lg" label="جاري تحميل جدول العمل…" />
             </div>
           )}
@@ -336,11 +336,11 @@ function ScheduleContent() {
                   key={d.day_of_week}
                   className={`flex flex-wrap items-center gap-4 rounded-2xl border p-4 transition-colors ${
                     d.is_day_off
-                      ? "border-zinc-800/60 bg-zinc-900/40 opacity-60"
-                      : "border-zinc-800 bg-zinc-900 shadow-sm"
+                      ? "border-[var(--bs-border)]/60 bg-[var(--bs-surface)]/40 opacity-60"
+                      : "border-[var(--bs-border)] bg-[var(--bs-surface)] shadow-sm"
                   }`}
                 >
-                  <span className="w-20 text-sm font-bold text-amber-400">
+                  <span className="w-20 text-sm font-bold text-[var(--bs-primary)]">
                     {WEEKDAYS_AR[d.day_of_week]}
                   </span>
 
@@ -349,32 +349,32 @@ function ScheduleContent() {
                       type="checkbox"
                       checked={d.is_day_off}
                       onChange={(e) => updateDay(d.day_of_week, "is_day_off", e.target.checked)}
-                      className="h-4 w-4 accent-amber-500"
+                      className="h-4 w-4 accent-[var(--bs-primary)]"
                     />
-                    <span className="text-sm text-zinc-400">إجازة أسبوعية</span>
+                    <span className="text-sm text-[var(--bs-text-muted)]">إجازة أسبوعية</span>
                   </label>
 
                   {!d.is_day_off && (
                     <div className="flex flex-1 items-center gap-3">
                       <div className="flex items-center gap-2">
-                        <label className="text-xs text-zinc-400">من</label>
+                        <label className="text-xs text-[var(--bs-text-muted)]">من</label>
                         <input
                           type="time"
                           value={d.start_time}
                           onChange={(e) => updateDay(d.day_of_week, "start_time", e.target.value)}
-                          className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-sm text-zinc-100 outline-none focus:border-amber-500"
+                          className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-3 py-1.5 text-sm text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
                         />
-                        <span className="text-xs text-zinc-400 font-medium">{formatTime12(d.start_time)}</span>
+                        <span className="text-xs text-[var(--bs-text-muted)] font-medium">{formatTime12(d.start_time)}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <label className="text-xs text-zinc-400">إلى</label>
+                        <label className="text-xs text-[var(--bs-text-muted)]">إلى</label>
                         <input
                           type="time"
                           value={d.end_time}
                           onChange={(e) => updateDay(d.day_of_week, "end_time", e.target.value)}
-                          className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-sm text-zinc-100 outline-none focus:border-amber-500"
+                          className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-3 py-1.5 text-sm text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
                         />
-                        <span className="text-xs text-zinc-400 font-medium">{formatTime12(d.end_time)}</span>
+                        <span className="text-xs text-[var(--bs-text-muted)] font-medium">{formatTime12(d.end_time)}</span>
                       </div>
                     </div>
                   )}
@@ -385,7 +385,7 @@ function ScheduleContent() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-8 py-3 font-bold text-zinc-950 hover:bg-amber-400 disabled:opacity-50 shadow-md transition active:scale-98"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--bs-primary)] px-8 py-3 font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] disabled:opacity-50 shadow-md transition active:scale-98"
                 >
                   {saving ? (
                     <>
@@ -406,48 +406,48 @@ function ScheduleContent() {
       {activeTab === "timeoff" && (
         <div className="space-y-5">
           {/* Add Time Off Form */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-4">
-            <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+          <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-5 space-y-4">
+            <h3 className="text-lg font-bold text-[var(--bs-text)] flex items-center gap-2">
               🏖️ إضافة إجازة جديدة
             </h3>
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-[var(--bs-text-muted)]">
               حدد تاريخ إجازة محدد للحلاق. سيتم حجب هذا اليوم تلقائياً من الحجوزات المتاحة.
             </p>
 
             {timeOffError && (
-              <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-400 flex items-center justify-between">
+              <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-sm text-[var(--bs-error)] flex items-center justify-between">
                 <span>⚠️ {timeOffError}</span>
-                <button onClick={() => setTimeOffError(null)} className="text-xs text-red-300 hover:underline">إغلاق</button>
+                <button onClick={() => setTimeOffError(null)} className="text-xs text-[var(--bs-error)] hover:underline">إغلاق</button>
               </div>
             )}
 
             <form onSubmit={handleAddTimeOff} className="flex flex-wrap items-end gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-zinc-400 font-medium">التاريخ</label>
+                <label className="text-xs text-[var(--bs-text-muted)] font-medium">التاريخ</label>
                 <input
                   type="date"
                   required
                   value={timeOffDate}
                   onChange={(e) => setTimeOffDate(e.target.value)}
                   min={today}
-                  className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
+                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2 text-sm text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
                 />
               </div>
               <div className="flex flex-col gap-1.5 flex-1 min-w-[180px]">
-                <label className="text-xs text-zinc-400 font-medium">السبب (اختياري)</label>
+                <label className="text-xs text-[var(--bs-text-muted)] font-medium">السبب (اختياري)</label>
                 <input
                   type="text"
                   value={timeOffReason}
                   onChange={(e) => setTimeOffReason(e.target.value)}
                   placeholder="مثال: إجازة شخصية"
                   maxLength={120}
-                  className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500 placeholder:text-zinc-600"
+                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2 text-sm text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)] placeholder:text-[var(--bs-text-faint)]"
                 />
               </div>
               <button
                 type="submit"
                 disabled={addingTimeOff || !timeOffDate}
-                className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-2.5 font-bold text-zinc-950 hover:bg-amber-400 disabled:opacity-50 shadow-md transition active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl bg-[var(--bs-primary)] px-6 py-2.5 font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] disabled:opacity-50 shadow-md transition active:scale-95"
               >
                 {addingTimeOff ? (
                   <>
@@ -463,32 +463,32 @@ function ScheduleContent() {
 
           {/* Time Off List */}
           {timeOffLoading ? (
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
+            <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-8 text-center">
               <Spinner size="md" label="جاري تحميل الإجازات…" />
             </div>
           ) : futureTimeOffs.length === 0 && pastTimeOffs.length === 0 ? (
-            <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-8 text-center">
-              <p className="text-zinc-500 text-sm">لا توجد إجازات مسجلة حالياً</p>
+            <div className="rounded-2xl border border-[var(--bs-border)]/60 bg-[var(--bs-surface)]/30 p-8 text-center">
+              <p className="text-[var(--bs-text-faint)] text-sm">لا توجد إجازات مسجلة حالياً</p>
             </div>
           ) : (
             <div className="space-y-4">
               {/* Upcoming */}
               {futureTimeOffs.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-amber-400">📌 إجازات قادمة ({futureTimeOffs.length})</h4>
+                  <h4 className="text-sm font-bold text-[var(--bs-primary)]">📌 إجازات قادمة ({futureTimeOffs.length})</h4>
                   <div className="space-y-2">
                     {futureTimeOffs.map((t) => (
                       <div
                         key={t.id}
-                        className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900 p-3.5 hover:border-zinc-700 transition"
+                        className="flex items-center justify-between rounded-xl border border-[var(--bs-border)] bg-[var(--bs-surface)] p-3.5 hover:border-[var(--bs-border-strong)] transition"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-lg">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bs-primary-soft)] border border-[var(--bs-primary)]/40 text-[var(--bs-primary)] text-lg">
                             🏖️
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-zinc-100">{t.date}</p>
-                            <p className="text-xs text-zinc-400">
+                            <p className="text-sm font-bold text-[var(--bs-text)]">{t.date}</p>
+                            <p className="text-xs text-[var(--bs-text-muted)]">
                               {WEEKDAYS_AR[new Date(t.date + "T00:00:00").getDay()]}
                               {t.reason ? ` — ${t.reason}` : ""}
                             </p>
@@ -496,7 +496,7 @@ function ScheduleContent() {
                         </div>
                         <button
                           onClick={() => setDeleteTimeOff(t)}
-                          className="rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/20 transition"
+                          className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] px-3.5 py-1.5 text-xs font-bold text-[var(--bs-error)] hover:brightness-110 transition"
                         >
                           🗑️ حذف
                         </button>
@@ -509,23 +509,23 @@ function ScheduleContent() {
               {/* Past */}
               {pastTimeOffs.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-zinc-500">📋 إجازات سابقة ({pastTimeOffs.length})</h4>
+                  <h4 className="text-sm font-bold text-[var(--bs-text-faint)]">📋 إجازات سابقة ({pastTimeOffs.length})</h4>
                   <div className="space-y-1">
                     {pastTimeOffs.map((t) => (
                       <div
                         key={t.id}
-                        className="flex items-center justify-between rounded-xl border border-zinc-800/40 bg-zinc-900/30 p-3 opacity-60"
+                        className="flex items-center justify-between rounded-xl border border-[var(--bs-border)]/40 bg-[var(--bs-surface)]/30 p-3 opacity-60"
                       >
                         <div className="flex items-center gap-3">
-                          <span className="text-sm text-zinc-500">{t.date}</span>
-                          <span className="text-xs text-zinc-600">
+                          <span className="text-sm text-[var(--bs-text-faint)]">{t.date}</span>
+                          <span className="text-xs text-[var(--bs-text-faint)]">
                             {WEEKDAYS_AR[new Date(t.date + "T00:00:00").getDay()]}
                             {t.reason ? ` — ${t.reason}` : ""}
                           </span>
                         </div>
                         <button
                           onClick={() => setDeleteTimeOff(t)}
-                          className="rounded-lg px-2.5 py-1 text-xs text-zinc-500 hover:text-red-400 transition"
+                          className="rounded-lg px-2.5 py-1 text-xs text-[var(--bs-text-faint)] hover:text-[var(--bs-error)] transition"
                         >
                           حذف
                         </button>
@@ -555,28 +555,28 @@ function ScheduleContent() {
       {activeTab === "breaks" && (
         <div className="space-y-5">
           {/* Add Break Form */}
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-4">
-            <h3 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+          <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-5 space-y-4">
+            <h3 className="text-lg font-bold text-[var(--bs-text)] flex items-center gap-2">
               ☕ إضافة فترة استراحة
             </h3>
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-[var(--bs-text-muted)]">
               حدد فترات الاستراحة لكل يوم في الأسبوع. سيتم استثناء هذه الأوقات تلقائياً من المواعيد المتاحة للحجز.
             </p>
 
             {breakError && (
-              <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-400 flex items-center justify-between">
+              <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-sm text-[var(--bs-error)] flex items-center justify-between">
                 <span>⚠️ {breakError}</span>
-                <button onClick={() => setBreakError(null)} className="text-xs text-red-300 hover:underline">إغلاق</button>
+                <button onClick={() => setBreakError(null)} className="text-xs text-[var(--bs-error)] hover:underline">إغلاق</button>
               </div>
             )}
 
             <form onSubmit={handleAddBreak} className="flex flex-wrap items-end gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-zinc-400 font-medium">اليوم</label>
+                <label className="text-xs text-[var(--bs-text-muted)] font-medium">اليوم</label>
                 <select
                   value={breakDow}
                   onChange={(e) => setBreakDow(Number(e.target.value))}
-                  className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
+                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2 text-sm text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
                 >
                   {WEEKDAYS_AR.map((name, i) => (
                     <option key={i} value={i}>{name}</option>
@@ -584,29 +584,29 @@ function ScheduleContent() {
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-zinc-400 font-medium">من</label>
+                <label className="text-xs text-[var(--bs-text-muted)] font-medium">من</label>
                 <input
                   type="time"
                   required
                   value={breakStart}
                   onChange={(e) => setBreakStart(e.target.value)}
-                  className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
+                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2 text-sm text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-zinc-400 font-medium">إلى</label>
+                <label className="text-xs text-[var(--bs-text-muted)] font-medium">إلى</label>
                 <input
                   type="time"
                   required
                   value={breakEnd}
                   onChange={(e) => setBreakEnd(e.target.value)}
-                  className="rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
+                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2 text-sm text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
                 />
               </div>
               <button
                 type="submit"
                 disabled={addingBreak}
-                className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-2.5 font-bold text-zinc-950 hover:bg-amber-400 disabled:opacity-50 shadow-md transition active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl bg-[var(--bs-primary)] px-6 py-2.5 font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] disabled:opacity-50 shadow-md transition active:scale-95"
               >
                 {addingBreak ? (
                   <>
@@ -622,37 +622,37 @@ function ScheduleContent() {
 
           {/* Breaks List grouped by day */}
           {breaksLoading ? (
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
+            <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-8 text-center">
               <Spinner size="md" label="جاري تحميل الاستراحات…" />
             </div>
           ) : breaks.length === 0 ? (
-            <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/30 p-8 text-center">
-              <p className="text-zinc-500 text-sm">لا توجد فترات استراحة مسجلة</p>
+            <div className="rounded-2xl border border-[var(--bs-border)]/60 bg-[var(--bs-surface)]/30 p-8 text-center">
+              <p className="text-[var(--bs-text-faint)] text-sm">لا توجد فترات استراحة مسجلة</p>
             </div>
           ) : (
             <div className="space-y-3">
               {[0, 1, 2, 3, 4, 5, 6].filter((d) => breaksByDay[d]?.length).map((dow) => (
-                <div key={dow} className="rounded-2xl border border-zinc-800 bg-zinc-900/50 overflow-hidden">
-                  <div className="flex items-center gap-2 border-b border-zinc-800/60 bg-zinc-900 px-4 py-3">
-                    <span className="text-amber-400 font-bold text-sm">{WEEKDAYS_AR[dow]}</span>
-                    <span className="text-xs text-zinc-500">({breaksByDay[dow].length} {breaksByDay[dow].length === 1 ? "استراحة" : "استراحات"})</span>
+                <div key={dow} className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 overflow-hidden">
+                  <div className="flex items-center gap-2 border-b border-[var(--bs-border)]/60 bg-[var(--bs-surface)] px-4 py-3">
+                    <span className="text-[var(--bs-primary)] font-bold text-sm">{WEEKDAYS_AR[dow]}</span>
+                    <span className="text-xs text-[var(--bs-text-faint)]">({breaksByDay[dow].length} {breaksByDay[dow].length === 1 ? "استراحة" : "استراحات"})</span>
                   </div>
-                  <div className="divide-y divide-zinc-800/40">
+                  <div className="divide-y divide-[var(--bs-border)]/40">
                     {breaksByDay[dow].map((b) => (
-                      <div key={b.id} className="flex items-center justify-between px-4 py-3 hover:bg-zinc-800/20 transition">
+                      <div key={b.id} className="flex items-center justify-between px-4 py-3 hover:bg-[var(--bs-surface-raised)]/20 transition">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--bs-success-soft)] border border-[var(--bs-success)]/40 text-[var(--bs-success)] text-sm">
                             ☕
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-zinc-100">
+                            <p className="text-sm font-bold text-[var(--bs-text)]">
                               {formatTime12(b.start_time)} — {formatTime12(b.end_time)}
                             </p>
                           </div>
                         </div>
                         <button
                           onClick={() => setDeleteBreak(b)}
-                          className="rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/20 transition"
+                          className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] px-3.5 py-1.5 text-xs font-bold text-[var(--bs-error)] hover:brightness-110 transition"
                         >
                           🗑️ حذف
                         </button>

@@ -76,23 +76,23 @@ export default function AdminProfilePage() {
   }
 
   const inputCls =
-    "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-amber-500 focus:ring-1 focus:ring-amber-500";
+    "w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2.5 text-[var(--bs-text)] placeholder:text-[var(--bs-text-faint)] outline-none transition focus:border-[var(--bs-primary)] focus:ring-1 focus:ring-[var(--bs-primary)]";
 
   return (
     <div className="mx-auto max-w-md space-y-6">
       {/* ── Account header ── */}
-      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-b from-zinc-900 to-zinc-950 p-6 text-center shadow-xl">
-        <span className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border-2 border-amber-500/40 bg-zinc-800 text-3xl font-black text-amber-400">
+      <div className="rounded-2xl border border-[var(--bs-border)] bg-gradient-to-b from-[var(--bs-surface)] to-[var(--bs-bg)] p-6 text-center shadow-xl">
+        <span className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border-2 border-[var(--bs-primary)]/40 bg-[var(--bs-surface-raised)] text-3xl font-black text-[var(--bs-primary)]">
           {(username || "A").charAt(0).toUpperCase()}
         </span>
-        <h1 className="text-xl font-black text-zinc-100">{username || "المدير"}</h1>
-        <p className="mt-0.5 text-xs text-zinc-500">حساب إدارة {salon.name}</p>
+        <h1 className="text-xl font-black text-[var(--bs-text)]">{username || "المدير"}</h1>
+        <p className="mt-0.5 text-xs text-[var(--bs-text-faint)]">حساب إدارة {salon.name}</p>
       </div>
 
       {/* ── Reset password (no current password required) ── */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-lg">
-        <h2 className="text-base font-bold text-zinc-100">كلمة المرور</h2>
-        <p className="mt-0.5 text-xs text-zinc-500">
+      <section className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 p-6 shadow-lg">
+        <h2 className="text-base font-bold text-[var(--bs-text)]">كلمة المرور</h2>
+        <p className="mt-0.5 text-xs text-[var(--bs-text-faint)]">
           إعادة تعيين مباشرة — سيتم تسجيل خروجك من جميع الأجهزة بعد التغيير
         </p>
 
@@ -103,14 +103,14 @@ export default function AdminProfilePage() {
               setShowForm(true);
               setError(null);
             }}
-            className="mt-4 w-full rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs font-bold text-amber-400 transition hover:bg-amber-500/20 active:scale-95 sm:text-sm"
+            className="mt-4 w-full rounded-xl border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] px-4 py-2.5 text-xs font-bold text-[var(--bs-primary)] transition hover:brightness-110 active:scale-95 sm:text-sm"
           >
             🔑 إعادة تعيين كلمة المرور
           </button>
         ) : (
           <form onSubmit={onResetPassword} className="mt-5 space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">كلمة المرور الجديدة</label>
+              <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">كلمة المرور الجديدة</label>
               <div className="relative">
                 <input
                   type={showNewPassword ? "text" : "password"}
@@ -127,7 +127,7 @@ export default function AdminProfilePage() {
                   onClick={() => setShowNewPassword((v) => !v)}
                   tabIndex={-1}
                   aria-label={showNewPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
-                  className="absolute left-1.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
+                  className="absolute left-1.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-lg text-[var(--bs-text-muted)] hover:text-[var(--bs-text)] hover:bg-[var(--bs-surface-raised)] transition"
                 >
                   {showNewPassword ? (
                     /* Eye-off */
@@ -149,7 +149,7 @@ export default function AdminProfilePage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">تأكيد كلمة المرور الجديدة</label>
+              <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">تأكيد كلمة المرور الجديدة</label>
               <input
                 type={showNewPassword ? "text" : "password"}
                 required
@@ -162,17 +162,17 @@ export default function AdminProfilePage() {
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-400 sm:text-sm">
+              <div className="flex items-center gap-2 rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-xs text-[var(--bs-error)] sm:text-sm">
                 <span>⚠️</span>
                 <span>{error}</span>
               </div>
             )}
 
-            <div className="flex items-center gap-3 border-t border-zinc-800 pt-4">
+            <div className="flex items-center gap-3 border-t border-[var(--bs-border)] pt-4">
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 py-3 font-bold text-zinc-950 transition hover:bg-amber-400 disabled:opacity-50 active:scale-95"
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--bs-primary)] py-3 font-bold text-[var(--bs-on-primary)] transition hover:bg-[var(--bs-primary-strong)] disabled:opacity-50 active:scale-95"
               >
                 {saving ? (
                   <>
@@ -186,7 +186,7 @@ export default function AdminProfilePage() {
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="rounded-xl border border-zinc-700 bg-zinc-800/60 px-5 py-3 text-sm font-medium text-zinc-300 transition hover:bg-zinc-800 active:scale-95"
+                className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-5 py-3 text-sm font-medium text-[var(--bs-text-muted)] transition hover:bg-[var(--bs-surface-raised)] active:scale-95"
               >
                 إلغاء
               </button>

@@ -52,8 +52,8 @@ function ServicesContent() {
   if (!id) {
     return (
       <div className="space-y-4">
-        <p className="text-red-400">لم يتم تحديد الحلاق.</p>
-        <Link href="/admin/barbers" className="text-amber-400 underline">
+        <p className="text-[var(--bs-error)]">لم يتم تحديد الحلاق.</p>
+        <Link href="/admin/barbers" className="text-[var(--bs-primary)] underline">
           العودة للحلاقين
         </Link>
       </div>
@@ -166,26 +166,26 @@ function ServicesContent() {
       <div className="flex items-center gap-3">
         <Link
           href="/admin/barbers"
-          className="rounded-xl border border-zinc-700 bg-zinc-800/60 px-3.5 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition"
+          className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-2 text-sm text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition"
         >
           ← العودة للحلاقين
         </Link>
-        <h1 className="text-2xl font-bold text-zinc-100">
+        <h1 className="text-2xl font-bold text-[var(--bs-text)]">
           خدمات {barberName ? `الحلاق ${barberName}` : `الحلاق #${id}`}
         </h1>
       </div>
 
       <button
         onClick={openAdd}
-        className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-zinc-950 hover:bg-amber-400 shadow-md transition active:scale-95"
+        className="rounded-xl bg-[var(--bs-primary)] px-5 py-2.5 text-sm font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] shadow-md transition active:scale-95"
       >
         + إضافة خدمة جديدة
       </button>
 
       {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-400 flex items-center justify-between">
+        <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
           <span>⚠️ {error}</span>
-          <button onClick={() => setError(null)} className="text-xs text-red-300 hover:underline">
+          <button onClick={() => setError(null)} className="text-xs text-[var(--bs-error)] hover:underline">
             إغلاق
           </button>
         </div>
@@ -193,24 +193,24 @@ function ServicesContent() {
 
       {/* ── form ── */}
       {showForm && (
-        <div className="rounded-2xl border border-amber-500/30 bg-zinc-900 p-6 shadow-xl animate-in fade-in">
-          <h2 className="mb-4 text-lg font-bold text-amber-400">
+        <div className="rounded-2xl border border-[var(--bs-primary)]/40 bg-[var(--bs-surface)] p-6 shadow-xl animate-in fade-in">
+          <h2 className="mb-4 text-lg font-bold text-[var(--bs-primary)]">
             {editId ? "تعديل بيانات الخدمة" : "إضافة خدمة جديدة"}
           </h2>
           <form onSubmit={save} className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">اسم الخدمة</label>
+              <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">اسم الخدمة</label>
               <input
                 required
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 outline-none focus:border-amber-500"
+                className="w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2.5 text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
                 placeholder="مثال: قص شعر ولحية"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-zinc-200">السعر (د.أ)</label>
+                <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">السعر (د.أ)</label>
                 <input
                   type="number"
                   required
@@ -218,12 +218,12 @@ function ServicesContent() {
                   step="any"
                   value={formPrice}
                   onChange={(e) => setFormPrice(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 outline-none focus:border-amber-500"
+                  className="w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2.5 text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
                   placeholder="مثال: 10 أو 7.5"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-zinc-200">المدة (دقيقة)</label>
+                <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">المدة (دقيقة)</label>
                 <input
                   type="number"
                   required
@@ -231,7 +231,7 @@ function ServicesContent() {
                   max="480"
                   value={formDuration}
                   onChange={(e) => setFormDuration(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 outline-none focus:border-amber-500"
+                  className="w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2.5 text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
                   placeholder="30"
                 />
               </div>
@@ -240,7 +240,7 @@ function ServicesContent() {
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 py-2.5 text-sm font-bold text-zinc-950 hover:bg-amber-400 disabled:opacity-50 transition"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--bs-primary)] px-6 py-2.5 text-sm font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] disabled:opacity-50 transition"
               >
                 {saving ? (
                   <>
@@ -254,7 +254,7 @@ function ServicesContent() {
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="rounded-xl border border-zinc-700 px-6 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white transition"
+                className="rounded-xl border border-[var(--bs-border-strong)] px-6 py-2.5 text-sm text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition"
               >
                 إلغاء
               </button>
@@ -265,13 +265,13 @@ function ServicesContent() {
 
       {/* ── services list ── */}
       {loading && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-12 text-center">
+        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-12 text-center">
           <Spinner size="lg" label="جاري تحميل قائمة الخدمات…" />
         </div>
       )}
 
       {!loading && services.length === 0 && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-8 text-center text-zinc-400">
+        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/40 p-8 text-center text-[var(--bs-text-muted)]">
           لا توجد خدمات مسجلة لهذا الحلاق حالياً. اضغط على زر &quot;إضافة خدمة جديدة&quot;.
         </div>
       )}
@@ -280,25 +280,25 @@ function ServicesContent() {
         {services.map((s) => (
           <div
             key={s.id}
-            className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-md transition hover:border-zinc-700"
+            className="flex items-center justify-between rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)] p-4 shadow-md transition hover:border-[var(--bs-border-strong)]"
           >
             <div>
-              <p className="font-bold text-zinc-100 text-base">{s.name}</p>
-              <p className="text-xs text-zinc-400 mt-0.5">⏱ المدة: {s.duration_minutes} دقيقة</p>
+              <p className="font-bold text-[var(--bs-text)] text-base">{s.name}</p>
+              <p className="text-xs text-[var(--bs-text-muted)] mt-0.5">⏱ المدة: {s.duration_minutes} دقيقة</p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="rounded-full bg-amber-500/10 border border-amber-500/30 px-3.5 py-1 text-sm font-bold text-amber-400">
+              <span className="rounded-full bg-[var(--bs-primary-soft)] border border-[var(--bs-primary)]/40 px-3.5 py-1 text-sm font-bold text-[var(--bs-primary)]">
                 {s.price} د.أ
               </span>
               <button
                 onClick={() => openEdit(s)}
-                className="rounded-xl border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs sm:text-sm text-amber-400 hover:bg-zinc-800 transition"
+                className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3 py-1.5 text-xs sm:text-sm text-[var(--bs-primary)] hover:bg-[var(--bs-surface-raised)] transition"
               >
                 ✏️ تعديل
               </button>
               <button
                 onClick={() => triggerDelete(s)}
-                className="rounded-xl border border-red-500/30 px-3 py-1.5 text-xs sm:text-sm text-red-400 hover:bg-red-500/10 transition"
+                className="rounded-xl border border-[var(--bs-error)]/40 px-3 py-1.5 text-xs sm:text-sm text-[var(--bs-error)] hover:bg-[var(--bs-error-soft)] transition"
               >
                 🗑 حذف
               </button>

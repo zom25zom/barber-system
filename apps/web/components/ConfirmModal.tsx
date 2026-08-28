@@ -1,6 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+/**
+ * Confirmation modal — migrated to shadcn/ui AlertDialog (Phase 2).
+ *
+ * PUBLIC PROPS API UNCHANGED: every existing call site keeps working
+ * (isOpen/title/message/confirmText/cancelText/variant/icon/isLoading/
+ * onConfirm/onClose). Only the presentation layer moved from a hand-rolled
+ * overlay to a Radix AlertDialog styled with the Barber Smart tokens.
+ */
+
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import Spinner from "./Spinner";
 
 interface ConfirmModalProps {
@@ -28,90 +38,72 @@ export default function ConfirmModal({
   onConfirm,
   onClose,
 }: ConfirmModalProps) {
-  // Close on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !isLoading) {
-        onClose();
-      }
-    };
-    if (isOpen) {
-      window.addEventListener("keydown", handleKeyDown);
-    }
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isLoading, onClose]);
-
   if (!isOpen) return null;
 
-  const variantStyles = {
+  // Visual mapping (unchanged semantics): danger→destructive, warning→gold, primary→primary
+  const visual = {
     danger: {
       icon: "🗑️",
-      iconBg: "bg-red-500/15 border-red-500/30 text-red-400",
-      confirmBtn: "bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-950/50",
+      iconBg: "bg-[var(--bs-error-soft)] border-[var(--bs-error)]/40",
+      btnVariant: "destructive" as const,
     },
     warning: {
       icon: "⚠️",
-      iconBg: "bg-amber-500/15 border-amber-500/30 text-amber-400",
-      confirmBtn: "bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-lg shadow-amber-950/50",
+      iconBg: "bg-[var(--bs-warning-soft)] border-[var(--bs-warning)]/40",
+      btnVariant: "default" as const, // gold — the brand accent
     },
     primary: {
       icon: "❓",
-      iconBg: "bg-blue-500/15 border-blue-500/30 text-blue-400",
-      confirmBtn: "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-950/50",
+      iconBg: "bg-[var(--bs-primary-soft)] border-[var(--bs-primary)]/40",
+      btnVariant: "default" as const,
     },
-  };
-
-  const currentStyle = variantStyles[variant];
+  }[variant];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm transition-opacity animate-in fade-in"
-        onClick={() => {
-          if (!isLoading) onClose();
-        }}
-      />
-
-      {/* Modal Card */}
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl animate-in zoom-in-95 duration-150">
-        <div className="flex items-start gap-4">
-          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${currentStyle.iconBg} text-2xl`}>
-            {icon || currentStyle.icon}
+    <AlertDialog open={isOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader className="sm:text-right">
+          <div className="flex items-start gap-4">
+            <div
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border text-2xl ${visual.iconBg}`}
+            >
+              {icon || visual.icon}
+            </div>
+            <div className="flex-1 text-right">
+              <AlertDialogTitle className="text-right">{title}</AlertDialogTitle>
+              <AlertDialogDescription className="mt-1.5 text-right">
+                {message}
+              </AlertDialogDescription>
+            </div>
           </div>
-          <div className="flex-1 text-right">
-            <h3 className="text-lg font-bold text-zinc-100">{title}</h3>
-            <p className="mt-1.5 text-sm text-zinc-300 leading-relaxed">{message}</p>
-          </div>
-        </div>
+        </AlertDialogHeader>
 
-        {/* Buttons */}
-        <div className="mt-6 flex items-center justify-end gap-3 border-t border-zinc-800/80 pt-4">
-          <button
+        <AlertDialogFooter className="gap-3 border-t border-[var(--bs-border)] pt-4 sm:flex-row sm:justify-start">
+          <Button
             type="button"
+            variant="outline"
             disabled={isLoading}
             onClick={onClose}
-            className="rounded-xl border border-zinc-700 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition disabled:opacity-50"
           >
             {cancelText}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant={visual.btnVariant}
             disabled={isLoading}
             onClick={onConfirm}
-            className={`inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold transition active:scale-95 disabled:opacity-50 ${currentStyle.confirmBtn}`}
           >
             {isLoading ? (
               <>
-                <Spinner size="sm" color={variant === "warning" ? "zinc" : "white"} />
+                <Spinner size="sm" color="white" />
                 <span>جاري التنفيذ…</span>
               </>
             ) : (
               confirmText
             )}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

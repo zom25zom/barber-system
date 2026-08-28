@@ -7,6 +7,10 @@ import { apiFetch } from "@/lib/api";
 import { getCustomerToken, getCustomerProfile, setCustomerAuth, clearCustomerAuth } from "@/lib/auth";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CircleAlert, CircleCheck, Eye, EyeOff, LogOut } from "lucide-react";
 import type { Customer } from "@/lib/types";
 
 export function MyProfileClient({ salonSlug }: { salonSlug?: string }) {
@@ -100,68 +104,69 @@ export function MyProfileClient({ salonSlug }: { salonSlug?: string }) {
 
   if (!token || loading) {
     return (
-      <div className="flex justify-center py-16">
+      <div className="bs-skin flex justify-center py-16">
         <Spinner size="lg" />
       </div>
     );
   }
 
-  const inputCls =
-    "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 outline-none focus:border-amber-500";
-
   return (
-    <div className="mx-auto max-w-md space-y-6">
-      {/* ── Profile header ── */}
-      <div className="rounded-2xl border border-zinc-800 bg-gradient-to-b from-zinc-900 to-zinc-950 p-6 text-center shadow-xl">
-        <span className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full border-2 border-amber-500/40 bg-zinc-800 text-3xl font-black text-amber-400">
+    <div className="bs-skin mx-auto max-w-lg pb-4">
+      {/* ── Profile header: the avatar letter is the focal point ── */}
+      <header className="flex items-center gap-5">
+        <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-3xl font-black text-[var(--bs-primary)] shadow-lg">
           {username.trim().charAt(0) || "👤"}
         </span>
-        <h1 className="text-xl font-black text-zinc-100">{username}</h1>
-        <p className="mt-0.5 text-sm text-zinc-500" dir="ltr">
-          {phone}
-        </p>
-      </div>
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">حسابي</p>
+          <h1 className="mt-1 truncate text-2xl font-black text-[var(--bs-text)] sm:text-3xl">{username}</h1>
+          <p className="mt-1 text-sm text-[var(--bs-text-faint)]" dir="ltr">
+            {phone}
+          </p>
+        </div>
+      </header>
+
+      <div className="bs-hairline mt-8" />
 
       {/* ── Edit profile ── */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-lg">
-        <h2 className="text-base font-bold text-zinc-100">بياناتي</h2>
-        <p className="mt-0.5 text-xs text-zinc-500">عدّل اسمك ورقم هاتفك</p>
+      <section className="pt-8">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-lg font-black text-[var(--bs-text)]">بياناتي</h2>
+          <p className="text-xs text-[var(--bs-text-faint)]">عدّل اسمك ورقم هاتفك</p>
+        </div>
 
         <form onSubmit={onSaveProfile} className="mt-5 space-y-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-zinc-200">الاسم</label>
-            <input type="text" required value={username} onChange={(e) => setUsername(e.target.value)} className={inputCls} />
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-name">الاسم</Label>
+            <Input id="profile-name" type="text" required value={username} onChange={(e) => setUsername(e.target.value)} />
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-semibold text-zinc-200">رقم الهاتف</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="profile-phone">رقم الهاتف</Label>
+            <Input
+              id="profile-phone"
               type="tel"
               required
               dir="ltr"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className={`${inputCls} text-left`}
+              className="text-left"
             />
           </div>
 
           {profileError && (
-            <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-400 sm:text-sm">
-              <span>⚠️</span>
+            <div className="flex items-center gap-2 rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-xs text-[var(--bs-error)] sm:text-sm">
+              <CircleAlert className="h-4 w-4 shrink-0" />
               <span>{profileError}</span>
             </div>
           )}
           {profileSuccess && (
-            <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-400 sm:text-sm">
-              <span>✓</span>
+            <div className="flex items-center gap-2 rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] p-3 text-xs text-[var(--bs-success)] sm:text-sm">
+              <CircleCheck className="h-4 w-4 shrink-0" />
               <span>تم حفظ بياناتك بنجاح</span>
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 py-3 font-bold text-zinc-950 transition hover:bg-amber-400 disabled:opacity-50 active:scale-95"
-          >
+          <Button type="submit" disabled={saving} className="w-full py-3">
             {saving ? (
               <>
                 <Spinner size="sm" color="zinc" />
@@ -170,50 +175,57 @@ export function MyProfileClient({ salonSlug }: { salonSlug?: string }) {
             ) : (
               "حفظ التعديلات"
             )}
-          </button>
+          </Button>
         </form>
       </section>
 
+      <div className="bs-hairline mt-8" />
+
       {/* ── Reset password (no current password required) ── */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-lg">
-        <div className="flex items-center justify-between gap-3">
+      <section className="pt-8">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold text-zinc-100">كلمة المرور</h2>
-            <p className="mt-0.5 text-xs text-zinc-500">إعادة تعيين مباشرة — سيتم تسجيل خروجك من جميع الأجهزة</p>
+            <h2 className="text-lg font-black text-[var(--bs-text)]">كلمة المرور</h2>
+            <p className="mt-1 max-w-xs text-xs leading-relaxed text-[var(--bs-text-faint)]">
+              إعادة تعيين مباشرة — سيتم تسجيل خروجك من جميع الأجهزة
+            </p>
           </div>
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={() => {
               setShowPasswordForm((v) => !v);
               setPasswordError(null);
               setPasswordSuccess(false);
             }}
-            className="shrink-0 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs font-bold text-amber-400 transition hover:bg-amber-500/20 active:scale-95"
+            className="shrink-0"
           >
             {showPasswordForm ? "إلغاء" : "تغيير"}
-          </button>
+          </Button>
         </div>
 
         {passwordSuccess && !showPasswordForm && (
-          <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-xs text-emerald-400 sm:text-sm">
-            <span>✓</span>
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] p-3 text-xs text-[var(--bs-success)] sm:text-sm">
+            <CircleCheck className="h-4 w-4 shrink-0" />
             <span>تم إعادة تعيين كلمة المرور — سجّل دخولك بكلمة المرور الجديدة</span>
           </div>
         )}
 
         {showPasswordForm && (
           <form onSubmit={onChangePassword} className="mt-5 space-y-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">كلمة المرور الجديدة</label>
+            <div className="space-y-1.5">
+              <Label htmlFor="new-password">كلمة المرور الجديدة</Label>
               <div className="relative">
-                <input
+                <Input
+                  id="new-password"
                   type={showNewPassword ? "text" : "password"}
                   required
                   minLength={6}
                   dir="ltr"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className={`${inputCls} pl-11 text-left`}
+                  className="pl-11 text-left"
                   placeholder="6 خانات على الأقل"
                 />
                 <button
@@ -221,51 +233,34 @@ export function MyProfileClient({ salonSlug }: { salonSlug?: string }) {
                   onClick={() => setShowNewPassword((v) => !v)}
                   tabIndex={-1}
                   aria-label={showNewPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
-                  className="absolute left-1.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
+                  className="absolute left-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--bs-text-muted)] transition hover:bg-[var(--bs-surface-raised)] hover:text-[var(--bs-text)]"
                 >
-                  {showNewPassword ? (
-                    /* Eye-off icon */
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
-                      <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
-                      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
-                      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
-                      <line x1="2" x2="22" y1="2" y2="22" />
-                    </svg>
-                  ) : (
-                    /* Eye icon */
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
-                      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">تأكيد كلمة المرور الجديدة</label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm-password">تأكيد كلمة المرور الجديدة</Label>
+              <Input
+                id="confirm-password"
                 type={showNewPassword ? "text" : "password"}
                 required
                 minLength={6}
                 dir="ltr"
                 value={confirmNewPassword}
                 onChange={(e) => setConfirmNewPassword(e.target.value)}
-                className={`${inputCls} text-left`}
+                className="text-left"
               />
             </div>
 
             {passwordError && showPasswordForm && (
-              <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-400 sm:text-sm">
-                <span>⚠️</span>
+              <div className="flex items-center gap-2 rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-xs text-[var(--bs-error)] sm:text-sm">
+                <CircleAlert className="h-4 w-4 shrink-0" />
                 <span>{passwordError}</span>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={savingPassword}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 py-3 font-bold text-zinc-950 transition hover:bg-amber-400 disabled:opacity-50 active:scale-95"
-            >
+            <Button type="submit" disabled={savingPassword} className="w-full py-3">
               {savingPassword ? (
                 <>
                   <Spinner size="sm" color="zinc" />
@@ -274,18 +269,18 @@ export function MyProfileClient({ salonSlug }: { salonSlug?: string }) {
               ) : (
                 "تأكيد تغيير كلمة المرور"
               )}
-            </button>
+            </Button>
           </form>
         )}
       </section>
 
-      {/* ── Logout ── */}
+      {/* ── Logout — quiet danger row ── */}
       <button
         type="button"
         onClick={() => setLogoutOpen(true)}
-        className="w-full rounded-2xl border border-red-500/30 bg-red-500/5 py-3.5 text-sm font-bold text-red-400 transition hover:bg-red-500/15 active:scale-95"
+        className="mt-10 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--bs-error)]/40 py-4 text-sm font-bold text-[var(--bs-error)] transition hover:bg-[var(--bs-error-soft)] active:scale-[0.98]"
       >
-        🚪 تسجيل الخروج من الحساب
+        <LogOut className="h-4 w-4" /> تسجيل الخروج من الحساب
       </button>
 
       <ConfirmModal
@@ -305,6 +300,5 @@ export function MyProfileClient({ salonSlug }: { salonSlug?: string }) {
     </div>
   );
 }
-
 
 export default MyProfileClient;

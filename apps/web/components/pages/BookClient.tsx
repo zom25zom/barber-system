@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, Fragment } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { withSlug, getSalonSlugParam, useTenantLink } from "@/lib/salonTenant";
@@ -8,9 +8,12 @@ import { getCustomerToken } from "@/lib/auth";
 import { formatTime12, next7Days } from "@/lib/time";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
+import { Button } from "@/components/ui/button";
+import { Armchair, CircleAlert, Info } from "lucide-react";
 import type { Barber, Service, Slot, Booking } from "@/lib/types";
 
 const steps = ["الحلاق", "الخدمات", "الموعد", "التأكيد"];
+const pad2 = (n: number) => String(n).padStart(2, "0");
 
 function BookContent() {
   const tLink = useTenantLink();
@@ -165,7 +168,7 @@ function BookContent() {
   // If customer already has an active confirmed booking, show informative blocking screen
   if (activeBooking) {
     return (
-      <div className="mx-auto max-w-xl space-y-6">
+      <div className="bs-skin mx-auto max-w-xl pt-4">
         <ConfirmModal
           isOpen={cancelModalOpen}
           title="تأكيد إلغاء الموعد الحالي"
@@ -180,51 +183,53 @@ function BookContent() {
           }}
         />
 
-        <div className="rounded-2xl border border-amber-500/40 bg-zinc-900/95 p-6 shadow-xl text-center space-y-4">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/15 border-2 border-amber-500/40 text-3xl">
+        <div className="bs-panel relative overflow-hidden p-8 text-center sm:p-10">
+          <div
+            className="absolute inset-x-0 top-0 h-1"
+            style={{ background: "linear-gradient(to left, transparent, var(--bs-primary), transparent)" }}
+          />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-3xl">
             💈
           </div>
-          <h2 className="text-xl font-bold text-amber-400">لديك حجز نشط بالفعل</h2>
-          <p className="text-xs sm:text-sm text-zinc-300 max-w-md mx-auto leading-relaxed">
+          <h2 className="mt-5 text-2xl font-black text-[var(--bs-text)]">لديك حجز نشط بالفعل</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[var(--bs-text-muted)]">
             يُسمح لكل زبون بحجز واحد نشط فقط في نفس الوقت لتنظيم الدور. لا يمكنك إجراء حجز جديد حتى انتهاء موعدك الحالي أو إلغائه.
           </p>
 
-          <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 text-right space-y-2 text-xs sm:text-sm">
-            <div className="flex justify-between">
-              <span className="text-zinc-400">الحلاق:</span>
-              <span className="font-bold text-zinc-100">{activeBooking.barber_name}</span>
+          <div className="mt-6 divide-y divide-[var(--bs-border)] rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-bg)]/60 p-5 text-right">
+            <div className="flex justify-between py-1.5 text-sm">
+              <span className="text-[var(--bs-text-muted)]">الحلاق:</span>
+              <span className="font-bold text-[var(--bs-text)]">{activeBooking.barber_name}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-zinc-400">تاريخ وموعد الحجز:</span>
-              <span className="font-medium text-amber-400">
+            <div className="flex justify-between py-1.5 text-sm">
+              <span className="text-[var(--bs-text-muted)]">تاريخ وموعد الحجز:</span>
+              <span className="font-medium text-[var(--bs-primary)]">
                 {activeBooking.booking_date} ({formatTime12(activeBooking.start_time)} - {formatTime12(activeBooking.end_time)})
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-zinc-400">المجموع:</span>
-              <span className="font-bold text-zinc-100">{activeBooking.total_price} د.أ</span>
+            <div className="flex justify-between py-1.5 text-sm">
+              <span className="text-[var(--bs-text-muted)]">المجموع:</span>
+              <span className="font-bold text-[var(--bs-text)]">{activeBooking.total_price} د.أ</span>
             </div>
           </div>
 
           {error && (
-            <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-xs text-red-400">
+            <p className="mt-4 rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] px-4 py-2.5 text-xs text-[var(--bs-error)]">
               ⚠️ {error}
             </p>
           )}
 
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <button
-              onClick={() => tLink.push("/my-bookings")}
-              className="flex-1 rounded-xl bg-amber-500 py-3 text-xs sm:text-sm font-bold text-zinc-950 hover:bg-amber-400 transition-colors shadow-md"
-            >
-              ⏳ متابعة دورك وتفاصيل الحجز
-            </button>
-            <button
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Button onClick={() => tLink.push("/my-bookings")} className="flex-1">
+              متابعة دورك وتفاصيل الحجز
+            </Button>
+            <Button
               onClick={() => setCancelModalOpen(true)}
-              className="rounded-xl border border-red-500/40 px-5 py-3 text-xs sm:text-sm font-semibold text-red-400 hover:bg-red-500/10 transition-colors"
+              variant="outline"
+              className="border-[var(--bs-error)]/40 text-[var(--bs-error)] hover:bg-[var(--bs-error-soft)]"
             >
               إلغاء هذا الحجز
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -232,37 +237,51 @@ function BookContent() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      {/* ── stepper ── */}
-      <div className="flex items-center justify-between rounded-xl bg-zinc-900/70 border border-zinc-800 p-3 text-xs sm:text-sm">
+    <div className="bs-skin mx-auto max-w-2xl pb-6 pt-2">
+      {/* ── wizard progress rail — numbered nodes, connectors, focused labels ── */}
+      <div className="mb-8 flex items-start gap-1.5 sm:gap-2">
         {steps.map((label, i) => (
-          <div key={label} className="flex items-center gap-1 sm:gap-2">
-            <button
-              onClick={() => {
-                if (i < step) setStep(i);
-              }}
-              className={`flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                i === step
-                  ? "bg-amber-500 text-zinc-950 shadow-sm shadow-amber-500/50"
-                  : i < step
-                    ? "bg-amber-500/20 text-amber-400 cursor-pointer"
-                    : "bg-zinc-800 text-zinc-500"
-              }`}
-            >
-              {i + 1}
-            </button>
-            <span className={i === step ? "text-amber-400 font-bold" : "text-zinc-500 hidden sm:inline"}>
-              {label}
-            </span>
-            {i < steps.length - 1 && <span className="text-zinc-700 text-xs">←</span>}
-          </div>
+          <Fragment key={label}>
+            <div className="flex flex-col items-center gap-2">
+              <button
+                onClick={() => {
+                  if (i < step) setStep(i);
+                }}
+                aria-current={i === step ? "step" : undefined}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black transition-all sm:h-10 sm:w-10 ${
+                  i === step
+                    ? "scale-110 border-2 border-[var(--bs-primary)] bg-[var(--bs-primary)] text-[var(--bs-on-primary)] shadow-lg shadow-[var(--bs-primary)]/25"
+                    : i < step
+                      ? "cursor-pointer border border-[var(--bs-primary)]/50 bg-[var(--bs-primary-soft)] text-[var(--bs-primary)] hover:bg-[var(--bs-primary)] hover:text-[var(--bs-on-primary)]"
+                      : "border border-[var(--bs-border)] bg-[var(--bs-surface)] text-[var(--bs-text-faint)]"
+                }`}
+              >
+                {i + 1}
+              </button>
+              <span
+                className={`whitespace-nowrap text-[10px] font-bold sm:text-xs ${
+                  i === step ? "text-[var(--bs-primary)]" : "text-[var(--bs-text-faint)]"
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <span
+                aria-hidden="true"
+                className={`mb-6 h-px flex-1 ${i < step ? "bg-[var(--bs-primary)]/60" : "bg-[var(--bs-border)]"}`}
+              />
+            )}
+          </Fragment>
         ))}
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-400 flex items-center justify-between">
-          <span>⚠️ {error}</span>
-          <button onClick={() => setError(null)} className="text-xs text-red-300 hover:underline">
+        <div className="mb-5 flex items-center justify-between rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)]">
+          <span className="flex items-center gap-2">
+            <CircleAlert className="h-4 w-4 shrink-0" /> {error}
+          </span>
+          <button onClick={() => setError(null)} className="text-xs underline opacity-80 hover:opacity-100">
             إغلاق
           </button>
         </div>
@@ -270,90 +289,106 @@ function BookContent() {
 
       {/* ═══════ Step 0: Select Barber ═══════ */}
       {step === 0 && (
-        <section className="space-y-4">
-          <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">اختر الحلاق</h1>
+        <section className="bs-panel relative overflow-hidden p-6 sm:p-8">
+          <span className="bs-ghost-numeral" dir="ltr" aria-hidden="true">01</span>
+          <p className="text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">الخطوة الأولى</p>
+          <h1 className="mt-1 text-2xl font-black text-[var(--bs-text)] sm:text-3xl">اختر الحلاق</h1>
+          <p className="mt-2 text-sm text-[var(--bs-text-muted)]">كل الحلاقين معتمدون من إدارة الصالون</p>
+
           {loading && (
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 text-center">
+            <div className="mt-8 py-6">
               <Spinner size="md" label="جاري تحميل قائمة الحلاقين…" />
             </div>
           )}
-          <div className="grid gap-3 sm:grid-cols-2">
-            {barbers.map((b) => (
-              <button
-                key={b.id}
-                onClick={() => {
-                  setSelectedBarber(b);
-                  setSelectedServices([]);
-                  setSelectedSlot(null);
-                  setSlots([]);
-                  setStep(1);
-                }}
-                className={`flex items-center gap-4 rounded-xl border p-4 text-start transition-all ${
-                  selectedBarber?.id === b.id
-                    ? "border-amber-500 bg-amber-500/15"
-                    : "border-zinc-800 bg-zinc-900 hover:border-amber-500/50 active:bg-zinc-800"
-                }`}
-              >
-                {b.photo_url ? (
-                  <img
-                    src={b.photo_url}
-                    alt={b.name}
-                    className="h-14 w-14 rounded-full border-2 border-amber-500/40 object-cover"
-                  />
-                ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-amber-500/40 bg-zinc-800 text-2xl">
-                    💈
-                  </div>
-                )}
-                <div>
-                  <h3 className="text-base sm:text-lg font-bold text-amber-400">{b.name}</h3>
-                  <p className="text-xs sm:text-sm text-zinc-400">
-                    {b.services.length} خدمات متاحة
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
+
+          {!loading && (
+            <div className="mt-6 divide-y divide-[var(--bs-border)] border-t border-[var(--bs-border)]">
+              {barbers.map((b, idx) => (
+                <button
+                  key={b.id}
+                  onClick={() => {
+                    setSelectedBarber(b);
+                    setSelectedServices([]);
+                    setSelectedSlot(null);
+                    setSlots([]);
+                    setStep(1);
+                  }}
+                  className={`group flex w-full items-center gap-4 py-4 text-start transition-colors ${
+                    selectedBarber?.id === b.id ? "text-[var(--bs-primary)]" : "hover:bg-[var(--bs-primary-soft)]/40"
+                  }`}
+                >
+                  <span className="w-6 shrink-0 text-xs font-bold text-[var(--bs-text-faint)]" dir="ltr">
+                    {pad2(idx + 1)}
+                  </span>
+                  {b.photo_url ? (
+                    <img
+                      src={b.photo_url}
+                      alt={b.name}
+                      className="h-14 w-14 shrink-0 rounded-full border-2 border-[var(--bs-primary)]/40 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-[var(--bs-primary)]/40 bg-[var(--bs-surface-raised)] text-xl">
+                      💈
+                    </div>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-lg font-bold text-[var(--bs-text)] transition-colors group-hover:text-[var(--bs-primary)]">
+                      {b.name}
+                    </span>
+                    <span className="text-xs text-[var(--bs-text-faint)]">{b.services.length} خدمات متاحة</span>
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="shrink-0 text-[var(--bs-text-faint)] transition-all group-hover:-translate-x-1 group-hover:text-[var(--bs-primary)]"
+                  >
+                    ←
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
       {/* ═══════ Step 1: Select Services ═══════ */}
       {step === 1 && selectedBarber && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">اختر الخدمات ({selectedBarber.name})</h1>
-          </div>
-          <p className="text-xs sm:text-sm text-zinc-400">يمكنك اختيار أكثر من خدمة في نفس الموعد</p>
+        <section className="bs-panel relative overflow-hidden p-6 sm:p-8">
+          <span className="bs-ghost-numeral" dir="ltr" aria-hidden="true">02</span>
+          <p className="text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">الخطوة الثانية</p>
+          <h1 className="mt-1 text-2xl font-black text-[var(--bs-text)] sm:text-3xl">اختر الخدمات</h1>
+          <p className="mt-2 text-sm text-[var(--bs-text-muted)]">
+            مع <span className="font-bold text-[var(--bs-text)]">{selectedBarber.name}</span> — يمكنك اختيار أكثر من خدمة في نفس الموعد
+          </p>
 
           {selectedBarber.services.length === 0 ? (
-            <p className="text-zinc-500">لا توجد خدمات لهذا الحلاق.</p>
+            <p className="mt-6 text-[var(--bs-text-faint)]">لا توجد خدمات لهذا الحلاق.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="mt-6 divide-y divide-[var(--bs-border)] border-t border-[var(--bs-border)]">
               {selectedBarber.services.map((svc) => {
                 const checked = !!selectedServices.find((s) => s.id === svc.id);
                 return (
                   <label
                     key={svc.id}
-                    className={`flex cursor-pointer items-center justify-between rounded-xl border p-4 transition-all ${
-                      checked
-                        ? "border-amber-500 bg-amber-500/15"
-                        : "border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+                    className={`flex cursor-pointer items-center justify-between gap-3 py-4 transition-all ${
+                      checked ? "text-[var(--bs-primary)]" : ""
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-3.5">
                       <input
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggleService(svc)}
-                        className="h-5 w-5 accent-amber-500"
+                        className="h-5 w-5 accent-[var(--bs-primary)]"
                       />
-                      <div>
-                        <p className="font-semibold text-zinc-100">{svc.name}</p>
-                        <p className="text-xs text-zinc-500">{svc.duration_minutes} دقيقة</p>
-                      </div>
-                    </div>
-                    <span className="rounded-full bg-amber-500/10 px-3 py-1 text-sm font-bold text-amber-400">
-                      {svc.price} د.أ
+                      <span>
+                        <span className={`block font-bold ${checked ? "text-[var(--bs-primary)]" : "text-[var(--bs-text)]"}`}>
+                          {svc.name}
+                        </span>
+                        <span className="text-xs text-[var(--bs-text-faint)]">{svc.duration_minutes} دقيقة</span>
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-base font-black text-[var(--bs-text)]">
+                      {svc.price} <span className="text-[11px] font-bold text-[var(--bs-text-faint)]">د.أ</span>
                     </span>
                   </label>
                 );
@@ -362,87 +397,86 @@ function BookContent() {
           )}
 
           {selectedServices.length > 0 && (
-            <div className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+            <div className="mt-6 flex items-center justify-between rounded-2xl border border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)]/50 px-5 py-4">
               <div>
-                <p className="text-xs text-zinc-400">السعر الإجمالي</p>
-                <p className="text-xl font-bold text-amber-400">{totalPrice} د.أ</p>
+                <p className="text-[11px] font-bold text-[var(--bs-text-muted)]">السعر الإجمالي</p>
+                <p className="text-2xl font-black text-[var(--bs-primary)]">
+                  {totalPrice} <span className="text-xs font-bold">د.أ</span>
+                </p>
               </div>
               <div className="text-left">
-                <p className="text-xs text-zinc-400">المدة الكلية</p>
-                <p className="font-bold text-zinc-100">{totalMins} دقيقة</p>
+                <p className="text-[11px] font-bold text-[var(--bs-text-muted)]">المدة الكلية</p>
+                <p className="text-lg font-bold text-[var(--bs-text)]">{totalMins} دقيقة</p>
               </div>
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={() => setStep(0)}
-              className="rounded-xl border border-zinc-700 px-5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800"
-            >
-              السابق
-            </button>
-            <button
-              onClick={() => {
-                if (selectedServices.length > 0) {
-                  setSelectedDate("");
-                  setSelectedSlot(null);
-                  setSlots([]);
-                  setStep(2);
-                }
-              }}
-              disabled={selectedServices.length === 0}
-              className="flex-1 rounded-xl bg-amber-500 py-3 font-bold text-zinc-950 transition-colors hover:bg-amber-400 disabled:opacity-40"
-            >
-              التالي — اختيار الموعد
-            </button>
-          </div>
+          <WizardNav
+            onBack={() => setStep(0)}
+            backLabel="تغيير الحلاق"
+            onNext={() => {
+              if (selectedServices.length > 0) {
+                setSelectedDate("");
+                setSelectedSlot(null);
+                setSlots([]);
+                setStep(2);
+              }
+            }}
+            nextLabel="التالي — اختيار الموعد"
+            nextDisabled={selectedServices.length === 0}
+          />
         </section>
       )}
 
       {/* ═══════ Step 2: Select Date & Time ═══════ */}
       {step === 2 && selectedBarber && (
-        <section className="space-y-4">
-          <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">اختر اليوم والوقت</h1>
+        <section className="bs-panel relative overflow-hidden p-6 sm:p-8">
+          <span className="bs-ghost-numeral" dir="ltr" aria-hidden="true">03</span>
+          <p className="text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">الخطوة الثالثة</p>
+          <h1 className="mt-1 text-2xl font-black text-[var(--bs-text)] sm:text-3xl">اختر اليوم والوقت</h1>
+          <p className="mt-2 text-sm text-[var(--bs-text-muted)]">الأوقات محدثة لحظياً حسب جدول {selectedBarber.name}</p>
 
           {/* date pills */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+          <div className="mt-6 flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
             {next7Days().map((d) => (
               <button
                 key={d.iso}
                 onClick={() => setSelectedDate(d.iso)}
                 className={`shrink-0 rounded-xl border px-4 py-2.5 text-center transition-all ${
                   selectedDate === d.iso
-                    ? "border-amber-500 bg-amber-500/20 text-amber-400 shadow-md"
-                    : "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-700"
+                    ? "border-[var(--bs-primary)] bg-[var(--bs-primary)] text-[var(--bs-on-primary)] shadow-md shadow-[var(--bs-primary)]/25"
+                    : "border-[var(--bs-border)] bg-[var(--bs-bg)] text-[var(--bs-text-muted)] hover:border-[var(--bs-primary)]/50"
                 }`}
               >
                 <p className="text-sm font-bold">{d.label}</p>
-                <p className="mt-0.5 text-xs text-zinc-500">{d.iso}</p>
+                <p className={`mt-0.5 text-[10px] ${selectedDate === d.iso ? "text-[var(--bs-on-primary)]/70" : "text-[var(--bs-text-faint)]"}`}>
+                  {d.iso}
+                </p>
               </button>
             ))}
           </div>
 
           {/* time slots */}
           {selectedDate && (
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-4 space-y-3">
-              <p className="text-xs text-zinc-400 font-medium">الأوقات المتاحة للحجز:</p>
+            <div className="mt-5 space-y-3">
+              <p className="text-[11px] font-bold tracking-wide text-[var(--bs-text-muted)]">الأوقات المتاحة للحجز:</p>
               {slotsLoading && (
-                <div className="p-6 text-center">
+                <div className="py-6">
                   <Spinner size="md" label="جاري فحص وتحديث المواعيد المتاحة…" />
                 </div>
               )}
               {!slotsLoading && slots.length === 0 && (
                 <div className="py-3 text-center">
                   {isTimeOff ? (
-                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-1">
-                      <p className="text-amber-400 font-bold text-sm">🏖️ الحلاق في إجازة هذا اليوم</p>
+                    <div className="rounded-xl border border-[var(--bs-warning)]/30 bg-[var(--bs-warning-soft)] p-4 space-y-1">
+                      <p className="font-bold text-[var(--bs-warning)] text-sm">🏖️ الحلاق في إجازة هذا اليوم</p>
                       {timeOffReason && (
-                        <p className="text-xs text-zinc-400">السبب: {timeOffReason}</p>
+                        <p className="text-xs text-[var(--bs-text-muted)]">السبب: {timeOffReason}</p>
                       )}
-                      <p className="text-xs text-zinc-500 pt-1">يرجى اختيار يوم آخر.</p>
+                      <p className="pt-1 text-xs text-[var(--bs-text-faint)]">يرجى اختيار يوم آخر.</p>
                     </div>
                   ) : (
-                    <p className="text-zinc-500 text-sm py-2">لا توجد مواعيد متاحة في هذا اليوم (قد يكون الحلاق في إجازة أو محجوز بالكامل).</p>
+                    <p className="py-2 text-sm text-[var(--bs-text-faint)]">لا توجد مواعيد متاحة في هذا اليوم (قد يكون الحلاق في إجازة أو محجوز بالكامل).</p>
                   )}
                 </div>
               )}
@@ -452,10 +486,10 @@ function BookContent() {
                     <button
                       key={slot.start_time}
                       onClick={() => setSelectedSlot(slot)}
-                      className={`rounded-xl border py-2.5 px-2 text-center text-xs sm:text-sm font-semibold transition-all ${
+                      className={`rounded-xl border py-2.5 px-2 text-center text-xs font-semibold transition-all sm:text-sm ${
                         selectedSlot?.start_time === slot.start_time
-                          ? "border-amber-500 bg-amber-500 text-zinc-950 shadow-md"
-                          : "border-zinc-800 bg-zinc-950 text-zinc-200 hover:border-amber-500/50"
+                          ? "border-[var(--bs-primary)] bg-[var(--bs-primary)] text-[var(--bs-on-primary)] shadow-md shadow-[var(--bs-primary)]/30"
+                          : "border-[var(--bs-border)] bg-[var(--bs-bg)] text-[var(--bs-text)] hover:border-[var(--bs-primary)]/50"
                       }`}
                     >
                       {formatTime12(slot.start_time)}
@@ -466,29 +500,25 @@ function BookContent() {
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={() => setStep(1)}
-              className="rounded-xl border border-zinc-700 px-5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800"
-            >
-              السابق
-            </button>
-            <button
-              onClick={() => selectedSlot && setStep(3)}
-              disabled={!selectedSlot}
-              className="flex-1 rounded-xl bg-amber-500 py-3 font-bold text-zinc-950 transition-colors hover:bg-amber-400 disabled:opacity-40"
-            >
-              التالي — تأكيد الحجز
-            </button>
-          </div>
+          <WizardNav
+            onBack={() => setStep(1)}
+            backLabel="تغيير الخدمات"
+            onNext={() => selectedSlot && setStep(3)}
+            nextLabel="التالي — تأكيد الحجز"
+            nextDisabled={!selectedSlot}
+          />
         </section>
       )}
 
-      {/* ═══════ Step 3: Confirm ═══════ */}
+      {/* ═══════ Step 3: Confirm — receipt-style ═══════ */}
       {step === 3 && selectedBarber && selectedSlot && (
-        <section className="space-y-4">
-          <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">تأكيد تفاصيل الحجز</h1>
-          <div className="space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-5 shadow-lg">
+        <section className="bs-panel relative overflow-hidden p-6 sm:p-8">
+          <span className="bs-ghost-numeral" dir="ltr" aria-hidden="true">04</span>
+          <p className="text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">الخطوة الأخيرة</p>
+          <h1 className="mt-1 text-2xl font-black text-[var(--bs-text)] sm:text-3xl">تأكيد تفاصيل الحجز</h1>
+
+          {/* receipt */}
+          <div className="mt-6 rounded-2xl border border-dashed border-[var(--bs-border-strong)] bg-[var(--bs-bg)]/50 p-5 sm:p-6">
             <Row label="الحلاق" value={selectedBarber.name} />
             <Row label="التاريخ" value={selectedDate} />
             <Row
@@ -496,59 +526,94 @@ function BookContent() {
               value={`${formatTime12(selectedSlot.start_time)} إلى ${formatTime12(selectedSlot.end_time)}`}
             />
             <Row label="المدة الإجمالية" value={`${totalDuration || totalMins} دقيقة`} />
-            <hr className="border-zinc-800" />
-            <p className="text-xs font-bold text-zinc-400">الخدمات المختارة:</p>
-            {selectedServices.map((s) => (
-              <div key={s.id} className="flex justify-between text-sm">
-                <span className="text-zinc-300">{s.name}</span>
-                <span className="text-amber-400 font-semibold">{s.price} د.أ</span>
-              </div>
-            ))}
-            <hr className="border-zinc-800" />
-            <div className="flex justify-between text-lg font-bold">
-              <span className="text-zinc-100">المجموع المطلوب</span>
-              <span className="text-amber-400">{totalPrice} د.أ</span>
+
+            <div className="my-4 border-t border-dashed border-[var(--bs-border-strong)]" />
+
+            <p className="mb-2 text-[11px] font-bold tracking-wide text-[var(--bs-text-muted)]">الخدمات المختارة:</p>
+            <div className="space-y-1.5">
+              {selectedServices.map((s) => (
+                <div key={s.id} className="flex justify-between text-sm">
+                  <span className="text-[var(--bs-text-muted)]">{s.name}</span>
+                  <span className="font-semibold text-[var(--bs-primary)]">{s.price} د.أ</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="my-4 border-t border-dashed border-[var(--bs-border-strong)]" />
+
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-bold text-[var(--bs-text)]">المجموع المطلوب</span>
+              <span className="text-3xl font-black text-[var(--bs-primary)]">
+                {totalPrice} <span className="text-sm font-bold">د.أ</span>
+              </span>
             </div>
           </div>
 
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3.5 text-center text-xs sm:text-sm text-zinc-300">
-            💡 يتم تأكيد الحجز مباشرة، والدفع نقداً عند الحضور للصالون.
+          <div className="mt-5 flex items-center justify-center gap-2 rounded-xl bg-[var(--bs-primary-soft)]/60 p-3.5 text-center text-xs text-[var(--bs-text-muted)] sm:text-sm">
+            <Info className="h-4 w-4 shrink-0 text-[var(--bs-primary)]" />
+            <span>يتم تأكيد الحجز مباشرة، والدفع نقداً عند الحضور للصالون.</span>
           </div>
 
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={() => setStep(2)}
-              disabled={submitting}
-              className="rounded-xl border border-zinc-700 px-5 py-2.5 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
-            >
-              السابق
-            </button>
-            <button
-              onClick={handleConfirm}
-              disabled={submitting}
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 py-3.5 font-bold text-zinc-950 transition-colors hover:bg-amber-400 disabled:opacity-50 shadow-md active:scale-98"
-            >
-              {submitting ? (
-                <>
-                  <Spinner size="sm" color="zinc" />
-                  <span>جاري تأكيد الحجز…</span>
-                </>
-              ) : (
-                "تأكيد الحجز الآن ✓"
-              )}
-            </button>
-          </div>
+          <WizardNav
+            onBack={() => setStep(2)}
+            backLabel="تعديل الموعد"
+            onNext={handleConfirm}
+            nextLabel="تأكيد الحجز الآن"
+            nextDisabled={submitting}
+            submitting={submitting}
+            submitIcon={<Armchair className="h-4 w-4" />}
+          />
         </section>
       )}
     </div>
   );
 }
 
+/* wizard footer nav — visual helper only */
+function WizardNav({
+  onBack,
+  backLabel,
+  onNext,
+  nextLabel,
+  nextDisabled,
+  submitting,
+  submitIcon,
+}: {
+  onBack: () => void;
+  backLabel: string;
+  onNext: () => void;
+  nextLabel: string;
+  nextDisabled?: boolean;
+  submitting?: boolean;
+  submitIcon?: React.ReactNode;
+}) {
+  return (
+    <div className="mt-8 flex gap-3 border-t border-[var(--bs-border)] pt-6">
+      <Button onClick={onBack} variant="outline">
+        السابق · {backLabel}
+      </Button>
+      <Button onClick={onNext} disabled={nextDisabled} className="flex-1">
+        {submitting ? (
+          <>
+            <Spinner size="sm" color="zinc" />
+            <span>جاري تأكيد الحجز…</span>
+          </>
+        ) : (
+          <>
+            {submitIcon}
+            <span>{nextLabel}</span>
+          </>
+        )}
+      </Button>
+    </div>
+  );
+}
+
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between text-sm">
-      <span className="text-zinc-400">{label}</span>
-      <span className="font-medium text-zinc-100">{value}</span>
+    <div className="flex justify-between py-1.5 text-sm">
+      <span className="text-[var(--bs-text-muted)]">{label}</span>
+      <span className="font-medium text-[var(--bs-text)]">{value}</span>
     </div>
   );
 }
@@ -566,6 +631,5 @@ export function BookClient({ salonSlug }: { salonSlug?: string }) {
     </Suspense>
   );
 }
-
 
 export default BookClient;

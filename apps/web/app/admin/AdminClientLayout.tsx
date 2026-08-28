@@ -10,15 +10,25 @@ import { useOwnerSalonSettings } from "@/lib/salon";
 import ConfirmModal from "@/components/ConfirmModal";
 import InstallPrompt from "@/components/InstallPrompt";
 import IOSInstallGuide from "@/components/IOSInstallGuide";
+import {
+  LayoutDashboard,
+  BarChart3,
+  Scissors,
+  CalendarDays,
+  Bell,
+  Settings,
+  UserRound,
+  type LucideIcon,
+} from "lucide-react";
 
-const nav = [
-  { href: "/admin", label: "الرئيسية", icon: "📊" },
-  { href: "/admin/reports", label: "التقارير المالية", icon: "📈" },
-  { href: "/admin/barbers", label: "الحلاقين", icon: "💈" },
-  { href: "/admin/bookings", label: "الحجوزات", icon: "📅" },
-  { href: "/admin/notifications", label: "الإشعارات", icon: "🔔" },
-  { href: "/admin/settings", label: "إعدادات الصالون", icon: "⚙️" },
-  { href: "/admin/profile", label: "حسابي", icon: "👤" },
+const nav: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/admin", label: "الرئيسية", icon: LayoutDashboard },
+  { href: "/admin/reports", label: "التقارير المالية", icon: BarChart3 },
+  { href: "/admin/barbers", label: "الحلاقين", icon: Scissors },
+  { href: "/admin/bookings", label: "الحجوزات", icon: CalendarDays },
+  { href: "/admin/notifications", label: "الإشعارات", icon: Bell },
+  { href: "/admin/settings", label: "إعدادات الصالون", icon: Settings },
+  { href: "/admin/profile", label: "حسابي", icon: UserRound },
 ];
 
 export default function AdminClientLayout({ children }: { children: ReactNode }) {
@@ -69,8 +79,8 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
     const active = isItemActive(href);
     return `flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
       active
-        ? "bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20 font-bold"
-        : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+        ? "bg-[var(--bs-primary)] font-bold text-[var(--bs-on-primary)] shadow-md shadow-[var(--bs-primary)]/20"
+        : "text-[var(--bs-text-muted)] hover:bg-[var(--bs-primary-soft)] hover:text-[var(--bs-text)]"
     }`;
   };
 
@@ -95,17 +105,19 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
 
       {/* ── Desktop Sidebar (Visible only on lg screens) ── */}
       <aside className="hidden lg:block shrink-0 space-y-1.5 lg:w-64 sticky top-20 h-fit">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-3 shadow-xl space-y-1">
+        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 p-3 shadow-xl space-y-1">
           {nav.map((item) => {
             const active = isItemActive(item.href);
             return (
               <Link key={item.href} href={item.href} className={desktopLinkCls(item.href)}>
-                <span className="text-lg">{item.icon}</span>
+                <item.icon className="h-5 w-5 shrink-0" />
                 <span>{item.label}</span>
                 {item.href === "/admin/notifications" && unread > 0 && (
                   <span
                     className={`mr-auto rounded-full px-2 py-0.5 text-xs font-black ${
-                      active ? "bg-zinc-950 text-amber-400" : "bg-amber-500 text-zinc-950"
+                      active
+                        ? "bg-[var(--bs-bg)] text-[var(--bs-primary)]"
+                        : "bg-[var(--bs-primary)] text-[var(--bs-on-primary)]"
                     }`}
                   >
                     {unread}
@@ -128,7 +140,7 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
       {/* ── Persistent Bottom Navigation Bar for Mobile (Visible on < lg screens) ── */}
       <nav
         aria-label="التنقل السفلي للهاتف"
-        className="fixed bottom-0 inset-x-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur-lg px-2 py-1.5 shadow-2xl lg:hidden safe-area-pb"
+        className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--bs-border)] bg-[var(--bs-bg)]/95 px-2 py-1.5 shadow-2xl backdrop-blur-lg lg:hidden safe-area-pb"
       >
         <div className="mx-auto flex max-w-md items-center justify-around">
           {nav.map((item) => {
@@ -138,27 +150,29 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
                 key={item.href}
                 href={item.href}
                 className={`relative flex flex-1 flex-col items-center justify-center py-1 text-center transition-all ${
-                  active ? "text-amber-400 scale-105 font-bold" : "text-zinc-400 hover:text-zinc-200"
+                  active
+                    ? "scale-105 font-bold text-[var(--bs-primary)]"
+                    : "text-[var(--bs-text-muted)] hover:text-[var(--bs-text)]"
                 }`}
               >
                 {/* Icon with notification badge */}
                 <div className="relative">
-                  <span className="text-xl leading-none">{item.icon}</span>
+                  <item.icon className="h-5 w-5" />
                   {item.href === "/admin/notifications" && unread > 0 && (
-                    <span className="absolute -top-1 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-black text-zinc-950 ring-2 ring-zinc-950 animate-pulse">
+                    <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--bs-primary)] px-1 text-[9px] font-black text-[var(--bs-on-primary)] ring-2 ring-[var(--bs-bg)]">
                       {unread > 9 ? "9+" : unread}
                     </span>
                   )}
                 </div>
 
                 {/* Short label */}
-                <span className="mt-1 text-[10px] sm:text-[11px] leading-tight tracking-tight">
+                <span className="mt-1 text-[10px] leading-tight tracking-tight sm:text-[11px]">
                   {item.label}
                 </span>
 
                 {/* Active indicator bar */}
                 {active && (
-                  <span className="mt-0.5 h-1 w-5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50" />
+                  <span className="mt-0.5 h-1 w-5 rounded-full bg-[var(--bs-primary)] shadow-sm shadow-[var(--bs-primary)]/50" />
                 )}
               </Link>
             );

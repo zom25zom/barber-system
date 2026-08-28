@@ -52,14 +52,14 @@ export default function BookingCountdown({
 
   if (isMyTurn || isTimeReached) {
     return (
-      <div className="rounded-2xl border-2 border-emerald-500/60 bg-emerald-500/15 p-4 sm:p-5 text-center shadow-lg animate-pulse space-y-2">
+      <div className="animate-pulse space-y-2 rounded-2xl border-2 border-[var(--bs-success)]/60 bg-[var(--bs-success-soft)] p-4 text-center shadow-lg sm:p-5">
         <div className="flex items-center justify-center gap-2">
           <span className="text-2xl">⚡</span>
-          <span className="text-base sm:text-lg font-black text-emerald-300">
+          <span className="text-base font-black text-[var(--bs-success)] sm:text-lg">
             حان وقت حجزك الآن!
           </span>
         </div>
-        <p className="text-xs text-emerald-200">
+        <p className="text-xs text-[var(--bs-success)]/80">
           تفضل بالتوجه لكرسي الحلاقة، الحلاق بانتظارك.
         </p>
       </div>
@@ -75,99 +75,82 @@ export default function BookingCountdown({
   const pad = (n: number) => String(n).padStart(2, "0");
 
   return (
-    <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-b from-zinc-900 to-zinc-950 p-4 sm:p-5 shadow-xl space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 pb-3">
+    <div className="space-y-4 rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-bg)]/70 p-4 shadow-inner sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--bs-border)] pb-3">
         <div className="flex items-center gap-2">
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--bs-primary)] opacity-60"></span>
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[var(--bs-primary)]"></span>
           </span>
-          <span className="text-xs sm:text-sm font-bold text-zinc-100">
+          <span className="text-xs font-bold text-[var(--bs-text)] sm:text-sm">
             العداد التنازلي لموعد دخولك
           </span>
         </div>
 
         {delayMinutes > 0 ? (
-          <span className="rounded-full border border-orange-500/40 bg-orange-500/10 px-2.5 py-0.5 text-[11px] font-bold text-orange-300">
+          <span className="rounded-full border border-[var(--bs-warning)]/40 bg-[var(--bs-warning-soft)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--bs-warning)]">
             ⚠️ تأخير متوقع: +{delayMinutes} دقيقة
           </span>
         ) : (
-          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400">
+          <span className="rounded-full border border-[var(--bs-success)]/30 bg-[var(--bs-success-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--bs-success)]">
             ✓ في الموعد المحدد
           </span>
         )}
       </div>
 
       {/* Countdown Digits Grid */}
-      <div className="flex items-center justify-center gap-2 sm:gap-3 py-1" dir="ltr">
+      <div className="flex items-center justify-center gap-2 py-1 sm:gap-3" dir="ltr">
         {days > 0 && (
           <>
-            <div className="flex flex-col items-center">
-              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl border border-zinc-700 bg-zinc-950 shadow-inner">
-                <span className="font-mono text-2xl sm:text-3xl font-black text-amber-400">
-                  {pad(days)}
-                </span>
-              </div>
-              <span className="mt-1 text-[10px] sm:text-xs font-semibold text-zinc-400">
-                أيام
-              </span>
-            </div>
-            <span className="text-xl font-bold text-zinc-600 mb-5">:</span>
+            <DigitBlock value={pad(days)} label="أيام" />
+            <Colon />
           </>
         )}
 
-        <div className="flex flex-col items-center">
-          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl border border-zinc-700 bg-zinc-950 shadow-inner">
-            <span className="font-mono text-2xl sm:text-3xl font-black text-amber-400">
-              {pad(hours)}
-            </span>
-          </div>
-          <span className="mt-1 text-[10px] sm:text-xs font-semibold text-zinc-400">
-            ساعات
-          </span>
-        </div>
-
-        <span className="text-xl font-bold text-zinc-600 mb-5">:</span>
-
-        <div className="flex flex-col items-center">
-          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl border border-zinc-700 bg-zinc-950 shadow-inner">
-            <span className="font-mono text-2xl sm:text-3xl font-black text-amber-400">
-              {pad(minutes)}
-            </span>
-          </div>
-          <span className="mt-1 text-[10px] sm:text-xs font-semibold text-zinc-400">
-            دقائق
-          </span>
-        </div>
-
-        <span className="text-xl font-bold text-zinc-600 mb-5">:</span>
-
-        <div className="flex flex-col items-center">
-          <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl border border-amber-500/40 bg-zinc-950 shadow-inner">
-            <span className="font-mono text-2xl sm:text-3xl font-black text-amber-400 animate-pulse">
-              {pad(seconds)}
-            </span>
-          </div>
-          <span className="mt-1 text-[10px] sm:text-xs font-semibold text-amber-400">
-            ثواني
-          </span>
-        </div>
+        <DigitBlock value={pad(hours)} label="ساعات" />
+        <Colon />
+        <DigitBlock value={pad(minutes)} label="دقائق" />
+        <Colon />
+        <DigitBlock value={pad(seconds)} label="ثواني" pulse />
       </div>
 
       {/* Delay / Time details notice */}
       {delayMinutes > 0 ? (
-        <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-2.5 text-center text-xs text-orange-300">
+        <div className="rounded-xl border border-[var(--bs-warning)]/30 bg-[var(--bs-warning-soft)] p-2.5 text-center text-xs text-[var(--bs-warning)]">
           تم احتساب وقت الانتهاء المتوقع للزبائن السابقين. الموعد الفعلي المتوقع هو{" "}
-          <strong className="font-bold text-white">
+          <strong className="font-bold text-[var(--bs-text)]">
             {formatTime12(effectiveStartTime)}
           </strong>{" "}
           (الموعد المحجوز أصلاً: {formatTime12(startTime)}).
         </div>
       ) : (
-        <div className="text-center text-[11px] text-zinc-400">
+        <div className="text-center text-[11px] text-[var(--bs-text-faint)]">
           الموعد المقرر: {bookingDate} الساعة {formatTime12(startTime)}
         </div>
       )}
     </div>
   );
+}
+
+function DigitBlock({ value, label, pulse }: { value: string; label: string; pulse?: boolean }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-[var(--bs-border)] bg-[var(--bs-surface)] shadow-sm sm:h-16 sm:w-16">
+        <span
+          className={`text-2xl font-black tabular-nums text-[var(--bs-primary)] sm:text-3xl ${
+            pulse ? "animate-pulse" : ""
+          }`}
+        >
+          {value}
+        </span>
+      </div>
+      <span className="mt-1.5 text-[10px] font-semibold text-[var(--bs-text-faint)] sm:text-xs">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function Colon() {
+  return <span className="mb-5 text-xl font-bold text-[var(--bs-border-strong)]">:</span>;
 }

@@ -1,13 +1,30 @@
 "use client";
 
+/**
+ * Global toast system — migrated to shadcn/ui Sonner (Phase 2).
+ *
+ * PUBLIC API IS UNCHANGED (all existing call sites keep working):
+ *   • ToasterProvider  — mount once at root
+ *   • useToast()       → toastFn(message, type?, duration?) with .success/.error/.warning/.info
+ *   • showToast()      → imperative dispatch outside React (same CustomEvent bridge)
+ *   • ToastType, ToastFunction types
+ *
+ * Rendering is delegated to the Sonner <Toaster/> (ui/sonner.tsx) with
+ * palette-harmonized colors. The friendly-message translation logic for
+ * network/401 errors is preserved verbatim.
+ */
+
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
-  useState,
+  useRef,
   type ReactNode,
 } from "react";
+import { toast as sonner } from "sonner";
+import { CheckCircle2, XCircle, AlertTriangle, Info } from "lucide-react";
+import { Toaster } from "@/components/ui/sonner";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
@@ -33,6 +50,31 @@ defaultToastFn.warning = () => {};
 defaultToastFn.info = () => {};
 
 const ToastContext = createContext<ToastFunction>(defaultToastFn as ToastFunction);
+
+/** Friendly-message translation (unchanged logic) */
+function friendlyMessage(message: string, type: ToastType): string {
+  if (type === "error") {
+    if (
+      !message ||
+      message.includes("Failed to fetch") ||
+      message.includes("NetworkError") ||
+      message.includes("Internal Server Error")
+    ) {
+      return "تعذر الاتصال بالخادم، يرجى التأكد من اتصال الإنترنت والمحاولة ثانية.";
+    }
+    if (message.includes("Unauthorized") || message.includes("401")) {
+      return "انتهت الجلسة، يرجى إعادة تسجيل الدخول.";
+    }
+  }
+  return message;
+}
+
+const ICONS: Record<ToastType, ReactNode> = {
+  success: <CheckCircle2 className="h-5 w-5" />,
+  error: <XCircle className="h-5 w-5" />,
+  warning: <AlertTriangle className="h-5 w-5" />,
+  info: <Info className="h-5 w-5" />,
+};
 
 /**
  * Global helper for dispatching toast events from anywhere (inside or outside React)
@@ -75,49 +117,34 @@ export function useToast(): ToastFunction {
 }
 
 export function ToasterProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  // bridge: window event → sonner (addToast logic preserved)
+  const addToastRef = useRef<
+    (message: string, type?: ToastType, duration?: number) => void
+  >(() => {});
 
   const addToast = useCallback(
     (message: string, type: ToastType = "success", duration: number = 4500) => {
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      // Translate raw technical messages to user-friendly Arabic
-      let friendlyMessage = message;
-      if (type === "error") {
-        if (
-          !message ||
-          message.includes("Failed to fetch") ||
-          message.includes("NetworkError") ||
-          message.includes("Internal Server Error")
-        ) {
-          friendlyMessage = "تعذر الاتصال بالخادم، يرجى التأكد من اتصال الإنترنت والمحاولة ثانية.";
-        } else if (message.includes("Unauthorized") || message.includes("401")) {
-          friendlyMessage = "انتهت الجلسة، يرجى إعادة تسجيل الدخول.";
-        }
-      }
-
-      setToasts((prev) => [...prev, { id, message: friendlyMessage, type, duration }]);
-
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, duration);
+      const msg = friendlyMessage(message, type);
+      const opts = { duration, icon: ICONS[type] };
+      if (type === "success") sonner.success(msg, opts);
+      else if (type === "error") sonner.error(msg, opts);
+      else if (type === "warning") sonner.warning(msg, opts);
+      else sonner.info(msg, opts);
     },
     [],
   );
+  addToastRef.current = addToast;
 
   useEffect(() => {
     const handleCustomToast = (e: Event) => {
       const custom = e as CustomEvent<{ message: string; type?: ToastType; duration?: number }>;
       if (custom.detail?.message) {
-        addToast(custom.detail.message, custom.detail.type || "success", custom.detail.duration);
+        addToastRef.current(custom.detail.message, custom.detail.type || "success", custom.detail.duration);
       }
     };
 
     window.addEventListener("app:toast", handleCustomToast);
     return () => window.removeEventListener("app:toast", handleCustomToast);
-  }, [addToast]);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const toastFn: any = useCallback(
@@ -135,7 +162,7 @@ export function ToasterProvider({ children }: { children: ReactNode }) {
   );
 
   toastFn.error = useCallback(
-    (message: string = "حدث خطأ، يرجى المحاولة مرة أخرى ⚠️", duration: number = 5500) => {
+    (message: string = "حدث خطأ، يرجى المحاولة مرة أخرى ⚠️", duration?: number) => {
       addToast(message, "error", duration);
     },
     [addToast],
@@ -158,63 +185,8 @@ export function ToasterProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={toastFn as ToastFunction}>
       {children}
-
-      {/* Floating Toast Notification Container */}
-      <div
-        aria-live="polite"
-        className="fixed top-4 inset-x-4 sm:inset-x-auto sm:right-6 z-[99999] pointer-events-none flex flex-col items-center sm:items-end gap-2.5 max-w-md w-full"
-      >
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            role="alert"
-            className={`pointer-events-auto flex items-center justify-between gap-3 w-full rounded-2xl p-4 shadow-2xl backdrop-blur-xl border transition-all animate-in fade-in slide-in-from-top-4 duration-200 ${
-              t.type === "success"
-                ? "bg-zinc-900/95 border-emerald-500/50 text-emerald-100 shadow-emerald-950/40"
-                : t.type === "error"
-                  ? "bg-zinc-900/95 border-red-500/50 text-red-100 shadow-red-950/40"
-                  : t.type === "warning"
-                    ? "bg-zinc-900/95 border-amber-500/50 text-amber-100 shadow-amber-950/40"
-                    : "bg-zinc-900/95 border-blue-500/50 text-blue-100 shadow-blue-950/40"
-            }`}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm font-black shadow-inner ${
-                  t.type === "success"
-                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                    : t.type === "error"
-                      ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                      : t.type === "warning"
-                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                        : "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                }`}
-              >
-                {t.type === "success"
-                  ? "✓"
-                  : t.type === "error"
-                    ? "✕"
-                    : t.type === "warning"
-                      ? "⚠️"
-                      : "ℹ️"}
-              </span>
-              <p className="text-xs sm:text-sm font-bold leading-snug break-words">
-                {t.message}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => removeToast(t.id)}
-              className="shrink-0 p-1 text-zinc-400 hover:text-zinc-100 transition rounded-lg hover:bg-zinc-800"
-              aria-label="إغلاق التنبيه"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
-      </div>
+      {/* Sonner rendering — palette-harmonized via ui/sonner.tsx + globals.css */}
+      <Toaster />
     </ToastContext.Provider>
   );
 }
-

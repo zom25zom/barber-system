@@ -11,10 +11,10 @@ import { useToast } from "@/components/Toaster";
 import type { Booking, OwnerBarber, Customer, Service, Slot } from "@/lib/types";
 
 const statusColor: Record<string, string> = {
-  confirmed: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  cancelled: "bg-red-500/15 text-red-400 border-red-500/30",
-  completed: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  no_show: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+  confirmed: "bg-[var(--bs-primary-soft)] text-[var(--bs-primary)] border-[var(--bs-primary)]/40",
+  cancelled: "bg-[var(--bs-error-soft)] text-[var(--bs-error)] border-[var(--bs-error)]/40",
+  completed: "bg-[var(--bs-success-soft)] text-[var(--bs-success)] border-[var(--bs-success)]/40",
+  no_show: "bg-[var(--bs-warning-soft)] text-[var(--bs-warning)] border-[var(--bs-warning)]/40",
 };
 
 export default function AdminBookingsPage() {
@@ -321,33 +321,33 @@ export default function AdminBookingsPage() {
       {manualModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div
-            className="fixed inset-0 bg-zinc-950/80 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-[var(--bs-bg)]/80 backdrop-blur-sm transition-opacity"
             onClick={() => {
               if (!manualSubmitting) setManualModalOpen(false);
             }}
           />
 
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-zinc-800 bg-zinc-900 p-6 sm:p-8 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-[var(--bs-border)] bg-[var(--bs-surface)] p-6 sm:p-8 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between border-b border-[var(--bs-border)] pb-4">
               <div>
-                <h2 className="text-xl font-bold text-amber-400 flex items-center gap-2">
+                <h2 className="text-xl font-bold text-[var(--bs-primary)] flex items-center gap-2">
                   <span>✂️</span> إضافة حجز يدوي مباشر
                 </h2>
-                <p className="text-xs text-zinc-400 mt-0.5">
+                <p className="text-xs text-[var(--bs-text-muted)] mt-0.5">
                   تسجيل حجز مباشر من الصالون مع التحقق التلقائي من توفر الوقت والتعارضات.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setManualModalOpen(false)}
-                className="rounded-xl border border-zinc-800 bg-zinc-950 p-2 text-zinc-400 hover:text-white"
+                className="rounded-xl border border-[var(--bs-border)] bg-[var(--bs-bg)] p-2 text-[var(--bs-text-muted)] hover:text-white"
               >
                 ✕
               </button>
             </div>
 
             {manualError && (
-              <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3.5 text-xs sm:text-sm text-red-400 flex items-center gap-2">
+              <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3.5 text-xs sm:text-sm text-[var(--bs-error)] flex items-center gap-2">
                 <span>⚠️</span>
                 <span>{manualError}</span>
               </div>
@@ -355,10 +355,10 @@ export default function AdminBookingsPage() {
 
             <form onSubmit={handleCreateManualBooking} className="space-y-6">
               {/* Section 1: Customer Selection */}
-              <div className="space-y-3 rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-4">
+              <div className="space-y-3 rounded-2xl border border-[var(--bs-border)]/80 bg-[var(--bs-bg)]/50 p-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-bold text-zinc-200">1. بيانات الزبون</label>
-                  <div className="flex rounded-xl border border-zinc-800 bg-zinc-900 p-1 text-xs">
+                  <label className="text-sm font-bold text-[var(--bs-text)]">1. بيانات الزبون</label>
+                  <div className="flex rounded-xl border border-[var(--bs-border)] bg-[var(--bs-surface)] p-1 text-xs">
                     <button
                       type="button"
                       onClick={() => {
@@ -367,8 +367,8 @@ export default function AdminBookingsPage() {
                       }}
                       className={`rounded-lg px-3 py-1 font-semibold transition ${
                         customerMode === "existing"
-                          ? "bg-amber-500 text-zinc-950 font-bold"
-                          : "text-zinc-400 hover:text-white"
+                          ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)] font-bold"
+                          : "text-[var(--bs-text-muted)] hover:text-white"
                       }`}
                     >
                       🔍 زبون مسجل
@@ -382,8 +382,8 @@ export default function AdminBookingsPage() {
                       }}
                       className={`rounded-lg px-3 py-1 font-semibold transition ${
                         customerMode === "new"
-                          ? "bg-amber-500 text-zinc-950 font-bold"
-                          : "text-zinc-400 hover:text-white"
+                          ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)] font-bold"
+                          : "text-[var(--bs-text-muted)] hover:text-white"
                       }`}
                     >
                       👤 زبون جديد
@@ -394,18 +394,18 @@ export default function AdminBookingsPage() {
                 {customerMode === "existing" ? (
                   <div className="space-y-2">
                     {selectedCustomer ? (
-                      <div className="flex items-center justify-between rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm">
+                      <div className="flex items-center justify-between rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-4 py-2.5 text-sm">
                         <div className="flex items-center gap-2">
                           <span className="text-lg">✅</span>
                           <div>
-                            <p className="font-bold text-emerald-400">{selectedCustomer.username}</p>
-                            <p className="text-xs text-zinc-400" dir="ltr">{selectedCustomer.phone}</p>
+                            <p className="font-bold text-[var(--bs-success)]">{selectedCustomer.username}</p>
+                            <p className="text-xs text-[var(--bs-text-muted)]" dir="ltr">{selectedCustomer.phone}</p>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => setSelectedCustomer(null)}
-                          className="text-xs font-semibold text-zinc-400 hover:text-red-400"
+                          className="text-xs font-semibold text-[var(--bs-text-muted)] hover:text-[var(--bs-error)]"
                         >
                           تغيير ✕
                         </button>
@@ -417,14 +417,14 @@ export default function AdminBookingsPage() {
                           value={customerSearch}
                           onChange={(e) => setCustomerSearch(e.target.value)}
                           placeholder="ابحث بالاسم أو رقم الهاتف…"
-                          className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-amber-500"
+                          className="w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2.5 text-sm text-[var(--bs-text)] placeholder:text-[var(--bs-text-faint)] outline-none focus:border-[var(--bs-primary)]"
                         />
-                        <div className="max-h-36 overflow-y-auto space-y-1 rounded-xl border border-zinc-800 bg-zinc-950/80 p-2">
+                        <div className="max-h-36 overflow-y-auto space-y-1 rounded-xl border border-[var(--bs-border)] bg-[var(--bs-bg)]/80 p-2">
                           {searchingCustomers && (
-                            <p className="text-xs text-zinc-500 text-center py-2">جاري البحث…</p>
+                            <p className="text-xs text-[var(--bs-text-faint)] text-center py-2">جاري البحث…</p>
                           )}
                           {!searchingCustomers && customerResults.length === 0 && (
-                            <p className="text-xs text-zinc-500 text-center py-2">
+                            <p className="text-xs text-[var(--bs-text-faint)] text-center py-2">
                               لا يوجد زبائن مطابقين. يمكنك التبديل إلى &quot;زبون جديد&quot; بالأعلى.
                             </p>
                           )}
@@ -432,10 +432,10 @@ export default function AdminBookingsPage() {
                             <div
                               key={c.id}
                               onClick={() => setSelectedCustomer(c)}
-                              className="flex items-center justify-between rounded-lg px-3 py-2 text-xs sm:text-sm hover:bg-zinc-800/80 cursor-pointer transition"
+                              className="flex items-center justify-between rounded-lg px-3 py-2 text-xs sm:text-sm hover:bg-[var(--bs-surface-raised)] cursor-pointer transition"
                             >
-                              <span className="font-semibold text-zinc-200">{c.username}</span>
-                              <span className="text-zinc-400 font-mono" dir="ltr">{c.phone}</span>
+                              <span className="font-semibold text-[var(--bs-text)]">{c.username}</span>
+                              <span className="text-[var(--bs-text-muted)] font-mono" dir="ltr">{c.phone}</span>
                             </div>
                           ))}
                         </div>
@@ -445,18 +445,18 @@ export default function AdminBookingsPage() {
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
-                      <label className="mb-1 block text-xs text-zinc-400">اسم الزبون *</label>
+                      <label className="mb-1 block text-xs text-[var(--bs-text-muted)]">اسم الزبون *</label>
                       <input
                         type="text"
                         required={customerMode === "new"}
                         value={newCustomerName}
                         onChange={(e) => setNewCustomerName(e.target.value)}
                         placeholder="مثال: أحمد خالد"
-                        className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2 text-sm text-zinc-100 placeholder-zinc-500 outline-none focus:border-amber-500"
+                        className="w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-3.5 py-2 text-sm text-[var(--bs-text)] placeholder:text-[var(--bs-text-faint)] outline-none focus:border-[var(--bs-primary)]"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs text-zinc-400">رقم الهاتف *</label>
+                      <label className="mb-1 block text-xs text-[var(--bs-text-muted)]">رقم الهاتف *</label>
                       <input
                         type="tel"
                         dir="ltr"
@@ -464,7 +464,7 @@ export default function AdminBookingsPage() {
                         value={newCustomerPhone}
                         onChange={(e) => setNewCustomerPhone(e.target.value)}
                         placeholder="0790000000"
-                        className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2 text-sm text-left text-zinc-100 placeholder-zinc-500 outline-none focus:border-amber-500"
+                        className="w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-3.5 py-2 text-sm text-left text-[var(--bs-text)] placeholder:text-[var(--bs-text-faint)] outline-none focus:border-[var(--bs-primary)]"
                       />
                     </div>
                   </div>
@@ -472,12 +472,12 @@ export default function AdminBookingsPage() {
               </div>
 
               {/* Section 2: Barber Selection */}
-              <div className="space-y-3 rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-4">
-                <label className="block text-sm font-bold text-zinc-200">2. اختيار الحلاق</label>
+              <div className="space-y-3 rounded-2xl border border-[var(--bs-border)]/80 bg-[var(--bs-bg)]/50 p-4">
+                <label className="block text-sm font-bold text-[var(--bs-text)]">2. اختيار الحلاق</label>
                 <select
                   value={manualBarberId}
                   onChange={(e) => setManualBarberId(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-amber-500"
+                  className="w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2.5 text-sm text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
                 >
                   {barbers.map((b) => (
                     <option key={b.id} value={b.id}>
@@ -488,18 +488,18 @@ export default function AdminBookingsPage() {
               </div>
 
               {/* Section 3: Services Selection */}
-              <div className="space-y-3 rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-4">
+              <div className="space-y-3 rounded-2xl border border-[var(--bs-border)]/80 bg-[var(--bs-bg)]/50 p-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-bold text-zinc-200">3. اختيار الخدمات</label>
+                  <label className="text-sm font-bold text-[var(--bs-text)]">3. اختيار الخدمات</label>
                   {selectedServiceIds.length > 0 && (
-                    <span className="text-xs text-amber-400 font-bold">
+                    <span className="text-xs text-[var(--bs-primary)] font-bold">
                       {manualTotalPrice} د.أ ({manualTotalDuration} دقيقة)
                     </span>
                   )}
                 </div>
 
                 {barberServices.length === 0 ? (
-                  <p className="text-xs text-zinc-500 py-2">لا توجد خدمات مسجلة لهذا الحلاق.</p>
+                  <p className="text-xs text-[var(--bs-text-faint)] py-2">لا توجد خدمات مسجلة لهذا الحلاق.</p>
                 ) : (
                   <div className="grid gap-2 sm:grid-cols-2 max-h-40 overflow-y-auto">
                     {barberServices.map((svc) => {
@@ -510,13 +510,13 @@ export default function AdminBookingsPage() {
                           onClick={() => toggleService(svc.id)}
                           className={`flex items-center justify-between rounded-xl border p-3 cursor-pointer transition ${
                             isSelected
-                              ? "border-amber-500 bg-amber-500/10 text-amber-300"
-                              : "border-zinc-800 bg-zinc-950 hover:border-zinc-700 text-zinc-300"
+                              ? "border-[var(--bs-primary)] bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]"
+                              : "border-[var(--bs-border)] bg-[var(--bs-bg)] hover:border-[var(--bs-border-strong)] text-[var(--bs-text-muted)]"
                           }`}
                         >
                           <div>
                             <p className="text-xs sm:text-sm font-bold">{svc.name}</p>
-                            <p className="text-[11px] text-zinc-400">{svc.duration_minutes} دقيقة</p>
+                            <p className="text-[11px] text-[var(--bs-text-muted)]">{svc.duration_minutes} دقيقة</p>
                           </div>
                           <span className="text-xs font-bold font-mono">{svc.price} د.أ</span>
                         </div>
@@ -527,14 +527,14 @@ export default function AdminBookingsPage() {
               </div>
 
               {/* Section 4: Date & Available Slots */}
-              <div className="space-y-3 rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-4">
-                <label className="block text-sm font-bold text-zinc-200">4. التاريخ والأوقات المتاحة</label>
+              <div className="space-y-3 rounded-2xl border border-[var(--bs-border)]/80 bg-[var(--bs-bg)]/50 p-4">
+                <label className="block text-sm font-bold text-[var(--bs-text)]">4. التاريخ والأوقات المتاحة</label>
                 <input
                   type="date"
                   min={todayDateISO()}
                   value={manualDate}
                   onChange={(e) => setManualDate(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-sm text-zinc-100 outline-none focus:border-amber-500"
+                  className="w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2.5 text-sm text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
                 />
 
                 {manualSlotsLoading && (
@@ -544,20 +544,20 @@ export default function AdminBookingsPage() {
                 )}
 
                 {!manualSlotsLoading && manualIsTimeOff && (
-                  <div className="rounded-xl border border-orange-500/30 bg-orange-500/10 p-3 text-xs text-orange-400">
+                  <div className="rounded-xl border border-[var(--bs-warning)]/40 bg-[var(--bs-warning-soft)] p-3 text-xs text-[var(--bs-warning)]">
                     ⚠️ الحلاق في إجازة خاصة بهذا اليوم{manualTimeOffReason ? ` (${manualTimeOffReason})` : ""}.
                   </div>
                 )}
 
                 {!manualSlotsLoading && !manualIsTimeOff && selectedServiceIds.length > 0 && manualSlots.length === 0 && (
-                  <p className="text-xs text-zinc-500 py-2 text-center">
+                  <p className="text-xs text-[var(--bs-text-faint)] py-2 text-center">
                     لا توجد فترات عمل متاحة بهذا اليوم (عطلة أو محجوز بالكامل).
                   </p>
                 )}
 
                 {!manualSlotsLoading && manualSlots.length > 0 && (
                   <div>
-                    <p className="text-xs text-zinc-400 mb-2">اختر الفترة المناسبة:</p>
+                    <p className="text-xs text-[var(--bs-text-muted)] mb-2">اختر الفترة المناسبة:</p>
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-36 overflow-y-auto">
                       {manualSlots.map((s, idx) => {
                         const isSel = selectedSlot?.start_time === s.start_time;
@@ -568,8 +568,8 @@ export default function AdminBookingsPage() {
                             onClick={() => setSelectedSlot(s)}
                             className={`rounded-xl border py-2 text-xs font-bold transition ${
                               isSel
-                                ? "border-amber-500 bg-amber-500 text-zinc-950 shadow-md scale-105"
-                                : "border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-700"
+                                ? "border-[var(--bs-primary)] bg-[var(--bs-primary)] text-[var(--bs-on-primary)] shadow-md scale-105"
+                                : "border-[var(--bs-border)] bg-[var(--bs-bg)] text-[var(--bs-text-muted)] hover:border-[var(--bs-border-strong)]"
                             }`}
                           >
                             {formatTime12(s.start_time)}
@@ -582,19 +582,19 @@ export default function AdminBookingsPage() {
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--bs-border)]">
                 <button
                   type="button"
                   disabled={manualSubmitting}
                   onClick={() => setManualModalOpen(false)}
-                  className="rounded-xl border border-zinc-700 bg-zinc-800/60 px-5 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition disabled:opacity-50"
+                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-5 py-2.5 text-sm font-medium text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition disabled:opacity-50"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={manualSubmitting || !selectedSlot || selectedServiceIds.length === 0}
-                  className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-7 py-2.5 text-sm font-bold text-zinc-950 hover:bg-amber-400 active:scale-95 transition shadow-lg disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--bs-primary)] px-7 py-2.5 text-sm font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] active:scale-95 transition shadow-lg disabled:opacity-50"
                 >
                   {manualSubmitting ? (
                     <>
@@ -612,11 +612,11 @@ export default function AdminBookingsPage() {
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-zinc-100">إدارة ومتابعة الحجوزات</h1>
+        <h1 className="text-2xl font-bold text-[var(--bs-text)]">إدارة ومتابعة الحجوزات</h1>
         <button
           type="button"
           onClick={openManualBooking}
-          className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-zinc-950 hover:bg-amber-400 shadow-md shadow-amber-500/20 active:scale-95 transition"
+          className="inline-flex items-center gap-2 rounded-xl bg-[var(--bs-primary)] px-5 py-2.5 text-sm font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] shadow-md shadow-[var(--bs-primary)]/20 active:scale-95 transition"
         >
           <span>✂️</span>
           <span>+ إضافة حجز يدوي</span>
@@ -624,13 +624,13 @@ export default function AdminBookingsPage() {
       </div>
 
       {/* ── filters ── */}
-      <div className="flex flex-wrap gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm">
+      <div className="flex flex-wrap gap-3 rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)] p-4 shadow-sm">
         <div>
-          <label className="mb-1 block text-xs text-zinc-400 font-medium">الحلاق</label>
+          <label className="mb-1 block text-xs text-[var(--bs-text-muted)] font-medium">الحلاق</label>
           <select
             value={filterBarber}
             onChange={(e) => setFilterBarber(e.target.value)}
-            className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
+            className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-3 py-2 text-sm text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
           >
             <option value="">كل الحلاقين</option>
             {barbers.map((b) => (
@@ -641,11 +641,11 @@ export default function AdminBookingsPage() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs text-zinc-400 font-medium">الحالة</label>
+          <label className="mb-1 block text-xs text-[var(--bs-text-muted)] font-medium">الحالة</label>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
+            className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-3 py-2 text-sm text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
           >
             <option value="">جميع الحالات</option>
             <option value="confirmed">مؤكد</option>
@@ -655,12 +655,12 @@ export default function AdminBookingsPage() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs text-zinc-400 font-medium">التاريخ</label>
+          <label className="mb-1 block text-xs text-[var(--bs-text-muted)] font-medium">التاريخ</label>
           <input
             type="date"
             value={filterDate}
             onChange={(e) => setFilterDate(e.target.value)}
-            className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-amber-500"
+            className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-3 py-2 text-sm text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
           />
         </div>
         {(filterBarber || filterStatus || filterDate) && (
@@ -670,7 +670,7 @@ export default function AdminBookingsPage() {
               setFilterStatus("");
               setFilterDate("");
             }}
-            className="self-end rounded-xl border border-zinc-700 px-3.5 py-2 text-xs font-semibold text-zinc-400 hover:bg-zinc-800 hover:text-white transition"
+            className="self-end rounded-xl border border-[var(--bs-border-strong)] px-3.5 py-2 text-xs font-semibold text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition"
           >
             مسح الفلاتر ✕
           </button>
@@ -678,40 +678,40 @@ export default function AdminBookingsPage() {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-400 flex items-center justify-between">
+        <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
           <span>⚠️ {error}</span>
-          <button onClick={() => setError(null)} className="text-xs text-red-300 hover:underline">
+          <button onClick={() => setError(null)} className="text-xs text-[var(--bs-error)] hover:underline">
             إغلاق
           </button>
         </div>
       )}
 
       {loading && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-12 text-center">
+        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-12 text-center">
           <Spinner size="lg" label="جاري تحميل الحجوزات…" />
         </div>
       )}
 
       {/* ── bookings table ── */}
       {!loading && bookings.length === 0 && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-8 text-center text-zinc-400">
+        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/40 p-8 text-center text-[var(--bs-text-muted)]">
           لا توجد حجوزات تطابق الفلاتر المحددة.
         </div>
       )}
 
       <div className="space-y-3">
         {bookings.map((b) => (
-          <div key={b.id} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 space-y-3 shadow-md transition hover:border-zinc-700">
+          <div key={b.id} className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)] p-4 space-y-3 shadow-md transition hover:border-[var(--bs-border-strong)]">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-bold text-zinc-100 text-base">
+                  <p className="font-bold text-[var(--bs-text)] text-base">
                     {b.customer_name}
                   </p>
                   {b.customer_phone && (
                     <a
                       href={`tel:${b.customer_phone}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition active:scale-95 shadow-sm"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--bs-success)] hover:brightness-110 transition active:scale-95 shadow-sm"
                       title="اتصال مباشر بالعميل"
                       dir="ltr"
                     >
@@ -720,21 +720,21 @@ export default function AdminBookingsPage() {
                     </a>
                   )}
                 </div>
-                <p className="text-xs sm:text-sm text-zinc-300 mt-1">
-                  مع الحلاق <span className="font-bold text-amber-400">{b.barber_name}</span> — {b.booking_date}
+                <p className="text-xs sm:text-sm text-[var(--bs-text-muted)] mt-1">
+                  مع الحلاق <span className="font-bold text-[var(--bs-primary)]">{b.barber_name}</span> — {b.booking_date}
                 </p>
-                <p className="text-xs sm:text-sm text-zinc-400">
+                <p className="text-xs sm:text-sm text-[var(--bs-text-muted)]">
                   ⏰ من {formatTime12(b.start_time)} إلى {formatTime12(b.end_time)}
                 </p>
                 {b.created_at && (
-                  <p className="text-[11px] text-zinc-500 mt-1">
+                  <p className="text-[11px] text-[var(--bs-text-faint)] mt-1">
                     تاريخ الإنشاء: {formatDateTime(b.created_at)}
                   </p>
                 )}
               </div>
               <span
                 className={`rounded-full border px-3 py-1 text-xs font-bold ${
-                  statusColor[b.status] ?? "bg-zinc-800 text-zinc-400"
+                  statusColor[b.status] ?? "bg-[var(--bs-surface-raised)] text-[var(--bs-text-muted)]"
                 }`}
               >
                 {BOOKING_STATUS_AR[b.status] ?? b.status}
@@ -743,11 +743,11 @@ export default function AdminBookingsPage() {
 
             {/* services */}
             {b.services?.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 bg-zinc-950/40 p-2 rounded-xl">
+              <div className="flex flex-wrap gap-1.5 bg-[var(--bs-bg)]/40 p-2 rounded-xl">
                 {b.services.map((s, i) => (
                   <span
                     key={i}
-                    className="rounded-lg bg-zinc-800 px-2.5 py-1 text-xs text-zinc-300"
+                    className="rounded-lg bg-[var(--bs-surface-raised)] px-2.5 py-1 text-xs text-[var(--bs-text-muted)]"
                   >
                     {s.name} ({s.price} د.أ)
                   </span>
@@ -756,13 +756,13 @@ export default function AdminBookingsPage() {
             )}
 
             {/* actions */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-zinc-800/80">
-              <p className="font-bold text-amber-400 text-base">{b.total_price} د.أ</p>
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[var(--bs-border)]/80">
+              <p className="font-bold text-[var(--bs-primary)] text-base">{b.total_price} د.أ</p>
               <div className="flex flex-wrap gap-2">
                 {b.customer_phone && (
                   <a
                     href={`tel:${b.customer_phone}`}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-3.5 py-1.5 text-xs font-semibold text-[var(--bs-success)] hover:brightness-110 active:scale-95 transition"
                     title="اتصال هاتفي مباشر بالعميل"
                   >
                     <span>📞</span>
@@ -774,21 +774,21 @@ export default function AdminBookingsPage() {
                     <button
                       onClick={() => markComplete(b.id)}
                       disabled={actionLoadingId === b.id}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 disabled:opacity-50 transition"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-3.5 py-1.5 text-xs font-semibold text-[var(--bs-success)] hover:brightness-110 disabled:opacity-50 transition"
                     >
                       {actionLoadingId === b.id ? <Spinner size="sm" color="white" /> : "✓ مكتمل"}
                     </button>
                     <button
                       onClick={() => markNoShow(b.id)}
                       disabled={actionLoadingId === b.id}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3.5 py-1.5 text-xs font-semibold text-orange-400 hover:bg-orange-500/20 disabled:opacity-50 transition"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--bs-warning)]/40 bg-[var(--bs-warning-soft)] px-3.5 py-1.5 text-xs font-semibold text-[var(--bs-warning)] hover:brightness-110 disabled:opacity-50 transition"
                     >
                       {actionLoadingId === b.id ? <Spinner size="sm" color="white" /> : "لم يحضر"}
                     </button>
                     <button
                       onClick={() => triggerCancel(b)}
                       disabled={actionLoadingId === b.id}
-                      className="rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition"
+                      className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] px-3.5 py-1.5 text-xs font-semibold text-[var(--bs-error)] hover:brightness-110 disabled:opacity-50 transition"
                     >
                       إلغاء
                     </button>

@@ -95,6 +95,100 @@ input[type="checkbox"] {
   accent-color: #f59e0b;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   Customer pages redesign layer — "premium barbershop editorial"
+   Scope: applied ONLY via the .bs-skin class on customer-facing page roots
+   (home, booking flow, login/register, my-bookings, profile, notifications,
+   customer navbar + bottom bar). Admin pages never opt in → untouched.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* IBM Plex Sans Arabic / Inter pairing on every customer surface */
+.bs-skin {
+  font-family: var(--bs-font-sans);
+}
+
+/* film-grain overlay — position it inside any relative parent for texture */
+.bs-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+}
+
+/* hairline rule that fades at both ends — section separators */
+.bs-hairline {
+  height: 1px;
+  background: linear-gradient(
+    to left,
+    transparent,
+    var(--bs-border-strong),
+    transparent
+  );
+}
+
+/* dotted price-leader — classic barbershop menu boards */
+.bs-leader {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+}
+.bs-leader-dots {
+  flex: 1;
+  min-width: 1rem;
+  border-bottom: 2px dotted var(--bs-border-strong);
+  opacity: 0.7;
+  transform: translateY(-3px);
+}
+
+/* slow service ticker (homepage) — duplicated track loops seamlessly */
+@keyframes bs-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.bs-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: bs-marquee 30s linear infinite;
+}
+.bs-marquee:hover .bs-marquee-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bs-marquee-track { animation: none; }
+}
+
+/* deep floating panel — booking wizard / auth shells */
+.bs-panel {
+  border-radius: 1.5rem;
+  border: 1px solid var(--bs-border);
+  background: var(--bs-surface);
+  box-shadow:
+    0 24px 60px -24px rgba(0, 0, 0, 0.55),
+    0 2px 8px -2px rgba(0, 0, 0, 0.3);
+}
+.light .bs-panel {
+  box-shadow:
+    0 24px 60px -28px rgba(21, 25, 29, 0.25),
+    0 2px 8px -2px rgba(21, 25, 29, 0.08);
+}
+
+/* giant ghost numeral watermarks the active wizard step */
+.bs-ghost-numeral {
+  position: absolute;
+  top: -0.15em;
+  inset-inline-end: 0.05em;
+  font-size: 6rem;
+  line-height: 1;
+  font-weight: 900;
+  color: var(--bs-text);
+  opacity: 0.05;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ── gradient text util ── */
 .text-gradient {
   background: linear-gradient(135deg, #f59e0b, #f97316);
@@ -106,4 +200,150 @@ input[type="checkbox"] {
 /* ── mobile safe area insets ── */
 .safe-area-pb {
   padding-bottom: calc(0.375rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Barber Smart — Design Token Foundation (Phase 1)
+   ═══════════════════════════════════════════════════════════════════════
+   Scope discipline:
+   • These tokens are DECLARED here but NO existing page consumes them yet.
+   • Real pages keep their current zinc/amber utilities → pixel-identical.
+   • Phase 2 will migrate page-by-page onto --bs-* tokens.
+   • .dark / .light classes on <html> are toggled by next-themes
+     (system preference default, manual override persisted).
+   • NOTE: `color-scheme` on :root intentionally stays "dark" this phase so
+     native <input>/<select> rendering on real pages never changes. Wiring
+     color-scheme to the theme toggle is a Phase 2 item. */
+
+:root,
+.dark {
+  /* ── surfaces ── */
+  --bs-bg: #0B0D0F;
+  --bs-surface: #15191D;
+  --bs-surface-raised: #1B2126;
+  --bs-overlay: rgba(11, 13, 15, 0.8);
+
+  /* ── accents ── */
+  --bs-primary: #C9A227;
+  --bs-primary-strong: #8E741D;
+  --bs-primary-soft: rgba(201, 162, 39, 0.12);
+  --bs-on-primary: #0B0D0F;
+
+  /* ── text ── */
+  --bs-text: #F5F5F2;
+  --bs-text-muted: #A8A8A2;
+  --bs-text-faint: #6E6E68;
+
+  /* ── lines ── */
+  --bs-border: #262B30;
+  --bs-border-strong: #3A4046;
+
+  /* ── status ── */
+  --bs-success: #34D399;
+  --bs-success-soft: rgba(52, 211, 153, 0.12);
+  --bs-error: #F87171;
+  --bs-error-soft: rgba(248, 113, 113, 0.12);
+  --bs-warning: #EAB308;
+  --bs-warning-soft: rgba(234, 179, 8, 0.12);
+
+  /* ── typography (Arabic primary for RTL content, Inter for Latin) ── */
+  --bs-font-sans: "IBM Plex Sans Arabic", "Inter", "Segoe UI", system-ui,
+    -apple-system, sans-serif;
+
+  color-scheme: dark;
+}
+
+.light {
+  /* warm cream — never stark white */
+  --bs-bg: #F7F3EA;
+  --bs-surface: #FFFDF7;
+  --bs-surface-raised: #FFFFFF;
+  --bs-overlay: rgba(21, 25, 29, 0.55);
+
+  /* same gold accents; strong variant darkened for contrast on light */
+  --bs-primary: #C9A227;
+  --bs-primary-strong: #8E741D;
+  --bs-primary-soft: rgba(201, 162, 39, 0.15);
+  --bs-on-primary: #15191D;
+
+  --bs-text: #15191D;
+  --bs-text-muted: #5B5F64;
+  --bs-text-faint: #8A8E93;
+
+  --bs-border: #E2DCCE;
+  --bs-border-strong: #CCC5B2;
+
+  --bs-success: #15803D;
+  --bs-success-soft: rgba(21, 128, 61, 0.1);
+  --bs-error: #DC2626;
+  --bs-error-soft: rgba(220, 38, 38, 0.1);
+  --bs-warning: #B45309;
+  --bs-warning-soft: rgba(180, 83, 9, 0.1);
+
+  color-scheme: light;
+}
+
+/* ── Tailwind v4 utility mapping (bg-bs-bg, text-bs-primary, …) ── */
+@theme inline {
+  --color-bs-bg: var(--bs-bg);
+  --color-bs-surface: var(--bs-surface);
+  --color-bs-surface-raised: var(--bs-surface-raised);
+  --color-bs-primary: var(--bs-primary);
+  --color-bs-primary-strong: var(--bs-primary-strong);
+  --color-bs-primary-soft: var(--bs-primary-soft);
+  --color-bs-on-primary: var(--bs-on-primary);
+  --color-bs-text: var(--bs-text);
+  --color-bs-text-muted: var(--bs-text-muted);
+  --color-bs-text-faint: var(--bs-text-faint);
+  --color-bs-border: var(--bs-border);
+  --color-bs-border-strong: var(--bs-border-strong);
+  --color-bs-success: var(--bs-success);
+  --color-bs-success-soft: var(--bs-success-soft);
+  --color-bs-error: var(--bs-error);
+  --color-bs-error-soft: var(--bs-error-soft);
+  --color-bs-warning: var(--bs-warning);
+  --color-bs-warning-soft: var(--bs-warning-soft);
+  --font-bs-sans: var(--bs-font-sans);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Theme transition guard — no visual glitches when swapping modes
+   (transitions re-enable after the swap; added by ThemeToggle on demand)
+   ═══════════════════════════════════════════════════════════════════════ */
+.bs-theme-transitioning *,
+.bs-theme-transitioning *::before,
+.bs-theme-transitioning *::after {
+  transition: background-color 200ms ease, color 200ms ease,
+    border-color 200ms ease !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Sonner (shadcn toast) — palette harmonization (Phase 2)
+   Muted success green / muted error red on charcoal surface, gold accents.
+   ═══════════════════════════════════════════════════════════════════════ */
+.toaster-group[data-sonner-toaster] {
+  font-family: var(--bs-font-sans, inherit);
+}
+.toaster-group[data-sonner-toast] {
+  border-radius: 1rem !important;
+}
+.toaster-group [data-type="success"] {
+  --success-bg: var(--bs-success-soft);
+  --success-text: var(--bs-success);
+  --success-border: color-mix(in srgb, var(--bs-success) 40%, transparent);
+}
+.toaster-group [data-type="error"] {
+  --error-bg: var(--bs-error-soft);
+  --error-text: var(--bs-error);
+  --error-border: color-mix(in srgb, var(--bs-error) 40%, transparent);
+}
+.toaster-group [data-type="warning"] {
+  --warning-bg: var(--bs-warning-soft);
+  --warning-text: var(--bs-warning);
+  --warning-border: color-mix(in srgb, var(--bs-warning) 40%, transparent);
+}
+.toaster-group [data-type="info"] {
+  --info-bg: var(--bs-primary-soft);
+  --info-text: var(--bs-text);
+  --info-border: color-mix(in srgb, var(--bs-primary) 40%, transparent);
 }

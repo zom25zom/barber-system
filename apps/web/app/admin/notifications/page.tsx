@@ -10,6 +10,9 @@ import { enableWebPushNotifications } from "@/lib/push";
 import Spinner from "@/components/Spinner";
 import PushDiagnostics from "@/components/PushDiagnostics";
 import { useToast } from "@/components/Toaster";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { BellRing } from "lucide-react";
 import type { AppNotification } from "@/lib/types";
 
 export default function AdminNotificationsPage() {
@@ -75,71 +78,74 @@ export default function AdminNotificationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">إشعارات وتنبيهات الإدارة</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-[var(--bs-text)]">إشعارات وتنبيهات الإدارة</h1>
         <div className="flex items-center gap-2">
           {pushEnabled && (
-            <button
-              onClick={handleEnablePush}
-              className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 text-xs sm:text-sm font-semibold text-amber-400 hover:bg-amber-500/20 transition-colors"
-            >
-              🔔 تفعيل الإشعارات
-            </button>
+            <Button variant="secondary" size="sm" onClick={handleEnablePush}>
+              <BellRing className="h-4 w-4" /> تفعيل الإشعارات
+            </Button>
           )}
           {unread > 0 && (
-            <button
-              onClick={markAllRead}
-              className="rounded-xl border border-zinc-700 px-3.5 py-1.5 text-xs sm:text-sm text-zinc-400 hover:bg-zinc-800 transition"
-            >
+            <Button variant="outline" size="sm" onClick={markAllRead}>
               تعليم الكل كمقروء
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {pushStatus && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs sm:text-sm text-amber-300 text-center">
+        <div className="rounded-xl border border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)] p-3 text-xs sm:text-sm text-[var(--bs-primary)] text-center">
           {pushStatus}
         </div>
       )}
 
       {loading && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-12 text-center">
+        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-12 text-center">
           <Spinner size="lg" label="جاري تحميل الإشعارات…" />
         </div>
       )}
 
       {!loading && notifications.length === 0 && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-8 text-center text-zinc-400">
+        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/40 p-8 text-center text-[var(--bs-text-muted)]">
           لا توجد إشعارات حالياً.
         </div>
       )}
 
       <div className="space-y-3">
         {notifications.map((n) => (
-          <div
+          <Card
             key={n.id}
-            className={`rounded-2xl border p-4 transition-all ${
+            className={`relative p-4 transition-all ${
               n.is_read
-                ? "border-zinc-800/60 bg-zinc-900/40 opacity-70"
-                : "border-amber-500/40 bg-zinc-900 shadow-md"
+                ? "border-[var(--bs-border)]/60 bg-[var(--bs-surface)]/40 opacity-70"
+                : "border-[var(--bs-primary)]/40 bg-[var(--bs-surface)] shadow-md"
             }`}
           >
+            {/* Gold unread dot — consistent with Navbar/AdminClientLayout/customer inbox */}
+            {!n.is_read && (
+              <span
+                aria-label="غير مقروء"
+                className="absolute -right-1.5 top-5 h-2.5 w-2.5 rounded-full bg-[var(--bs-primary)] shadow-sm shadow-[var(--bs-primary)]/60"
+              />
+            )}
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
-                <span className="inline-block rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-xs font-bold text-amber-400">
+                <span className="inline-block rounded-lg bg-[var(--bs-primary-soft)] border border-[var(--bs-primary)]/20 px-2.5 py-0.5 text-xs font-bold text-[var(--bs-primary)]">
                   {n.type === "new_booking"
                     ? "حجز جديد"
                     : n.type === "cancellation"
                       ? "إلغاء حجز"
                       : "الموعد متاح"}
                 </span>
-                <p className="text-sm font-medium text-zinc-200 mt-1">{n.message}</p>
+                <p className={`mt-1 text-sm font-medium ${n.is_read ? "text-[var(--bs-text-muted)]" : "text-[var(--bs-text)]"}`}>
+                  {n.message}
+                </p>
               </div>
-              <span className="text-xs text-zinc-500 shrink-0">
+              <span className="text-xs text-[var(--bs-text-faint)] shrink-0">
                 {formatDateTime(n.created_at)}
               </span>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 

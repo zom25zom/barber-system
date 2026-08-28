@@ -152,19 +152,19 @@ export default function AdminBarbersPage() {
       />
 
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-zinc-100">إدارة الحلاقين</h1>
+        <h1 className="text-2xl font-bold text-[var(--bs-text)]">إدارة الحلاقين</h1>
         <button
           onClick={openAdd}
-          className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-zinc-950 hover:bg-amber-400 shadow-md transition active:scale-95"
+          className="rounded-xl bg-[var(--bs-primary)] px-5 py-2.5 text-sm font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] shadow-md transition active:scale-95"
         >
           + إضافة حلاق جديد
         </button>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-400 flex items-center justify-between">
+        <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
           <span>⚠️ {error}</span>
-          <button onClick={() => setError(null)} className="text-xs text-red-300 hover:underline">
+          <button onClick={() => setError(null)} className="text-xs text-[var(--bs-error)] hover:underline">
             إغلاق
           </button>
         </div>
@@ -172,20 +172,20 @@ export default function AdminBarbersPage() {
 
       {/* ── add / edit form ── */}
       {showAdd && (
-        <div className="rounded-2xl border border-amber-500/30 bg-zinc-900 p-6 shadow-xl animate-in fade-in">
-          <h2 className="mb-4 text-lg font-bold text-amber-400">
+        <div className="rounded-2xl border border-[var(--bs-primary)]/40 bg-[var(--bs-surface)] p-6 shadow-xl animate-in fade-in">
+          <h2 className="mb-4 text-lg font-bold text-[var(--bs-primary)]">
             {editId ? "تعديل بيانات الحلاق" : "إضافة حلاق جديد"}
           </h2>
           <form onSubmit={saveBarber} className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">اسم الحلاق</label>
+              <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">اسم الحلاق</label>
               <input
                 type="text"
                 required
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="مثال: أحمد محمد"
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 outline-none focus:border-amber-500"
+                className="w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2.5 text-[var(--bs-text)] outline-none focus:border-[var(--bs-primary)]"
               />
             </div>
             <ImageUploader
@@ -199,7 +199,7 @@ export default function AdminBarbersPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-6 py-2.5 text-sm font-bold text-zinc-950 hover:bg-amber-400 disabled:opacity-50 transition"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--bs-primary)] px-6 py-2.5 text-sm font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] disabled:opacity-50 transition"
               >
                 {saving ? (
                   <>
@@ -213,7 +213,7 @@ export default function AdminBarbersPage() {
               <button
                 type="button"
                 onClick={() => setShowAdd(false)}
-                className="rounded-xl border border-zinc-700 px-6 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white transition"
+                className="rounded-xl border border-[var(--bs-border-strong)] px-6 py-2.5 text-sm text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition"
               >
                 إلغاء
               </button>
@@ -224,37 +224,37 @@ export default function AdminBarbersPage() {
 
       {/* ── barbers list ── */}
       {loading && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-12 text-center">
+        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-12 text-center">
           <Spinner size="lg" label="جاري تحميل قائمة الحلاقين…" />
         </div>
       )}
 
       {!loading && barbers.length === 0 && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-8 text-center text-zinc-400">
+        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/40 p-8 text-center text-[var(--bs-text-muted)]">
           لا يوجد حلاقين مسجلين حالياً. اضغط على زر &quot;إضافة حلاق جديد&quot; للبدء.
         </div>
       )}
 
       <div className="space-y-3">
         {barbers.map((b) => (
-          <div key={b.id} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-md transition hover:border-zinc-700">
+          <div key={b.id} className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)] p-4 shadow-md transition hover:border-[var(--bs-border-strong)]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 {b.photo_url ? (
                   <img
                     src={b.photo_url}
                     alt={b.name}
-                    className="h-14 w-14 rounded-full border-2 border-amber-500/40 object-cover shadow-sm"
+                    className="h-14 w-14 rounded-full border-2 border-[var(--bs-primary)]/40 object-cover shadow-sm"
                   />
                 ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-amber-500/40 bg-zinc-800 text-2xl shadow-inner">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--bs-primary)]/40 bg-[var(--bs-surface-raised)] text-2xl shadow-inner">
                     💈
                   </div>
                 )}
                 <div>
-                  <h3 className="text-lg font-bold text-zinc-100">{b.name}</h3>
+                  <h3 className="text-lg font-bold text-[var(--bs-text)]">{b.name}</h3>
                   <span
-                    className={`text-xs font-bold ${b.is_active ? "text-emerald-400" : "text-zinc-500"}`}
+                    className={`text-xs font-bold ${b.is_active ? "text-[var(--bs-success)]" : "text-[var(--bs-text-faint)]"}`}
                   >
                     {b.is_active ? "● نشط ويستقبل حجوزات" : "○ غير نشط (معطل)"}
                   </span>
@@ -264,19 +264,19 @@ export default function AdminBarbersPage() {
               <div className="flex flex-wrap gap-2">
                 <Link
                   href={`/admin/barbers/services?id=${b.id}`}
-                  className="rounded-xl border border-zinc-700 bg-zinc-800/60 px-3.5 py-1.5 text-xs sm:text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition"
+                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition"
                 >
                   ✂ الخدمات
                 </Link>
                 <Link
                   href={`/admin/barbers/schedule?id=${b.id}`}
-                  className="rounded-xl border border-zinc-700 bg-zinc-800/60 px-3.5 py-1.5 text-xs sm:text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition"
+                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition"
                 >
                   📅 الجدول
                 </Link>
                 <button
                   onClick={() => openEdit(b)}
-                  className="rounded-xl border border-zinc-700 bg-zinc-800/60 px-3.5 py-1.5 text-xs sm:text-sm text-amber-400 hover:bg-zinc-800 transition"
+                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-primary)] hover:bg-[var(--bs-surface-raised)] transition"
                 >
                   ✏️ تعديل
                 </button>
@@ -284,15 +284,15 @@ export default function AdminBarbersPage() {
                   onClick={() => toggleActive(b)}
                   className={`rounded-xl border px-3.5 py-1.5 text-xs sm:text-sm transition ${
                     b.is_active
-                      ? "border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
-                      : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                      ? "border-[var(--bs-warning)]/40 text-[var(--bs-warning)] hover:bg-[var(--bs-warning-soft)]"
+                      : "border-[var(--bs-success)]/40 text-[var(--bs-success)] hover:bg-[var(--bs-success-soft)]"
                   }`}
                 >
                   {b.is_active ? "تعطيل" : "تفعيل"}
                 </button>
                 <button
                   onClick={() => triggerDelete(b)}
-                  className="rounded-xl border border-red-500/30 px-3.5 py-1.5 text-xs sm:text-sm text-red-400 hover:bg-red-500/10 transition"
+                  className="rounded-xl border border-[var(--bs-error)]/40 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-error)] hover:bg-[var(--bs-error-soft)] transition"
                 >
                   🗑 حذف
                 </button>

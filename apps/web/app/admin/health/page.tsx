@@ -5,6 +5,7 @@ import Link from "next/link";
 import Spinner from "@/components/Spinner";
 import { formatTime12 } from "@/lib/time";
 import { useToast } from "@/components/Toaster";
+import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CircleAlert, ClipboardList, RefreshCw } from "lucide-react";
@@ -41,9 +42,11 @@ export default function AdminHealthPage() {
     setError(null);
 
     try {
-      const res = await fetch("/api/health", { cache: "no-store" });
-      const json = await res.json();
-      setData(json as HealthResponse);
+      // apiFetch applies API_BASE — required in split deployments where the
+      // API lives on a different worker origin (raw "/api/health" would hit
+      // the web worker and 404).
+      const json = await apiFetch<HealthResponse>("/api/health");
+      setData(json);
       setLastChecked(formatTime12(new Date()));
       if (isManual) {
         toast.success("تم فحص جميع خدمات النظام بنجاح ✓");

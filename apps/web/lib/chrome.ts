@@ -8,3 +8,9 @@ export function shouldHideSharedChrome(pathname: string): boolean {
   // Covers /admin/login and tenant-scoped /[salonSlug]/admin/login
   return pathname === "/admin/login" || pathname.endsWith("/admin/login");
 }
+
+/** /super-admin/* renders its own platform-owner chrome — never the shared
+ *  customer navbar/bottom bar (isolation: not reachable via public nav). */
+export function isSuperAdminArea(pathname: string): boolean {
+  return pathname.startsWith("/super-admin");
+}

@@ -103,11 +103,22 @@ export async function dispatchWebPush(
 
     console.log(`[WebPush] Found ${subs.length} subscription(s) for ${userType}${customerId != null ? ` (customer_id=${customerId})` : ''} salon=${salonId}`);
 
+    // Click-through URL must be tenant-scoped: root /my-bookings was removed
+    // (root customer routes redirect to the landing page). Resolve the salon
+    // slug so customers land on THEIR salon's bookings page.
+    let customerUrl = '/';
+    try {
+      const salonRow = await env.DB.prepare('SELECT slug FROM salons WHERE id = ?').bind(salonId).first<{ slug: string }>();
+      if (salonRow?.slug) customerUrl = `/${salonRow.slug}/my-bookings`;
+    } catch {
+      // slug lookup failed — neutral fallback
+    }
+
     const payloadData = {
       title: payload.title,
       message: payload.message,
       body: payload.message,
-      url: payload.url || (userType === 'owner' ? '/admin/bookings' : '/my-bookings'),
+      url: payload.url || (userType === 'owner' ? '/admin/bookings' : customerUrl),
       id: payload.id,
       timestamp: Date.now(),
     };

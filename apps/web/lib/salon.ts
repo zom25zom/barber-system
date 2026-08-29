@@ -15,6 +15,9 @@ export type SalonSettings = {
   social_tiktok?: string | null;
   social_whatsapp?: string | null;
   maps_url?: string | null;
+  /** trial | active | expired — present in public salon-settings responses;
+   *  SSR pages use it to render the "salon unavailable" state when expired. */
+  subscription_status?: string;
   // Returned only by the session-scoped owner endpoint (/api/owner/salon-settings).
   // Used to build the tenant's public booking page link (e.g. "/{slug}").
   slug?: string | null;
@@ -33,7 +36,32 @@ const DEFAULT_SETTINGS: SalonSettings = {
   maps_url: null,
 };
 
-const STORAGE_KEY = "salon_settings_v1";
+const STORAGE_KEY = "salon_settings_v2_by_id";
+
+// SECURITY/hygiene: the settings cache is keyed PER SALON ID. The previous
+// single global key ("salon_settings_v1") leaked salon A's cached branding
+// into salon B's admin header (until a refresh overwrote it) when browsing
+// salons back-to-back on one device.
+type SalonSettingsCache = { lastId: number | null; byId: Record<string, SalonSettings> };
+
+function readSettingsCache(): SalonSettingsCache {
+  if (typeof window === "undefined") return { lastId: null, byId: {} };
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as SalonSettingsCache;
+  } catch {}
+  return { lastId: null, byId: {} };
+}
+
+function writeSettingsCache(settings: SalonSettings) {
+  if (typeof window === "undefined" || !settings?.id) return;
+  try {
+    const cache = readSettingsCache();
+    cache.byId[String(settings.id)] = settings;
+    cache.lastId = settings.id;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
+  } catch {}
+}
 let cachedSettings: SalonSettings | null = null;
 
 /**
@@ -96,9 +124,7 @@ export function applySalonToDOM(settings: SalonSettings) {
 export function updateSalonSettingsClient(newSettings: SalonSettings) {
   cachedSettings = newSettings;
   if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
-    } catch {}
+    writeSettingsCache(newSettings);
 
     window.dispatchEvent(new CustomEvent("salon-settings-changed", { detail: newSettings }));
     applySalonToDOM(newSettings);
@@ -124,19 +150,18 @@ export function useSalonSettings(salonSlug?: string | null): SalonSettings {
     }
 
     // 1. Check cached settings in memory or localStorage on client mount
+    // (per-salon map — see STORAGE_KEY note above)
     if (cachedSettings) {
       setSettings(cachedSettings);
       applySalonToDOM(cachedSettings);
     } else if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          cachedSettings = parsed;
-          setSettings(parsed);
-          applySalonToDOM(parsed);
-        }
-      } catch {}
+      const cache = readSettingsCache();
+      const stored = cache.lastId != null ? cache.byId[String(cache.lastId)] : null;
+      if (stored) {
+        cachedSettings = stored;
+        setSettings(stored);
+        applySalonToDOM(stored);
+      }
     }
 
     // 2. Fetch fresh settings from server
@@ -145,9 +170,7 @@ export function useSalonSettings(salonSlug?: string | null): SalonSettings {
         if (d.salon) {
           cachedSettings = d.salon;
           setSettings(d.salon);
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(d.salon));
-          } catch {}
+          writeSettingsCache(d.salon);
           applySalonToDOM(d.salon);
         }
       })

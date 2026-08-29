@@ -32,6 +32,7 @@ export type Slot = {
 };
 
 export type BookingService = {
+  service_id: number;
   name: string;
   price: number;
   duration_minutes: number;

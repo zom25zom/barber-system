@@ -4,14 +4,15 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getCustomerToken } from "@/lib/auth";
-import { useTenantLink } from "@/lib/salonTenant";
+import { useTenantLink, withSlug } from "@/lib/salonTenant";
 import { formatTime12, BOOKING_STATUS_AR } from "@/lib/time";
 import { useLiveNotifications } from "@/lib/useNotifications";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
 import BookingCountdown from "@/components/BookingCountdown";
 import { Button } from "@/components/ui/button";
-import { CircleAlert, Hourglass, ClipboardList } from "lucide-react";
+import { useToast } from "@/components/Toaster";
+import { CircleAlert, Hourglass, ClipboardList, CalendarClock } from "lucide-react";
 import type { Booking, QueueItem } from "@/lib/types";
 
 /* status → colored dot + text (quiet, editorial — no pill boxes) */
@@ -32,6 +33,7 @@ export function MyBookingsClient({ salonSlug }: { salonSlug?: string }) {
   const tLink = useTenantLink();
   const router = useRouter();
   const token = getCustomerToken();
+  const toast = useToast();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +42,14 @@ export function MyBookingsClient({ salonSlug }: { salonSlug?: string }) {
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [selectedBookingToCancel, setSelectedBookingToCancel] = useState<number | null>(null);
   const [tab, setTab] = useState<"queue" | "bookings">("queue");
+
+  // ── Reschedule (PATCH /api/customer/bookings/:id) ──
+  const [reschedBooking, setReschedBooking] = useState<Booking | null>(null);
+  const [reschedDate, setReschedDate] = useState<string>("");
+  const [reschedSlots, setReschedSlots] = useState<string[]>([]);
+  const [reschedSlotsLoading, setReschedSlotsLoading] = useState(false);
+  const [reschedSlotsError, setReschedSlotsError] = useState<string | null>(null);
+  const [reschedSubmitting, setReschedSubmitting] = useState(false);
 
   useEffect(() => {
     if (!token) router.replace(tLink.href("/login"));
@@ -78,6 +88,65 @@ export function MyBookingsClient({ salonSlug }: { salonSlug?: string }) {
   function triggerCancelModal(id: number) {
     setSelectedBookingToCancel(id);
     setConfirmModalOpen(true);
+  }
+
+  // ── Reschedule helpers ──
+  function openReschedule(b: Booking) {
+    setReschedBooking(b);
+    setReschedSlots([]);
+    setReschedSlotsError(null);
+    // Server allows rebooking within today..+7d; default to the current date
+    // when still valid, otherwise today.
+    const today = new Date().toISOString().slice(0, 10);
+    setReschedDate(b.booking_date >= today ? b.booking_date : today);
+  }
+
+  useEffect(() => {
+    if (!reschedBooking || !reschedDate || !reschedBooking.services?.length) return;
+    let cancelled = false;
+    setReschedSlotsLoading(true);
+    setReschedSlotsError(null);
+    const ids = reschedBooking.services.map((s) => s.service_id).filter(Boolean).join(",");
+    const now = new Date();
+    const clientTime = reschedDate === new Date().toISOString().slice(0, 10)
+      ? `&clientTime=${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+      : "";
+    apiFetch<{ slots: { start_time: string }[]; reason?: string | null }>(
+      withSlug(`/api/barbers/${reschedBooking.barber_id}/availability?date=${reschedDate}&serviceIds=${ids}${clientTime}`),
+    )
+      .then((d) => {
+        if (cancelled) return;
+        setReschedSlots((d.slots || []).map((s) => s.start_time));
+        if (!d.slots?.length) setReschedSlotsError(d.reason || "لا توجد مواعيد متاحة في هذا اليوم");
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setReschedSlotsError(e.message);
+      })
+      .finally(() => {
+        if (!cancelled) setReschedSlotsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reschedBooking, reschedDate]);
+
+  async function executeReschedule(newStart: string) {
+    if (!token || !reschedBooking) return;
+    setReschedSubmitting(true);
+    try {
+      await apiFetch(`/api/customer/bookings/${reschedBooking.id}`, {
+        method: "PATCH",
+        token,
+        body: { date: reschedDate, start_time: newStart },
+      });
+      toast.success("تم تغيير الموعد بنجاح ✓");
+      setReschedBooking(null);
+      loadData();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setReschedSubmitting(false);
+    }
   }
 
   async function executeCancelBooking() {
@@ -357,18 +426,94 @@ export function MyBookingsClient({ salonSlug }: { salonSlug?: string }) {
                   <div className="mt-3 flex items-center justify-between">
                     <p className="text-base font-black text-[var(--bs-primary)]">{b.total_price} د.أ</p>
                     {b.status === "confirmed" && (
-                      <button
-                        onClick={() => triggerCancelModal(b.id)}
-                        className="text-xs font-bold text-[var(--bs-error)] underline-offset-4 transition hover:underline"
-                      >
-                        إلغاء الحجز
-                      </button>
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => openReschedule(b)}
+                          className="flex items-center gap-1 text-xs font-bold text-[var(--bs-primary)] underline-offset-4 transition hover:underline"
+                        >
+                          <CalendarClock className="h-3.5 w-3.5" /> تغيير الموعد
+                        </button>
+                        <button
+                          onClick={() => triggerCancelModal(b.id)}
+                          className="text-xs font-bold text-[var(--bs-error)] underline-offset-4 transition hover:underline"
+                        >
+                          إلغاء الحجز
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+      )}
+      {/* ── Reschedule modal ── */}
+      {reschedBooking && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !reschedSubmitting && setReschedBooking(null)}
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-[var(--bs-surface)] p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="flex items-center gap-2 text-lg font-black text-[var(--bs-text)]">
+              <CalendarClock className="h-5 w-5 text-[var(--bs-primary)]" /> تغيير موعد الحجز
+            </h3>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--bs-text-muted)]">
+              الحجز الحالي: {reschedBooking.booking_date} — {formatTime12(reschedBooking.start_time)} مع الحلاق {reschedBooking.barber_name}
+            </p>
+
+            <label className="mt-5 block text-xs font-bold text-[var(--bs-text-muted)]">التاريخ الجديد (خلال أسبوع)</label>
+            <input
+              type="date"
+              value={reschedDate}
+              min={new Date().toISOString().slice(0, 10)}
+              max={new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10)}
+              onChange={(e) => setReschedDate(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-[var(--bs-border)] bg-transparent px-4 py-2.5 text-sm text-[var(--bs-text)]"
+            />
+
+            <div className="mt-4">
+              <p className="text-xs font-bold text-[var(--bs-text-muted)]">الأوقات المتاحة</p>
+              {reschedSlotsLoading && (
+                <div className="mt-3">
+                  <Spinner size="sm" label="جاري جلب المواعيد…" />
+                </div>
+              )}
+              {!reschedSlotsLoading && reschedSlotsError && (
+                <p className="mt-3 text-xs text-[var(--bs-error)]">{reschedSlotsError}</p>
+              )}
+              {!reschedSlotsLoading && !reschedSlotsError && (
+                <div className="mt-3 grid max-h-52 grid-cols-3 gap-2 overflow-y-auto">
+                  {reschedSlots.map((t) => {
+                    const isCurrent = reschedDate === reschedBooking.booking_date && t === reschedBooking.start_time;
+                    return (
+                      <button
+                        key={t}
+                        disabled={reschedSubmitting}
+                        onClick={() => executeReschedule(t)}
+                        className={`rounded-xl border px-2 py-2 text-sm font-bold transition ${
+                          isCurrent
+                            ? "border-[var(--bs-border)] bg-[var(--bs-border)]/20 text-[var(--bs-text-faint)]"
+                            : "border-[var(--bs-border)] text-[var(--bs-text)] hover:border-[var(--bs-primary)] hover:bg-[var(--bs-primary)]/10 hover:text-[var(--bs-primary)]"
+                        }`}
+                      >
+                        {formatTime12(t)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setReschedBooking(null)} disabled={reschedSubmitting}>
+                تراجع
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

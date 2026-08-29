@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { getWsUrl } from "./api";
 import { getCustomerToken, getOwnerToken } from "./auth";
+import { buildTenantUrl } from "./salonTenant";
 import { useToast } from "@/components/Toaster";
 import { playNotificationSound, showBrowserNotification, requestNotificationPermission } from "./audio";
 import type { AppNotification } from "./types";
@@ -73,8 +74,11 @@ class NotificationManager {
         playNotificationSound();
 
         // 2. Show native OS / browser notification once
+        // Click target must be tenant-scoped: customers land on their
+        // salon's /my-bookings; owners go to the (session-global) admin.
+        const clickUrl = this.role === "owner" ? "/admin/bookings" : buildTenantUrl("/my-bookings");
         const title = this.role === "owner" ? "صالون الحلاقة — حجز جديد أو تعديل 💈" : "صالون الحلاقة — إشعار جديد 💈";
-        showBrowserNotification(title, n.message);
+        showBrowserNotification(title, n.message, clickUrl);
 
         // 3. Show in-app toast
         toastFn?.(n.message);

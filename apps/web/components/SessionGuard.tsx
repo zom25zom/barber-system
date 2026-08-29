@@ -13,6 +13,7 @@
  *   owner    → /admin/login           (session-global admin entry point)
  *   customer → /{salonSlug}/login     (tenant-scoped; falls back to /login
  *                                       outside a tenant context)
+ *   super-admin → /super-admin/login   (platform-owner realm)
  */
 
 import { useEffect } from "react";
@@ -31,9 +32,14 @@ export default function SessionGuard() {
       if (redirecting) return;
       redirecting = true;
 
-      const role = (ev as CustomEvent<{ role?: "owner" | "customer" | null }>).detail?.role;
+      const role = (ev as CustomEvent<{ role?: "owner" | "customer" | "super-admin" | null }>)
+        .detail?.role;
       const target =
-        role === "owner" ? "/admin/login" : buildTenantUrl("/login");
+        role === "owner"
+          ? "/admin/login"
+          : role === "super-admin"
+            ? "/super-admin/login"
+            : buildTenantUrl("/login");
 
       toast.warning("انتهت صلاحية جلستك — سيتم تحويلك لتسجيل الدخول من جديد.");
       // Small delay so the toast is perceivable before navigation.

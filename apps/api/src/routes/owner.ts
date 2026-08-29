@@ -9,15 +9,25 @@ import { servicesDuration, computeBarberAvailability, validateBookingSlot, mapBo
 import {
   isValidDate,
   isValidTime,
+  isValidPhone,
+  isValidBarberName,
   formatTime12Ar,
   sha256,
   isPositiveInt,
-  isPositivePrice,
-  isValidDuration,
   isValidUrlOrDataUri,
   addDaysISO,
   salonNow,
+  checkRateLimit,
+  validateServiceInput,
+  todayISO,
 } from '../utils';
+import {
+  getPlatformSettings,
+  interpolateTemplate,
+  isInRenewalWindow,
+  cycleDaysRemaining,
+  monthlyCycleEndDate,
+} from '../subscription';
 
 export const ownerRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 ownerRoutes.use('*', requireOwner);
@@ -35,6 +45,53 @@ ownerRoutes.get('/me', async (c) => {
     .first<{ id: number; username: string }>();
   if (!row) return c.json({ error: 'الحساب غير موجود' }, 404);
   return c.json({ owner: row });
+});
+
+// ---------- Subscription status (reminder banner source) ----------
+
+/**
+ * The admin panel polls this on every page (via AdminClientLayout). For an
+ * ACTIVE salon inside its 2-day renewal window it returns the configured
+ * reminder message (with the phone number interpolated from
+ * platform_settings). The banner is COMPUTED here from the salon's own
+ * subscription_start_date — so it disappears the moment the super admin
+ * renews the salon (status change resets subscription_start_date).
+ * Expired salons never reach this endpoint (requireOwner rejects them).
+ */
+ownerRoutes.get('/subscription-status', async (c) => {
+  const salonId: number = c.get('salonId');
+  const salon = await c.env.DB.prepare(
+    'SELECT id, subscription_status, subscription_start_date FROM salons WHERE id = ?',
+  )
+    .bind(salonId)
+    .first<{ id: number; subscription_status: string; subscription_start_date: string | null }>();
+  if (!salon) return c.json({ error: 'الصالون غير موجود' }, 404);
+
+  const settings = await getPlatformSettings(c.env.DB);
+  const today = todayISO();
+  let renewal_banner: string | null = null;
+  let cycle_end_date: string | null = null;
+
+  if (salon.subscription_status === 'active' && salon.subscription_start_date) {
+    if (isInRenewalWindow(salon.subscription_start_date, today)) {
+      cycle_end_date = monthlyCycleEndDate(salon.subscription_start_date, today);
+      renewal_banner = interpolateTemplate(settings.renewal_banner_template, settings, {
+        date: cycle_end_date ?? '',
+      });
+    } else {
+      cycle_end_date = monthlyCycleEndDate(salon.subscription_start_date, today);
+    }
+  }
+
+  return c.json({
+    status: salon.subscription_status,
+    subscription_start_date: salon.subscription_start_date,
+    cycle_end_date,
+    days_remaining: salon.subscription_start_date
+      ? cycleDaysRemaining(salon.subscription_start_date, today)
+      : null,
+    renewal_banner,
+  });
 });
 
 // ---------- Salon settings (session-scoped — admin panel branding) ----------
@@ -104,7 +161,7 @@ ownerRoutes.get('/barbers', async (c) => {
 ownerRoutes.post('/barbers', async (c) => {
   const salonId: number = c.get('salonId');
   const { name, photo_url } = await c.req.json().catch(() => ({} as any));
-  if (!name || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 60) {
+  if (!isValidBarberName(name)) {
     return c.json({ error: 'اسم الحلاق مطلوب (بين 2 و 60 حرفاً)' }, 400);
   }
   if (photo_url && !isValidUrlOrDataUri(photo_url)) {
@@ -128,7 +185,7 @@ ownerRoutes.patch('/barbers/:id', async (c) => {
   const values: any[] = [];
 
   if (body.name !== undefined) {
-    if (typeof body.name !== 'string' || body.name.trim().length < 2 || body.name.trim().length > 60) {
+    if (!isValidBarberName(body.name)) {
       return c.json({ error: 'اسم الحلاق يجب أن يكون بين 2 و 60 حرفاً' }, 400);
     }
     fields.push('name = ?');
@@ -202,7 +259,7 @@ ownerRoutes.post('/barbers/:id/services', async (c) => {
   const barberId = Number(idRaw);
 
   const { name, price, duration_minutes } = await c.req.json().catch(() => ({} as any));
-  const err = validateService(name, price, duration_minutes);
+  const err = validateServiceInput(name, price, duration_minutes);
   if (err) return c.json({ error: err }, 400);
 
   // Verify barber exists
@@ -226,7 +283,7 @@ ownerRoutes.patch('/services/:id', async (c) => {
   const id = Number(idRaw);
 
   const { name, price, duration_minutes } = await c.req.json().catch(() => ({} as any));
-  const err = validateService(name, price, duration_minutes);
+  const err = validateServiceInput(name, price, duration_minutes);
   if (err) return c.json({ error: err }, 400);
 
   const res = await c.env.DB.prepare(
@@ -250,19 +307,6 @@ ownerRoutes.delete('/services/:id', async (c) => {
   if (res.meta.changes === 0) return c.json({ error: 'الخدمة غير موجودة' }, 404);
   return c.json({ ok: true });
 });
-
-function validateService(name: any, price: any, duration: any): string | null {
-  if (!name || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) {
-    return 'اسم الخدمة مطلوب (بين 2 و 80 حرفاً)';
-  }
-  if (!isPositivePrice(price)) {
-    return 'سعر غير صالح (يجب أن يكون رقماً أكبر من الصفر)';
-  }
-  if (!isValidDuration(duration)) {
-    return 'مدة غير صالحة (يجب أن تكون بين 5 و 480 دقيقة)';
-  }
-  return null;
-}
 
 // ---------- Work schedules per barber — PRD 3.3 / 3.10 ----------
 
@@ -333,7 +377,7 @@ ownerRoutes.post('/barbers/:id/time-off', async (c) => {
   const barberId = Number(idRaw);
 
   const { date, reason } = await c.req.json().catch(() => ({} as any));
-  if (!date || typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!isValidDate(date)) {
     return c.json({ error: 'تاريخ الإجازة غير صالح (YYYY-MM-DD)' }, 400);
   }
 
@@ -480,15 +524,15 @@ ownerRoutes.get('/bookings', async (c) => {
     where.push('bk.barber_id = ?');
     params.push(Number(barber_id));
   }
-  if (date && typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (date && isValidDate(date)) {
     where.push('bk.booking_date = ?');
     params.push(date);
   }
-  if (from && typeof from === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(from)) {
+  if (from && isValidDate(from)) {
     where.push('bk.booking_date >= ?');
     params.push(from);
   }
-  if (to && typeof to === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(to)) {
+  if (to && isValidDate(to)) {
     where.push('bk.booking_date <= ?');
     params.push(to);
   }
@@ -556,6 +600,16 @@ ownerRoutes.get('/customers', async (c) => {
 
 ownerRoutes.post('/bookings', async (c) => {
   const salonId: number = c.get('salonId');
+  const owner = c.get('owner');
+
+  // ── Rate limit: manual booking creation (per owner, fail-open) ──
+  // 30 / 10 min leaves generous headroom for bulk walk-in entry.
+  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, salonId, `booking_create_owner:${owner.id}`, 30, 600);
+  if (!rl.allowed) {
+    const minutes = Math.ceil((rl.retryAfter || 60) / 60);
+    return c.json({ error: `محاولات كثيرة جداً. يرجى الانتظار ${minutes} دقيقة.` }, 429);
+  }
+
   const body = await c.req.json().catch(() => ({} as any));
   const {
     customer_id,
@@ -579,11 +633,11 @@ ownerRoutes.post('/bookings', async (c) => {
   } else if (customer_name && customer_phone) {
     const cName = String(customer_name).trim();
     const cPhone = String(customer_phone).trim();
-    if (cName.length < 2 || cName.length > 60) {
+    if (!isValidBarberName(cName)) {
       return c.json({ error: 'اسم الزبون مطلوب (بين 2 و 60 حرفاً)' }, 400);
     }
-    if (cPhone.length < 6 || cPhone.length > 30) {
-      return c.json({ error: 'رقم هاتف الزبون غير صالح (6 خانات على الأقل)' }, 400);
+    if (!isValidPhone(cPhone)) {
+      return c.json({ error: 'رقم هاتف الزبون غير صالح (بين 7 و 20 رقماً)' }, 400);
     }
 
     // Check if customer with this phone already exists

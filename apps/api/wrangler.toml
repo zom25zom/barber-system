@@ -51,6 +51,14 @@ max_retries = 3
 name = "NOTIFICATION_HUB"
 class_name = "NotificationHub"
 
+# Daily housekeeping crons (index.ts → scheduled):
+#   0 3 * * *   → purge expired session rows
+#   30 3 * * *  → subscription lifecycle (trial/monthly-cycle expiry + audit log)
+# ⚠ BOTH must also be registered on the Cron Trigger in the Cloudflare
+#   dashboard after deploy (wrangler syncs them on `wrangler deploy`).
+[triggers]
+crons = ["0 3 * * *", "30 3 * * *"]
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["NotificationHub"]

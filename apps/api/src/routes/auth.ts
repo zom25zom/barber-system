@@ -10,6 +10,7 @@ import {
   isValidUsername,
   isValidPhone,
 } from '../utils';
+import { getLockoutMessage } from '../subscription';
 
 export const authRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -28,7 +29,7 @@ authRoutes.post('/owner/login', async (c) => {
   // ── Rate limit (pre-auth, per IP) ──
   // The salon is NOT known yet — it is resolved from the credentials below,
   // never from client input. Attempts are counted in the shared `salon-0` DO room.
-  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, 0, `owner_login:${ip}`, 5, 300);
+  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, 0, `owner_login:${ip}`, 5, 300, true);
   if (!rl.allowed) {
     const minutes = Math.ceil((rl.retryAfter || 60) / 60);
     return c.json(
@@ -79,9 +80,26 @@ authRoutes.post('/owner/login', async (c) => {
     return c.json({ error: 'بيانات الدخول غير صحيحة' }, 401);
   }
 
+  // ── Subscription enforcement at LOGIN: an expired salon cannot even
+  // authenticate into its admin panel. The message (and phone number) come
+  // from platform_settings — never hardcoded.
+  if (salon) {
+    const statusRow = await c.env.DB.prepare(
+      'SELECT subscription_status FROM salons WHERE id = ?',
+    )
+      .bind(salon.id)
+      .first<{ subscription_status: string }>();
+    if (statusRow?.subscription_status === 'expired') {
+      const lockoutMessage = await getLockoutMessage(c.env.DB);
+      return c.json(
+        { error: lockoutMessage, code: 'SUBSCRIPTION_EXPIRED' },
+        403,
+      );
+    }
+  }
+
   const token = randomToken();
   const expires = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
-
   // SINGLE ACTIVE SESSION: any previous session for THIS owner account is
   // revoked on a new login. owners.owner rows belong to exactly one salon,
   // so deleting by owner_id is naturally per-salon scoped (multi-tenant
@@ -162,7 +180,19 @@ authRoutes.post('/customer/register', async (c) => {
     );
   }
   const salonId = strict;
-  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, salonId, `cust_register:${ip}`, 5, 300);
+  // Two independent limiters (both fail-closed):
+  //  • GLOBAL per-IP cap in the shared salon-0 DO — an attacker rotating
+  //    across salon subdomains hits this no matter which salon they target.
+  //  • Per-(salon, IP) cap in the salon's own DO — tight 5/5min per salon.
+  const rlGlobal = await checkRateLimit(c.env.NOTIFICATION_HUB, 0, `cust_register_global:${ip}`, 10, 300, true);
+  if (!rlGlobal.allowed) {
+    const minutes = Math.ceil((rlGlobal.retryAfter || 60) / 60);
+    return c.json(
+      { error: `تم تجاوز الحد المسموح لمحاولات التسجيل. يرجى الانتظار ${minutes} دقيقة.` },
+      429,
+    );
+  }
+  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, salonId, `cust_register:${ip}`, 5, 300, true);
   if (!rl.allowed) {
     const minutes = Math.ceil((rl.retryAfter || 60) / 60);
     return c.json(
@@ -233,7 +263,17 @@ authRoutes.post('/customer/login', async (c) => {
     );
   }
   const salonId = strict;
-  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, salonId, `cust_login:${ip}`, 5, 300);
+  // Two independent limiters (both fail-closed) — see /register above:
+  // global per-IP (salon-0 DO) defeats cross-salon rotation; per-salon stays tight.
+  const rlGlobal = await checkRateLimit(c.env.NOTIFICATION_HUB, 0, `cust_login_global:${ip}`, 10, 300, true);
+  if (!rlGlobal.allowed) {
+    const minutes = Math.ceil((rlGlobal.retryAfter || 60) / 60);
+    return c.json(
+      { error: `تم تجاوز الحد المسموح لمحاولات تسجيل الدخول. يرجى الانتظار ${minutes} دقيقة.` },
+      429,
+    );
+  }
+  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, salonId, `cust_login:${ip}`, 5, 300, true);
   if (!rl.allowed) {
     const minutes = Math.ceil((rl.retryAfter || 60) / 60);
     return c.json(
@@ -312,20 +352,32 @@ function bearer(c: any): string | null {
 /**
  * Owner auth — the session row itself carries salon_id (bound at login).
  * Any request is scoped to THAT tenant; client-supplied salon_id is ignored.
+ *
+ * Subscription enforcement runs on EVERY authenticated request (not just at
+ * login): an expired salon is rejected from /admin/* immediately, even
+ * mid-session, with the configurable Arabic lockout message from
+ * platform_settings. Reactivation restores access on the very next request.
  */
 export const requireOwner = createMiddleware<{ Bindings: Bindings; Variables: Variables }>(async (c, next) => {
   const token = bearer(c);
   if (!token) return c.json({ error: 'غير مصرح' }, 401);
   const row = await c.env.DB.prepare(
-    `SELECT o.id, o.username, s.salon_id FROM sessions s JOIN owners o ON o.id = s.owner_id
+    `SELECT o.id, o.username, s.salon_id, sal.subscription_status
+     FROM sessions s
+     JOIN owners o ON o.id = s.owner_id
+     JOIN salons sal ON sal.id = s.salon_id
      WHERE s.token = ? AND s.expires_at > datetime('now')`,
   )
     .bind(token)
-    .first<{ id: number; username: string; salon_id: number }>();
+    .first<{ id: number; username: string; salon_id: number; subscription_status: string }>();
   if (!row) {
     // Structured 401: lets the frontend distinguish "your session was
     // revoked/superseded" from "bad credentials" and auto-redirect to login.
     return c.json({ error: 'انتهت صلاحية جلستك، يرجى تسجيل الدخول من جديد', code: 'SESSION_EXPIRED' }, 401);
+  }
+  if (row.subscription_status === 'expired') {
+    const lockoutMessage = await getLockoutMessage(c.env.DB);
+    return c.json({ error: lockoutMessage, code: 'SUBSCRIPTION_EXPIRED' }, 403);
   }
   c.set('owner', { id: row.id, username: row.username });
   c.set('salonId', row.salon_id);

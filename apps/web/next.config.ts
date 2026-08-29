@@ -9,6 +9,20 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // Legacy single-tenant root routes removed (multi-tenant cleanup): all
+  // customer flows now live under /[salonSlug]/*. Old bookmarks/links land
+  // gracefully on the SaaS marketing landing page instead of 404ing.
+  // temporary (302) on purpose — browsers must not cache these forever.
+  async redirects() {
+    return [
+      { source: "/book", destination: "/", permanent: false },
+      { source: "/login", destination: "/", permanent: false },
+      { source: "/register", destination: "/", permanent: false },
+      { source: "/my-bookings", destination: "/", permanent: false },
+      { source: "/my-profile", destination: "/", permanent: false },
+      { source: "/notifications", destination: "/", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

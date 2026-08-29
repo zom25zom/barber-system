@@ -14,10 +14,9 @@ export function getWsUrl(): string {
   if (typeof window !== "undefined") {
     return `${proto}//${window.location.host}`;
   }
-  return "ws://localhost:8787";
+  // SSR fallback — API_BASE host when set, otherwise no usable WS URL in dev.
+  return API_BASE ? `${proto}//${API_BASE.replace(/^https?:\/\//, "")}` : "";
 }
-
-export const WS_URL = "ws://localhost:8787";
 
 type ApiOptions = {
   method?: string;
@@ -25,7 +24,7 @@ type ApiOptions = {
   token?: string | null;
 };
 
-import { clearCustomerAuth, clearOwnerToken } from "./auth";
+import { clearCustomerAuth, clearOwnerToken, clearSuperAdminToken } from "./auth";
 
 /**
  * Fetch helper that calls the API using same-origin relative paths (/api/...)
@@ -58,9 +57,16 @@ export async function apiFetch<T = unknown>(path: string, opts: ApiOptions = {})
     // which redirects the user to the correct login page. Never silently
     // keep the user on an authenticated-looking screen.
     if (data.code === "SESSION_EXPIRED") {
-      const role = path.startsWith("/api/owner/") ? "owner" : path.startsWith("/api/customer/") ? "customer" : null;
+      const role = path.startsWith("/api/owner/")
+        ? "owner"
+        : path.startsWith("/api/customer/")
+          ? "customer"
+          : path.startsWith("/api/super-admin/")
+            ? "super-admin"
+            : null;
       if (role === "owner") clearOwnerToken();
       else if (role === "customer") clearCustomerAuth();
+      else if (role === "super-admin") clearSuperAdminToken();
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("bs-session-expired", { detail: { role } }));
       }

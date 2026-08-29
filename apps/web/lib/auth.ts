@@ -3,6 +3,7 @@ import type { Customer } from "./types";
 const CUSTOMER_TOKEN_KEY = "barber_customer_token";
 const CUSTOMER_PROFILE_KEY = "barber_customer_profile";
 const OWNER_TOKEN_KEY = "barber_owner_token";
+const SUPER_ADMIN_TOKEN_KEY = "barber_super_admin_token";
 
 function notifyAuthChanged() {
   if (typeof window !== "undefined") window.dispatchEvent(new Event("auth-changed"));
@@ -52,4 +53,19 @@ export function setOwnerToken(token: string) {
 export function clearOwnerToken() {
   localStorage.removeItem(OWNER_TOKEN_KEY);
   notifyAuthChanged();
+}
+
+// ---------- Super Admin (platform owner — fully separate realm) ----------
+
+export function getSuperAdminToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(SUPER_ADMIN_TOKEN_KEY);
+}
+
+export function setSuperAdminToken(token: string) {
+  localStorage.setItem(SUPER_ADMIN_TOKEN_KEY, token);
+}
+
+export function clearSuperAdminToken() {
+  localStorage.removeItem(SUPER_ADMIN_TOKEN_KEY);
 }

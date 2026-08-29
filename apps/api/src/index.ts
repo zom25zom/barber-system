@@ -7,9 +7,12 @@ import { ownerRoutes } from './routes/owner';
 import { customerRoutes } from './routes/customer';
 import { pushRoutes } from './routes/push';
 import { uploadRoutes } from './routes/upload';
+import { superAdminRoutes } from './routes/superadmin';
+import { runSubscriptionLifecycle } from './subscription';
 import { logRouteError, formatTime12Ar, resolvePublicSalonId } from './utils';
 import type { MessageBatch, ReminderMessage } from './types';
 import { dispatchWebPush } from './webpush';
+import { purgeExpiredSessions } from './cleanup';
 
 export { NotificationHub } from './durable';
 
@@ -118,10 +121,31 @@ async function processReminderBatch(batch: MessageBatch<ReminderMessage>, env: B
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
+// ── CORS origin whitelist (production hardening) ──
+// The app authenticates with Bearer tokens (no cookies), so this is
+// defense-in-depth rather than CSRF protection. Browsers on any origin not
+// listed below get NO Access-Control-Allow-Origin header. Non-browser
+// clients (curl, monitoring, mobile apps) send no Origin header at all and
+// are unaffected — CORS only constrains browsers.
+const BASE_ALLOWED_ORIGINS = new Set([
+  'https://barber-web.nawafzwd25.workers.dev', // production web worker
+  'http://localhost:3000', // Next.js dev server
+  'http://127.0.0.1:3000',
+]);
+
 app.use(
   '*',
   cors({
-    origin: (origin) => origin ?? '*', // single-tenant; tighten to the Pages domain in production
+    origin: (origin, c) => {
+      // Custom domains can be added WITHOUT a redeploy via the
+      // ALLOWED_ORIGINS var (comma-separated), e.g. in wrangler.toml [vars].
+      const extra = (c.env.ALLOWED_ORIGINS ?? '')
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+      if (BASE_ALLOWED_ORIGINS.has(origin) || extra.includes(origin)) return origin;
+      return null; // disallowed (or no Origin header) → no ACAO header emitted
+    },
     allowHeaders: ['Content-Type', 'Authorization'],
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   }),
@@ -205,6 +229,8 @@ app.route('/api', publicRoutes);
 app.route('/api/owner', ownerRoutes);
 app.route('/api/customer', customerRoutes);
 app.route('/api/push', pushRoutes);
+// Platform-owner realm — fully separate auth (super_admins/super_admin_sessions)
+app.route('/api/super-admin', superAdminRoutes);
 
 // Dynamic PWA Web App Manifests directly served from D1 database
 app.get('/manifest.json', async (c) => {
@@ -365,7 +391,26 @@ app.onError((err, c) => {
 });
 
 // Combined worker entrypoint: Hono app (HTTP) + Queues consumer (reminders)
+// + daily crons (expired-session purge AND subscription lifecycle).
+async function runScheduledCleanup(env: Bindings): Promise<void> {
+  const purged = await purgeExpiredSessions(env.DB);
+  if (purged > 0) console.log(`[Cron] Purged ${purged} expired session(s)`);
+}
+
+// The subscription cron MUST be registered in wrangler.toml ([triggers] crons)
+// AND in the Cloudflare dashboard on deploy.
+const SUBSCRIPTION_CRON = '30 3 * * *';
+
 export default {
   fetch: (req: Request, env: Bindings, ctx: ExecutionContext) => app.fetch(req, env, ctx),
   queue: processReminderBatch as ExportedHandler<Bindings>['queue'],
+  scheduled: (event: ScheduledController, env: Bindings, ctx: ExecutionContext) => {
+    if (event.cron === SUBSCRIPTION_CRON) {
+      // Daily subscription lifecycle: trial expiry + per-salon monthly cycle
+      // expiry (idempotent — safe to run more than once per day).
+      ctx.waitUntil(runSubscriptionLifecycle(env));
+    } else {
+      ctx.waitUntil(runScheduledCleanup(env));
+    }
+  },
 } satisfies ExportedHandler<Bindings>;

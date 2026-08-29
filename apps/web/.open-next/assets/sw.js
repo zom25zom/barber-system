@@ -17,7 +17,10 @@ self.addEventListener("push", (event) => {
   let data = {
     title: "صالون الحلاقة — إشعار جديد 💈",
     message: "لديك تحديث جديد على حجزك أو دورك في الصالون.",
-    url: "/my-bookings",
+    // Legacy tenantless /my-bookings was removed — root customer routes
+    // redirect to the landing page. The server payload should carry the
+    // tenant-scoped URL; "/" is the safe neutral fallback.
+    url: "/",
   };
 
   if (event.data) {
@@ -32,7 +35,7 @@ self.addEventListener("push", (event) => {
 
   const title = data.title || "صالون الحلاقة — إشعار جديد 💈";
   const body = data.message || data.body || "لديك تحديث جديد على حجزك أو دورك في الصالون.";
-  const url = data.url || "/my-bookings";
+  const url = data.url || "/";
 
   const options = {
     body: body,

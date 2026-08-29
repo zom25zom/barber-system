@@ -36,6 +36,9 @@ const ARABIC_TO_LATIN: Record<string, string> = {
 export const RESERVED_SLUGS = new Set([
   // App routes (apps/web/app top-level segments)
   'admin',
+  // Platform-owner (Super Admin) routes — must never be shadowed by a salon
+  'super-admin',
+  'super-admin-login',
   'book',
   'login',
   'register',
@@ -172,6 +175,63 @@ export async function sha256(text: string): Promise<string> {
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// ---------- Super Admin password hashing (salted PBKDF2 — WebCrypto) ----------
+// Deliberately STRONGER than the tenant owners' unsalted SHA-256: the super
+// admin controls the entire platform. Format:
+//   pbkdf2:sha256:<iterations>:<salt_b64>:<hash_b64>
+// (hash = PBKDF2-HMAC-SHA256, 256-bit key — byte-compatible with
+//  node:crypto pbkdf2Sync(..., 'sha256') so scripts can create accounts.)
+
+const PBKDF2_ITERATIONS = 100_000;
+
+function bytesToB64(bytes: Uint8Array): string {
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+function b64ToBytes(b64: string): Uint8Array {
+  return new Uint8Array([...atob(b64)].map((ch) => ch.charCodeAt(0)));
+}
+
+async function pbkdf2Derive(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
+  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, [
+    'deriveBits',
+  ]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: salt as BufferSource, iterations },
+    keyMaterial,
+    256,
+  );
+  return new Uint8Array(bits);
+}
+
+export async function hashPasswordPBKDF2(password: string): Promise<string> {
+  const salt = new Uint8Array(16);
+  crypto.getRandomValues(salt);
+  const hash = await pbkdf2Derive(password, salt, PBKDF2_ITERATIONS);
+  return `pbkdf2:sha256:${PBKDF2_ITERATIONS}:${bytesToB64(salt)}:${bytesToB64(hash)}`;
+}
+
+export async function verifyPasswordPBKDF2(password: string, stored: string): Promise<boolean> {
+  const parts = stored.split(':');
+  if (parts.length !== 5 || parts[0] !== 'pbkdf2' || parts[1] !== 'sha256') return false;
+  const iterations = Number(parts[2]);
+  if (!Number.isInteger(iterations) || iterations < 1 || iterations > 10_000_000) return false;
+  try {
+    const salt = b64ToBytes(parts[3]);
+    const expected = b64ToBytes(parts[4]);
+    const actual = await pbkdf2Derive(password, salt, iterations);
+    // Constant-time comparison
+    if (actual.length !== expected.length) return false;
+    let diff = 0;
+    for (let i = 0; i < actual.length; i++) diff |= actual[i]! ^ expected[i]!;
+    return diff === 0;
+  } catch {
+    return false;
+  }
+}
+
 export function randomToken(): string {
   const bytes = new Uint8Array(24);
   crypto.getRandomValues(bytes);
@@ -222,6 +282,12 @@ export function getClientIP(c: Context<any>): string {
 /**
  * Atomic distributed rate limiter powered by Durable Objects.
  * Example: 5 attempts per 15 minutes (limit=5, windowSeconds=900)
+ *
+ * failClosed (default false): auth-critical endpoints (login/register)
+ * should DENY on DO errors — a failed limiter must never open an
+ * unthrottled brute-force window. Less sensitive, revenue-facing
+ * endpoints (bookings, uploads, availability) stay fail-open so a
+ * transient DO hiccup can't take the booking funnel down.
  */
 export async function checkRateLimit(
   hubNamespace: DurableObjectNamespace,
@@ -229,6 +295,7 @@ export async function checkRateLimit(
   key: string,
   limit: number = 5,
   windowSeconds: number = 900,
+  failClosed: boolean = false,
 ): Promise<{ allowed: boolean; remaining?: number; retryAfter?: number }> {
   try {
     const hub = hubNamespace.get(hubNamespace.idFromName(`salon-${salonId}`));
@@ -241,6 +308,10 @@ export async function checkRateLimit(
     return data;
   } catch (err) {
     console.error('[RateLimiter] Check error:', err);
+    if (failClosed) {
+      // Fail CLOSED: deny rather than allow (brute-force protection wins)
+      return { allowed: false, retryAfter: 60 };
+    }
     // On DO connection error, fail open to avoid service disruption
     return { allowed: true };
   }
@@ -284,6 +355,43 @@ export function isPositivePrice(n: unknown): n is number {
 export function isValidDuration(n: unknown): n is number {
   const num = Number(n);
   return Number.isInteger(num) && num >= 5 && num <= 480;
+}
+
+/** Validates barber / walk-in customer display names: 2-60 chars after trim */
+export function isValidBarberName(name: unknown): name is string {
+  if (typeof name !== 'string') return false;
+  const t = name.trim();
+  return t.length >= 2 && t.length <= 60;
+}
+
+/** Validates service names: 2-80 chars after trim */
+export function isValidServiceName(name: unknown): name is string {
+  if (typeof name !== 'string') return false;
+  const t = name.trim();
+  return t.length >= 2 && t.length <= 80;
+}
+
+/** Validates salon names: 2-80 chars after trim */
+export function isValidSalonName(name: unknown): name is string {
+  if (typeof name !== 'string') return false;
+  const t = name.trim();
+  return t.length >= 2 && t.length <= 80;
+}
+
+/**
+ * Validates a full service payload (name / price / duration_minutes).
+ * Returns an Arabic error message or null when valid. Shared by the owner
+ * service create/update endpoints so the rules can never drift apart.
+ */
+export function validateServiceInput(
+  name: unknown,
+  price: unknown,
+  duration: unknown,
+): string | null {
+  if (!isValidServiceName(name)) return 'اسم الخدمة مطلوب (بين 2 و 80 حرفاً)';
+  if (!isPositivePrice(price)) return 'سعر غير صالح (يجب أن يكون رقماً أكبر من الصفر)';
+  if (!isValidDuration(duration)) return 'مدة غير صالحة (يجب أن تكون بين 5 و 480 دقيقة)';
+  return null;
 }
 
 /** Validates URLs or Data URIs with length limits */

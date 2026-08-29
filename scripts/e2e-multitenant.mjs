@@ -3,8 +3,10 @@
  * Runs against a local wrangler dev server (http://127.0.0.1:8787)
  * Tests two salons operating CONCURRENTLY with identical admin usernames.
  */
-const BASE = "http://127.0.0.1:8787";
+const BASE = process.env.E2E_BASE || "http://127.0.0.1:8787";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
+import { webcrypto as nodeCrypto } from "node:crypto";
 
 let passCount = 0, failCount = 0;
 const failures = [];
@@ -41,6 +43,40 @@ function tomorrowISO() {
   return new Date(Date.now() + 3 * 3600_000 + 24 * 3600_000).toISOString().slice(0, 10);
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Clamped month arithmetic on YYYY-MM-DD (mirrors apps/api/src/subscription.ts)
+function addMonthsClampedISO(iso, n) {
+  const d = new Date(iso + "T00:00:00Z");
+  const y = d.getUTCFullYear(), m = d.getUTCMonth() + n, day = d.getUTCDate();
+  const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m, Math.min(day, last))).toISOString().slice(0, 10);
+}
+function addDaysISO(iso, days) {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// SALTED PBKDF2 — byte-compatible with apps/api/src/utils.ts hashPasswordPBKDF2
+async function pbkdf2Hash(password) {
+  const salt = nodeCrypto.getRandomValues(new Uint8Array(16));
+  const keyMaterial = await nodeCrypto.subtle.importKey(
+    "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"],
+  );
+  const bits = await nodeCrypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations: 100000 }, keyMaterial, 256,
+  );
+  const b64 = (bytes) => Buffer.from(bytes).toString("base64");
+  return `pbkdf2:sha256:100000:${b64(salt)}:${b64(new Uint8Array(bits))}`;
+}
+
+// Run a read/write SQL statement against the local wrangler dev D1
+// (same mechanism stage 13 uses) → array of result sets
+function d1sql(sql) {
+  const wr = join(process.cwd(), "node_modules", "wrangler", "bin", "wrangler.js");
+  const out = execFileSync(process.execPath, [wr, "d1", "execute", "barber_db", "--local", "--json", "--command", sql], { cwd: join(process.cwd(), "apps", "api") }).toString();
+  return JSON.parse(out.slice(out.indexOf("[")));
+}
 
 async function main() {
   // Unique credentials per run — the persistent local D1 accumulates owners
@@ -823,6 +859,223 @@ async function main() {
     // race (20:00) + one from the single-active race (20:30 or 21:00).
     check("RACE-6: مجموع الحجوزات المؤكدة = 2 (لا مكررات على مستوى DB)", totalConfirmed === 2, `total=${totalConfirmed}`);
   } // نهاية مرحلة 17 + 18
+
+  // ═══════════════════════════════════════════════════════════════════
+  // مراحل الاشتراكات و Super Admin — تُنفّذ في النهاية عمداً لأنها توقف
+  // الصالونات (إقفال فوري للوحات والزبائن) ثم تستعيدها.
+  // ═══════════════════════════════════════════════════════════════════
+
+  console.log("\n" + "═".repeat(52));
+  console.log(" مرحلة 19: Super Admin — إنشاء الحساب والدخول والعزل والإحصائيات");
+  console.log("═".repeat(52));
+  let saTok = null, saId = null;
+  {
+    // NO seeded super admin exists (migration deliberately ships none):
+    // create the first account exactly like scripts/create-super-admin.mjs
+    const saUser = `root-${RUN}`;
+    const saPass = `RootPass-${RUN}-X9!`;
+    d1sql(`INSERT INTO super_admins (username, password_hash) VALUES ('${saUser}', '${await pbkdf2Hash(saPass)}')`);
+
+    const badSa = await http("POST", "/api/super-admin/login", { body: { username: saUser, password: "wrong-password-123" } });
+    check("SUPER-1: كلمة مرور خاطئة للمالك العام → 401", badSa.status === 401, `status=${badSa.status}`);
+
+    const saLogin = await http("POST", "/api/super-admin/login", { body: { username: saUser, password: saPass } });
+    check("SUPER-2: دخول المالك العام (PBKDF2 مملّح) → نجاح", saLogin.status === 200 && !!saLogin.data?.token, JSON.stringify(saLogin.data));
+    saTok = saLogin.data?.token ?? null;
+    saId = saLogin.data?.super_admin?.id ?? null;
+
+    // ── ISOLATION: the two auth realms can never cross ──
+    const ownerOnSa = await http("GET", "/api/super-admin/salons", { token: tokenB });
+    check("SUPER-3: جلسة أدمن صالون لا تفتح /api/super-admin/* → 401", ownerOnSa.status === 401, `status=${ownerOnSa.status}`);
+    const saOnOwner = await http("GET", "/api/owner/salon-settings", { token: saTok });
+    check("SUPER-4: جلسة المالك العام لا تفتح /api/owner/* → 401", saOnOwner.status === 401, `status=${saOnOwner.status}`);
+    const saOnCust = await http("GET", "/api/customer/bookings", { token: saTok });
+    check("SUPER-5: جلسة المالك العام لا تفتح /api/customer/* → 401", saOnCust.status === 401, `status=${saOnCust.status}`);
+
+    // ── Platform stats & salon list ──
+    const stats = await http("GET", "/api/super-admin/stats", { token: saTok });
+    check("SUPER-6: إحصائيات المنصة (إجمالي + عدد كل حالة)", stats.status === 200 && stats.data?.stats?.total_salons >= 3 && ["trial", "active", "expired"].every((k) => typeof stats.data.stats[k] === "number"), JSON.stringify(stats.data?.stats));
+
+    const list = await http("GET", "/api/super-admin/salons", { token: saTok });
+    const rowB = (list.data?.salons ?? []).find((s) => s.id === idB);
+    const rowA = (list.data?.salons ?? []).find((s) => s.id === idA);
+    check("SUPER-7: قائمة الصالونات تعرض slug والحالة وتاريخ التسجيل وبداية الدورة",
+      list.status === 200 && rowA && rowB && rowA.slug === slugA && rowB.slug === slugB
+        && typeof rowB.subscription_status === "string" && !!rowB.created_at && !!rowB.subscription_start_date,
+      JSON.stringify(rowB));
+    check("SUPER-8: عدد الحجوزات لكل صالون محسوب (B لديه حجوزات من المراحل السابقة)",
+      (rowB?.bookings_count ?? 0) >= 1 && (rowA?.bookings_count ?? 0) >= 1,
+      `A=${rowA?.bookings_count}, B=${rowB?.bookings_count}`);
+
+    const cfg = await http("GET", "/api/super-admin/settings", { token: saTok });
+    check("SUPER-9: إعدادات المنصة الافتراضية (هاتف 0795105850 + تجربة 30 يوم + القالبان)",
+      cfg.status === 200 && cfg.data?.settings?.renewal_phone === "0795105850"
+        && cfg.data?.settings?.trial_duration_days === 30
+        && cfg.data?.settings?.expired_lockout_template?.includes("{phone}")
+        && cfg.data?.settings?.renewal_banner_template?.includes("{phone}"),
+      JSON.stringify(cfg.data?.settings));
+
+    // Reserved slugs: a salon can never take a super-admin route name
+    const saSlugTry = await http("POST", "/api/salons/register", {
+      body: { name: "super-admin", phone: "+962796666666", adminUsername: `x-${RUN}`, password: "xxxxxx" },
+    });
+    check("SUPER-10: تسجيل صالون باسم «super-admin» → مرفوض (سلوغ محجوز)", saSlugTry.status === 400, `status=${saSlugTry.status}`);
+  } // نهاية مرحلة 19
+
+  console.log("\n" + "═".repeat(52));
+  console.log(" مرحلة 20: انتهاء الاشتراك — إقفال فوري شامل ثم استعادة فورية");
+  console.log("═".repeat(52));
+  let reloginB = null;
+  {
+    // Fresh owner session for B BEFORE expiry (mid-session enforcement test).
+    const preB = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: passB } });
+    check("EXPIRE-إعداد: جلسة أدمن B نشطة قبل الإيقاف", preB.status === 200 && !!preB.data?.token, `status=${preB.status}`);
+    const preBToken = preB.data?.token;
+
+    // Fresh CUSTOMER session for B — stage 15's re-login rotated the old token
+    // (single-active-session), so tokB is intentionally dead by now. The live
+    // token is read straight from the DB: the customer-login rate limiter
+    // (5/5min per IP) is already exhausted by earlier stages, and login isn't
+    // what we're testing — the ENDPOINTS are.
+    const tokB2 = d1sql(`SELECT token FROM customers WHERE salon_id = ${idB} AND phone = '+962792222222' LIMIT 1`)[0]?.results?.[0]?.token ?? null;
+    check("EXPIRE-إعداد: رمز جلسة زبون B الحي مُستخرج (لا اختبار دخول هنا — ما يُختبر هو نقاط النهاية)", !!tokB2);
+
+    // Freshly-VALID owner session must still not cross into the super-admin realm
+    const ownerValidOnSa = await http("GET", "/api/super-admin/salons", { token: preBToken });
+    check("SUPER-3b: جلسة أدمن صالون صالحة 100% لا تفتح /api/super-admin/* → 401", ownerValidOnSa.status === 401, `status=${ownerValidOnSa.status}`);
+
+    const cntBefore = d1sql(`SELECT COUNT(*) AS n FROM bookings WHERE salon_id = ${idB}`)[0]?.results?.[0]?.n ?? -1;
+
+    // ── Deactivate via the Super Admin dashboard endpoint ──
+    const exp = await http("PATCH", `/api/super-admin/salons/${idB}/status`, { token: saTok, body: { status: "expired" } });
+    check("EXPIRE-1: المالك العام يوقف صالون B → 200", exp.status === 200 && exp.data?.salon?.subscription_status === "expired", JSON.stringify(exp.data));
+
+    // The EXACT configured lockout message (template + phone from platform_settings)
+    const cfg = await http("GET", "/api/super-admin/settings", { token: saTok });
+    const lockoutMessage = (cfg.data?.settings?.expired_lockout_template ?? "").split("{phone}").join(cfg.data?.settings?.renewal_phone ?? "");
+    check("EXPIRE-إعداد: رسالة الإقفال مُولّدة من الإعدادات وتحمل الرقم", lockoutMessage.includes("0795105850") && lockoutMessage.includes("اشتراك"), lockoutMessage);
+
+    // ── Admin login is BLOCKED with the exact message ──
+    const loginAfter = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: passB } });
+    check("EXPIRE-2: دخول أدمن صالون موقوف → 403 مع الرسالة المضبوطة حرفياً",
+      loginAfter.status === 403 && loginAfter.data?.error === lockoutMessage && loginAfter.data?.code === "SUBSCRIPTION_EXPIRED",
+      `status=${loginAfter.status} msg=${loginAfter.data?.error}`);
+
+    // ── An ALREADY-ACTIVE session is blocked mid-use on the very next call ──
+    const midSession = await http("GET", "/api/owner/bookings", { token: preBToken });
+    check("EXPIRE-3: جلسة أدمن B الحية تُرفض فوراً mid-session → 403 بنفس الرسالة",
+      midSession.status === 403 && midSession.data?.error === lockoutMessage && midSession.data?.code === "SUBSCRIPTION_EXPIRED",
+      `status=${midSession.status}`);
+
+    // ── Public/customer side: full booking funnel blocked server-side ──
+    const pubBarbers = await http("GET", `/api/barbers?salonSlug=${slugB}`);
+    check("EXPIRE-4: قائمة الحلاقين العامة للصالون الموقوف → 403 «غير متاح حالياً»",
+      pubBarbers.status === 403 && pubBarbers.data?.error === "هذا الصالون غير متاح حالياً، عد قريباً" && pubBarbers.data?.code === "SALON_UNAVAILABLE",
+      `status=${pubBarbers.status}`);
+    const pubAvail = await http("GET", `/api/barbers/${barberB}/availability?date=${tomorrowISO()}&serviceIds=${svB[0].id}&salonSlug=${slugB}`);
+    check("EXPIRE-5: توفّر المواعيد للصالون الموقوف → 403", pubAvail.status === 403, `status=${pubAvail.status}`);
+    const newBooking = await http("POST", "/api/customer/bookings", {
+      token: tokB2, body: { barber_id: barberB, service_ids: [svB[0].id], date: tomorrowISO(), start_time: "09:00" },
+    });
+    check("EXPIRE-6: إنشاء حجز جديد (server-side) للصالون الموقوف → 403", newBooking.status === 403 && newBooking.data?.code === "SALON_UNAVAILABLE", `status=${newBooking.status}`);
+    const custList = await http("GET", "/api/customer/bookings", { token: tokB2 });
+    check("EXPIRE-7: حجوزات الزبون تصبح غير متاحة أثناء الإيقاف → 403", custList.status === 403, `status=${custList.status}`);
+
+    // ── Historical booking data is preserved untouched in the DB ──
+    const cntAfter = d1sql(`SELECT COUNT(*) AS n FROM bookings WHERE salon_id = ${idB}`)[0]?.results?.[0]?.n ?? -2;
+    check("EXPIRE-8: بيانات الحجوزات التاريخية محفوظة بالكامل (لم تُحذف ولم تُخفَ)", cntAfter === cntBefore && cntAfter >= 1, `before=${cntBefore} after=${cntAfter}`);
+
+    // ── Audit log: manual change attributed to the super admin's id ──
+    const logRow = d1sql(`SELECT old_status, new_status, changed_by FROM subscription_status_log WHERE salon_id = ${idB} ORDER BY id DESC LIMIT 1`)[0]?.results?.[0];
+    check("EXPIRE-9: سجل التغيير يوثّق old/new و changed_by = معرّف المالك العام",
+      logRow && logRow.old_status !== "expired" && logRow.new_status === "expired" && String(logRow.changed_by) === String(saId),
+      JSON.stringify(logRow));
+
+    // ── Reactivate → everything back immediately ──
+    const react = await http("PATCH", `/api/super-admin/salons/${idB}/status`, { token: saTok, body: { status: "active" } });
+    check("RENEW-1: إعادة تنشيط صالون B → 200 وبداية دورة جديدة = اليوم",
+      react.status === 200 && react.data?.salon?.subscription_start_date === salonTodayISO(), JSON.stringify(react.data?.salon));
+
+    reloginB = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: passB } });
+    check("RENEW-2: دخول أدمن B يعود للعمل فوراً بعد التنشيط", reloginB.status === 200 && !!reloginB.data?.token, `status=${reloginB.status}`);
+    const ownerBack = await http("GET", "/api/owner/bookings", { token: reloginB.data?.token });
+    check("RENEW-3: لوحة الأدمن تعمل مباشرة بعد التنشيط", ownerBack.status === 200);
+    const custBack = await http("GET", "/api/customer/bookings", { token: tokB2 });
+    check("RENEW-4: زبون B يرى حجوزاته التاريخية مجدداً بعد التنشيط",
+      custBack.status === 200 && (custBack.data?.bookings ?? []).some((b) => b.id === bookingIdB),
+      `count=${custBack.data?.bookings?.length}`);
+    const statusBack = await http("GET", "/api/owner/subscription-status", { token: reloginB.data?.token });
+    check("RENEW-5: لا لافتة تجديد بعد التجديد مباشرة (الدورة بدأت من اليوم)",
+      statusBack.status === 200 && statusBack.data?.renewal_banner === null && statusBack.data?.status === "active",
+      JSON.stringify(statusBack.data));
+  } // نهاية مرحلة 20
+
+  console.log("\n" + "═".repeat(52));
+  console.log(" مرحلة 21: لافتة التجديد لكل صالون على حدة + الانتهاء التلقائي (Cron)");
+  console.log("═".repeat(52));
+  {
+    // ── Per-salon reminder window: B active with cycle end = today + 2 days ──
+    // Start = (today+2) − 1 month → its OWN monthly cycle ends in exactly 2 days.
+    const startInWindow = addMonthsClampedISO(addDaysISO(salonTodayISO(), 2), -1);
+    const startFar = addMonthsClampedISO(addDaysISO(salonTodayISO(), 20), -1);
+
+    await d1sql(`UPDATE salons SET subscription_start_date = '${startInWindow}' WHERE id = ${idB}`);
+    const banB = await http("GET", "/api/owner/subscription-status", { token: reloginB.data?.token });
+    check("BANNER-1: صالون يبقى يومان على نهاية دورته الخاصة → لافتة تجديد برقم الهاتف",
+      banB.status === 200 && typeof banB.data?.renewal_banner === "string"
+        && banB.data.renewal_banner.includes("0795105850"),
+      banB.data?.renewal_banner);
+
+    await d1sql(`UPDATE salons SET subscription_start_date = '${startFar}' WHERE id = ${idB}`);
+    const banBFar = await http("GET", "/api/owner/subscription-status", { token: reloginB.data?.token });
+    check("BANNER-2: نفس الصالون بعيداً عن نهاية دورته → لا لافتة",
+      banBFar.status === 200 && banBFar.data?.renewal_banner === null, JSON.stringify(banBFar.data));
+
+    // A is on TRIAL anchored to today → no banner either (independent cycles)
+    const banA = await http("GET", "/api/owner/subscription-status", { token: tokenA });
+    check("BANNER-3: صالون A (تجريبي، دورته تبدأ اليوم) → لا لافتة — القرار لكل صالون حسب تاريخه",
+      banA.status === 200 && banA.data?.renewal_banner === null, JSON.stringify(banA.data));
+
+    // ── Renewal from the dashboard clears the banner instantly ──
+    await http("PATCH", `/api/super-admin/salons/${idB}/status`, { token: saTok, body: { status: "active" } });
+    const banB2 = await http("GET", "/api/owner/subscription-status", { token: reloginB.data?.token });
+    check("BANNER-4: بعد تجديد B (بداية دورة جديدة) تختفي الافتة فوراً",
+      banB2.status === 200 && banB2.data?.renewal_banner === null, JSON.stringify(banB2.data));
+
+    // ── Automatic trial→expired via the Cloudflare Cron Trigger ──
+    // Simulate: A is on trial with start = 31 days ago (trial = 30 days) →
+    // the daily cron MUST flip it to 'expired' with changed_by = 'system'.
+    const trialStart = addDaysISO(salonTodayISO(), -31);
+    await d1sql(`UPDATE salons SET subscription_start_date = '${trialStart}' WHERE id = ${idA}`);
+
+    const cron1 = await fetch(`${BASE}/__scheduled?cron=${encodeURIComponent("30 3 * * *")}`);
+    check("CRON-1: استدعاء الـ Cron Trigger اليومي (/__scheduled) → نجاح", cron1.ok, `status=${cron1.status}`);
+
+    const lstA = await http("GET", "/api/super-admin/salons", { token: saTok });
+    const rowA2 = (lstA.data?.salons ?? []).find((s) => s.id === idA);
+    check("CRON-2: صالون A التجريبي الذي انقضت مدته (31 يوماً) → expired تلقائياً",
+      rowA2?.subscription_status === "expired", JSON.stringify(rowA2));
+
+    const sysLog = d1sql(`SELECT old_status, new_status, changed_by FROM subscription_status_log WHERE salon_id = ${idA} ORDER BY id DESC LIMIT 1`)[0]?.results?.[0];
+    check("CRON-3: التحويل التلقائي مسجّل في سجل التغيير بـ changed_by = 'system'",
+      sysLog && sysLog.new_status === "expired" && sysLog.changed_by === "system", JSON.stringify(sysLog));
+
+    const aBlocked = await http("GET", "/api/owner/bookings", { token: tokenA });
+    check("CRON-4: جلسة أدمن A الحية تُقفل فوراً بعد الانتهاء التلقائي → 403",
+      aBlocked.status === 403 && aBlocked.data?.code === "SUBSCRIPTION_EXPIRED", `status=${aBlocked.status}`);
+
+    // ── Cron idempotency: a second run the same day adds NO duplicate log ──
+    await fetch(`${BASE}/__scheduled?cron=${encodeURIComponent("30 3 * * *")}`);
+    const sysCount = d1sql(`SELECT COUNT(*) AS n FROM subscription_status_log WHERE salon_id = ${idA} AND changed_by = 'system' AND new_status = 'expired'`)[0]?.results?.[0]?.n ?? -1;
+    check("CRON-5: تشغيل الـ Cron مرة ثانية في نفس اليوم → بلا تسجيل مكرر (idempotent)", sysCount === 1, `count=${sysCount}`);
+
+    // ── B stays active through the cron (its cycle ends in ~20 days) ──
+    const rowB2 = (await http("GET", "/api/super-admin/salons", { token: saTok })).data?.salons?.find((s) => s.id === idB);
+    check("CRON-6: صالون B النشط لم يمسه الـ Cron (دورته لم تنته)", rowB2?.subscription_status === "active", JSON.stringify(rowB2));
+
+    // Cleanup: restore A so the local DB isn't left locked out
+    await http("PATCH", `/api/super-admin/salons/${idA}/status`, { token: saTok, body: { status: "active" } });
+  } // نهاية مرحلة 21
 
   console.log("\n" + "═".repeat(52));
   console.log(` النتيجة النهائية: ✅ ${passCount} ناجح | ❌ ${failCount} فاشل`);

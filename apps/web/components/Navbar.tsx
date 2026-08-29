@@ -12,7 +12,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Phone, Globe } from "lucide-react";
-import { shouldHideSharedChrome } from "@/lib/chrome";
+import { shouldHideSharedChrome, isSuperAdminArea } from "@/lib/chrome";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -39,6 +39,10 @@ export default function Navbar() {
   // Public/unauthenticated pages render only their own form content.
   // (Placed after all hooks so the hook order stays stable across navigations.)
   if (shouldHideSharedChrome(pathname)) return null;
+
+  // Super Admin area renders its own platform-owner chrome — the shared
+  // navbar must never appear there (and never links to it either).
+  if (isSuperAdminArea(pathname)) return null;
 
   if (pathname.startsWith("/admin")) {
     return (

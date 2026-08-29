@@ -3,6 +3,23 @@ import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
 const UPLOAD_URL_MARKER = '/api/uploads/';
 
 /**
+ * Deletes expired owner session rows (sessions table grows forever otherwise).
+ * Called from the worker's daily cron trigger (see index.ts scheduled handler
+ * and wrangler.toml [triggers]). Backed by idx_sessions_expiry (migration 0014).
+ *
+ * @returns number of rows deleted (0 on failure — cleanup is best-effort)
+ */
+export async function purgeExpiredSessions(db: D1Database): Promise<number> {
+  try {
+    const res = await db.prepare("DELETE FROM sessions WHERE expires_at <= datetime('now')").run();
+    return res.meta.changes ?? 0;
+  } catch (err) {
+    console.warn('[cleanup] expired-session purge failed:', err);
+    return 0;
+  }
+}
+
+/**
  * Deletes an old uploaded file (from R2 and its D1 fallback row) that is no longer referenced.
  *
  * - Returns true immediately when there is nothing to clean up

@@ -11,9 +11,12 @@ import {
   todayISO,
   isValidPhone,
   isValidUsername,
+  isValidSalonName,
   isValidHexColor,
   isValidUrlOrDataUri,
   resolvePublicSalonId,
+  resolvePublicSalonWithSource,
+  DEFAULT_SALON_ID,
   getClientIP,
   checkRateLimit,
   randomToken,
@@ -21,20 +24,56 @@ import {
   slugifySalonName,
   isReservedSlug,
   isPositiveInt,
+  todayISO,
 } from '../utils';
+
+/** Shared settings fetch for GET /salon-settings (both fallback + resolved paths) */
+async function getSalonSettings(DB: any, salonId: number) {
+  return DB.prepare(
+    `SELECT id, name, phone, logo_url, primary_color, 
+            social_facebook, social_instagram, social_tiktok, social_whatsapp, maps_url,
+            subscription_status
+     FROM salons WHERE id = ?`,
+  )
+    .bind(salonId)
+    .first() as Promise<(SalonSettings & { subscription_status: string }) | null>;
+}
+
+/**
+ * Public-side subscription enforcement: an EXPIRED salon's booking funnel
+ * (services, barbers, availability) returns the fixed Arabic unavailable
+ * message instead of normal content — server-side, not just hidden UI.
+ * Returns a 403 Response when blocked, or null when the salon is available.
+ */
+async function guardPublicSalonAvailable(c: any, salonId: number): Promise<Response | null> {
+  const row = await c.env.DB.prepare('SELECT subscription_status FROM salons WHERE id = ?')
+    .bind(salonId)
+    .first();
+  if (row?.subscription_status === 'expired') {
+    return c.json(
+      { error: 'هذا الصالون غير متاح حالياً، عد قريباً', code: 'SALON_UNAVAILABLE' },
+      403,
+    );
+  }
+  return null;
+}
 
 export const publicRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 // ---------- Salon settings (dynamic branding — consumed by frontend & edited by owner) ----------
 
 publicRoutes.get('/salon-settings', async (c) => {
-  const salon = await c.env.DB.prepare(
-    `SELECT id, name, phone, logo_url, primary_color, 
-            social_facebook, social_instagram, social_tiktok, social_whatsapp, maps_url 
-     FROM salons WHERE id = ?`,
-  )
-    .bind((await resolvePublicSalonId(c)))
-    .first<SalonSettings>();
+  // An EXPLICIT but unknown ?salonSlug= must 404 — never silently fall back
+  // to DEFAULT_SALON_ID (that would render salon 1's branding/data for a
+  // non-existent salon). Host-based resolution (root marketing page) keeps
+  // the documented fallback.
+  const explicitSlug = c.req.query('salonSlug');
+  const resolution = await resolvePublicSalonWithSource(c);
+  if (!resolution.source) {
+    if (explicitSlug) return c.json({ error: 'Salon not found' }, 404);
+    return c.json({ salon: await getSalonSettings(c.env.DB, DEFAULT_SALON_ID) });
+  }
+  const salon = await getSalonSettings(c.env.DB, resolution.id);
   if (!salon) return c.json({ error: 'Salon not found' }, 404);
   return c.json({ salon });
 });
@@ -57,7 +96,7 @@ publicRoutes.put('/salon-settings', requireOwner, async (c) => {
     maps_url,
   } = body;
 
-  if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) {
+  if (!isValidSalonName(name)) {
     return c.json({ error: 'اسم الصالون مطلوب (بين 2 و 80 حرفاً)' }, 400);
   }
 
@@ -216,29 +255,35 @@ publicRoutes.get('/manifest-admin.json', async (c) => {
 
 // Public services & prices list (no login required) — PRD 3.1
 publicRoutes.get('/services', async (c) => {
+  const salonId = await resolvePublicSalonId(c);
+  const blocked = await guardPublicSalonAvailable(c, salonId);
+  if (blocked) return blocked;
   const { results } = await c.env.DB.prepare(
     `SELECT s.id, s.name, s.price, s.duration_minutes, s.barber_id, b.name AS barber_name
      FROM services s JOIN barbers b ON b.id = s.barber_id
      WHERE b.is_active = 1 AND b.salon_id = ?
      ORDER BY b.name, s.name`,
   )
-    .bind((await resolvePublicSalonId(c)))
+    .bind(salonId)
     .all();
   return c.json({ services: results });
 });
 
 // Public barbers list with their services — used by the booking flow
 publicRoutes.get('/barbers', async (c) => {
+  const salonId = await resolvePublicSalonId(c);
+  const blocked = await guardPublicSalonAvailable(c, salonId);
+  if (blocked) return blocked;
   const { results: barbers } = await c.env.DB.prepare(
     'SELECT id, name, photo_url FROM barbers WHERE is_active = 1 AND salon_id = ? ORDER BY name',
   )
-    .bind((await resolvePublicSalonId(c)))
+    .bind(salonId)
     .all();
   const { results: services } = await c.env.DB.prepare(
     `SELECT id, barber_id, name, price, duration_minutes FROM services
      WHERE barber_id IN (SELECT id FROM barbers WHERE is_active = 1 AND salon_id = ?) ORDER BY name`,
   )
-    .bind((await resolvePublicSalonId(c)))
+    .bind(salonId)
     .all();
   const byBarber = new Map<number, any[]>();
   for (const s of services as any[]) {
@@ -252,6 +297,16 @@ publicRoutes.get('/barbers', async (c) => {
 
 // Available time slots for a barber on a date, given selected services — PRD 3.5
 publicRoutes.get('/barbers/:id/availability', async (c) => {
+  // ── Rate limit: availability lookups (per IP, GLOBAL in salon-0 DO, fail-open) ──
+  // Pre-auth endpoint — cheap to hammer. 60/min per IP is far above real
+  // booking-flow usage. Global (not per-salon) so rotating subdomains doesn't
+  // bypass it; fail-open so a DO hiccup never breaks the booking funnel.
+  const ip = getClientIP(c);
+  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, 0, `avail:${ip}`, 60, 60);
+  if (!rl.allowed) {
+    return c.json({ error: 'طلبات كثيرة جداً. حاول بعد قليل.' }, 429);
+  }
+
   const barberId = Number(c.req.param('id'));
   const date = c.req.query('date') ?? '';
   const serviceIds = (c.req.query('serviceIds') ?? '')
@@ -263,6 +318,10 @@ publicRoutes.get('/barbers/:id/availability', async (c) => {
   if (serviceIds.length === 0) return c.json({ error: 'اختر خدمة واحدة على الأقل' }, 400);
 
   const salonId = await resolvePublicSalonId(c);
+
+  // Expired salon → the whole booking funnel is blocked server-side
+  const blocked = await guardPublicSalonAvailable(c, salonId);
+  if (blocked) return blocked;
 
   // Verify barber belongs to this salon
   const barberCheck = await c.env.DB.prepare(
@@ -528,7 +587,7 @@ publicRoutes.post('/salons/register', async (c) => {
   const body = await c.req.json().catch(() => ({} as any));
   const { name, phone, adminUsername, password } = body;
 
-  if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 80) {
+  if (!isValidSalonName(name)) {
     return c.json({ error: 'اسم الصالون مطلوب (بين 2 و 80 حرفاً)' }, 400);
   }
   if (phone && !isValidPhone(phone)) {
@@ -566,12 +625,14 @@ publicRoutes.post('/salons/register', async (c) => {
     if (i > 100) return c.json({ error: 'تعذر توليد رابط فريد للصالون، حاول اسماً مختلفاً' }, 500);
   }
 
-  // Create the tenant
+  // Create the tenant — the trial countdown anchors to TODAY (this salon's
+  // own cycle start), otherwise a NULL start date would never expire.
   const salonRes = await c.env.DB.prepare(
-    `INSERT INTO salons (name, phone, slug, subscription_status) VALUES (?, ?, ?, 'trial')
+    `INSERT INTO salons (name, phone, slug, subscription_status, subscription_start_date)
+     VALUES (?, ?, ?, 'trial', ?)
      RETURNING id`,
   )
-    .bind(cleanName, cleanPhone, slug)
+    .bind(cleanName, cleanPhone, slug, todayISO())
     .first<{ id: number }>();
   const newSalonId = salonRes!.id;
 

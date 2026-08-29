@@ -1,15 +1,19 @@
 import { Hono } from 'hono';
 import type { Bindings, Variables } from '../types';
 import { requireOwner } from './auth';
+import { checkRateLimit } from '../utils';
 
 export const uploadRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
+// SECURITY (stored-XSS): SVG is intentionally NOT allowed. SVG can carry
+// <script>/event handlers; served inline from the API origin it becomes a
+// stored-XSS vector. Legacy SVGs already in storage are served with
+// Content-Disposition: attachment + CSP sandbox (see GET /uploads/*).
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
   'image/webp',
   'image/gif',
-  'image/svg+xml',
   'image/avif',
 ]);
 
@@ -24,6 +28,16 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 uploadRoutes.post('/upload', requireOwner, async (c) => {
   try {
     const salonId: number = c.get('salonId');
+    const owner = c.get('owner');
+
+    // ── Rate limit: uploads (per owner, fail-open) ──
+    // 30 uploads / 10 min — generous for dashboard use, blocks abuse of the
+    // 5MB-per-file R2 write path.
+    const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, salonId, `upload:${owner.id}`, 30, 600);
+    if (!rl.allowed) {
+      const minutes = Math.ceil((rl.retryAfter || 60) / 60);
+      return c.json({ error: `محاولات رفع كثيرة جداً. يرجى الانتظار ${minutes} دقيقة.` }, 429);
+    }
 
     const formData = await c.req.formData();
     const file = (formData.get('file') || formData.get('image')) as File | null;
@@ -34,7 +48,7 @@ uploadRoutes.post('/upload', requireOwner, async (c) => {
 
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
       return c.json(
-        { error: 'نوع الملف غير مدعوم. الصيغ المسموحة: JPG, PNG, WEBP, GIF, SVG, AVIF' },
+        { error: 'نوع الملف غير مدعوم. الصيغ المسموحة: JPG, PNG, WEBP, GIF, AVIF' },
         400,
       );
     }
@@ -46,7 +60,8 @@ uploadRoutes.post('/upload', requireOwner, async (c) => {
     const extMatch = file.name.match(/\.([a-zA-Z0-9]+)$/);
     const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
     // Per-salon folder inside the bucket (e.g. salons/7/barbers_xyz.jpg)
-    const key = `salons/${salonId}/${Date.now()}_${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    // 32 hex chars of randomness (full UUID v4) — avoids key guessability.
+    const key = `salons/${salonId}/${Date.now()}_${crypto.randomUUID().replace(/-/g, '')}.${ext}`;
     const arrayBuffer = await file.arrayBuffer();
     const uint8 = new Uint8Array(arrayBuffer);
 
@@ -113,12 +128,17 @@ uploadRoutes.get('/uploads/*', async (c) => {
       const obj = await c.env.BUCKET.get(key);
       if (obj) {
         const headers = new Headers();
-        headers.set(
-          'Content-Type',
-          obj.httpMetadata?.contentType || 'image/jpeg',
-        );
+        const contentType = obj.httpMetadata?.contentType || 'image/jpeg';
+        headers.set('Content-Type', contentType);
         headers.set('Cache-Control', 'public, max-age=31536000, immutable');
         headers.set('ETag', obj.httpEtag);
+        headers.set('X-Content-Type-Options', 'nosniff');
+        if (contentType.includes('svg')) {
+          // Legacy SVG stored before SVG uploads were blocked: force download
+          // and sandbox so scripts can never execute on the API origin.
+          headers.set('Content-Disposition', 'attachment');
+          headers.set('Content-Security-Policy', 'sandbox');
+        }
         return new Response(obj.body, { headers });
       }
     } catch (err) {
@@ -148,8 +168,16 @@ uploadRoutes.get('/uploads/*', async (c) => {
     }
 
     const headers = new Headers();
-    headers.set('Content-Type', row.content_type || 'image/jpeg');
+    const contentType = row.content_type || 'image/jpeg';
+    headers.set('Content-Type', contentType);
     headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    headers.set('X-Content-Type-Options', 'nosniff');
+    if (contentType.includes('svg')) {
+      // Legacy SVG stored before SVG uploads were blocked: force download
+      // and sandbox so scripts can never execute on the API origin.
+      headers.set('Content-Disposition', 'attachment');
+      headers.set('Content-Security-Policy', 'sandbox');
+    }
     return new Response(bodyBytes, { headers });
   }
 

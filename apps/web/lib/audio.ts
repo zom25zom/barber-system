@@ -69,7 +69,7 @@ export async function requestNotificationPermission(role: "customer" | "owner" =
  * Shows a native OS / Phone notification even when the browser or tab is in the background.
  * Strictly deduplicated to ensure exactly one notification is delivered.
  */
-export function showBrowserNotification(title: string, body: string, url: string = "/my-bookings") {
+export function showBrowserNotification(title: string, body: string, url: string = "/") {
   if (typeof window === "undefined" || !("Notification" in window)) return;
 
   // Deduplicate identical title+body within 4 seconds

@@ -17,10 +17,19 @@ import {
   randomToken,
   isValidUsername,
   isValidPhone,
+  checkRateLimit,
 } from '../utils';
+import { requireSalonAvailable } from '../subscription';
 
 export const customerRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 customerRoutes.use('*', requireCustomer);
+
+// Subscription enforcement for the ENTIRE customer API of this salon:
+// an expired salon's customers cannot create, view, or manage bookings —
+// including booking creation, which is blocked server-side here (never
+// only hidden in the UI). Data stays in the database untouched and becomes
+// fully accessible again the moment the salon is reactivated.
+customerRoutes.use('*', requireSalonAvailable);
 
 // ---------- My profile (view / edit) ----------
 
@@ -125,6 +134,16 @@ customerRoutes.post('/change-password', async (c) => {
 customerRoutes.post('/bookings', async (c) => {
   const salonId: number = c.get('salonId');
   const customer = c.get('customer');
+
+  // ── Rate limit: booking creation (per customer, fail-open) ──
+  // Blocks spam via rapid book/cancel cycles. 10 bookings / 10 min is far
+  // above legitimate use; a DO outage must NOT block the booking funnel.
+  const rl = await checkRateLimit(c.env.NOTIFICATION_HUB, salonId, `booking_create:${customer.id}`, 10, 600);
+  if (!rl.allowed) {
+    const minutes = Math.ceil((rl.retryAfter || 60) / 60);
+    return c.json({ error: `محاولات كثيرة جداً. يرجى الانتظار ${minutes} دقيقة قبل إضافة حجز جديد.` }, 429);
+  }
+
   const body = await c.req.json().catch(() => ({} as any));
   const { barber_id, service_ids, date, start_time } = body;
 
@@ -257,7 +276,7 @@ customerRoutes.get('/bookings', async (c) => {
   let services: any[] = [];
   if (ids.length) {
     const { results: svc } = await c.env.DB.prepare(
-      `SELECT booking_id, name, price, duration_minutes FROM booking_services
+      `SELECT booking_id, service_id, name, price, duration_minutes FROM booking_services
        WHERE booking_id IN (${ids.map(() => '?').join(',')})`,
     )
       .bind(...ids)
@@ -403,65 +422,12 @@ customerRoutes.post('/bookings/:id/cancel', async (c) => {
   return c.json({ ok: true });
 });
 
-// ---------- Waitlist — PRD 3.8 ----------
-
-customerRoutes.post('/waitlist', async (c) => {
-  const salonId: number = c.get('salonId');
-  const customer = c.get('customer');
-  const body = await c.req.json().catch(() => ({} as any));
-  const { barber_id, date, start_time, end_time } = body;
-
-  if (
-    !isPositiveInt(barber_id) ||
-    !isValidDate(date) ||
-    !isValidTime(start_time) ||
-    !isValidTime(end_time) ||
-    toMinutes(start_time) >= toMinutes(end_time)
-  ) {
-    return c.json({ error: 'بيانات قائمة الانتظار غير صالحة (يرجى التأكد من أن وقت البداية قبل النهاية)' }, 400);
-  }
-
-  try {
-    const res = await c.env.DB.prepare(
-      `INSERT INTO waitlist (customer_id, barber_id, desired_date, start_time, end_time, salon_id)
-       VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-    )
-      .bind(customer.id, Number(barber_id), date, start_time, end_time, salonId)
-      .first<{ id: number }>();
-    return c.json({ id: res!.id }, 201);
-  } catch {
-    return c.json({ error: 'أنت مسجل مسبقاً في قائمة الانتظار لهذا الموعد' }, 409);
-  }
-});
-
-customerRoutes.get('/waitlist', async (c) => {
-  const salonId: number = c.get('salonId');
-  const customer = c.get('customer');
-  const { results } = await c.env.DB.prepare(
-    `SELECT w.*, br.name AS barber_name FROM waitlist w
-     JOIN barbers br ON br.id = w.barber_id
-     WHERE w.customer_id = ? AND w.salon_id = ? ORDER BY w.id DESC LIMIT 100`,
-  )
-    .bind(customer.id, salonId)
-    .all();
-  return c.json({ waitlist: results });
-});
-
-customerRoutes.delete('/waitlist/:id', async (c) => {
-  const salonId: number = c.get('salonId');
-  const customer = c.get('customer');
-  const idRaw = c.req.param('id');
-  if (!isPositiveInt(idRaw)) return c.json({ error: 'معرّف قائمة الانتظار غير صالح' }, 400);
-  const id = Number(idRaw);
-
-  const res = await c.env.DB.prepare('DELETE FROM waitlist WHERE id = ? AND customer_id = ? AND salon_id = ?')
-    .bind(id, customer.id, salonId)
-    .run();
-  if (res.meta.changes === 0) return c.json({ error: 'غير موجود' }, 404);
-  return c.json({ ok: true });
-});
-
 // ---------- Live Queue ("الدور") Tracker with Delay & Countdown Support ----------
+// NOTE: the customer waitlist endpoints (POST/GET/DELETE /waitlist — PRD 3.8)
+// were REMOVED: they had zero UI in apps/web, making the waitlist feature
+// dead end-to-end. The server-side machinery (waitlist table, notifyWaitlist
+// on cancellation, fulfilled-on-booking) is intentionally kept so the feature
+// can be reactivated with UI later without a data migration.
 
 customerRoutes.get('/queue', async (c) => {
   const salonId: number = c.get('salonId');

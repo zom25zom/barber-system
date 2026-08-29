@@ -9,6 +9,7 @@ import { useLiveNotifications } from "@/lib/useNotifications";
 import { useOwnerSalonSettings } from "@/lib/salon";
 import { useUnreadBadge } from "@/lib/unreadBadge";
 import ConfirmModal from "@/components/ConfirmModal";
+import RenewalBanner from "@/components/RenewalBanner";
 import InstallPrompt from "@/components/InstallPrompt";
 import IOSInstallGuide from "@/components/IOSInstallGuide";
 import {
@@ -41,10 +42,47 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
   // notifications bump it here — no page reload needed anywhere.
   const [unread, setUnread, bumpUnread] = useUnreadBadge();
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  // ── Subscription enforcement (client mirror of the server-side checks) ──
+  // • locked  → the salon's subscription_status is 'expired': the server
+  //   rejects every /api/owner/* call with the configurable lockout message,
+  //   so the whole panel is replaced by a lockout screen immediately.
+  // • renewalBanner → active + within 2 days of the salon's OWN cycle end:
+  //   the persistent non-dismissible reminder from platform_settings.
+  const [lockoutMessage, setLockoutMessage] = useState<string | null>(null);
+  const [renewalBanner, setRenewalBanner] = useState<string | null>(null);
   // Owner-session-scoped branding. Disabled on the login page (no session yet
   // → previously fired a pointless GET /api/salon-settings that 404'd).
   const isLoginPage = pathname === "/admin/login";
   const salon = useOwnerSalonSettings(!isLoginPage && !!token);
+
+  const loadSubscriptionStatus = useCallback(() => {
+    if (!token) return;
+    apiFetch<{
+      status: string;
+      renewal_banner: string | null;
+    }>("/api/owner/subscription-status", { token })
+      .then((d) => {
+        setLockoutMessage(null);
+        setRenewalBanner(d.renewal_banner ?? null);
+      })
+      .catch((err: Error & { code?: string }) => {
+        if (err.code === "SUBSCRIPTION_EXPIRED") {
+          setLockoutMessage(err.message);
+          setRenewalBanner(null);
+        }
+      });
+  }, [token]);
+
+  // Re-check on every admin page navigation AND whenever the dashboard
+  // regains focus — so a super-admin status change (renewal or lockout)
+  // is reflected without waiting for a 403 from the next API call.
+  useEffect(() => {
+    if (isLoginPage || !token) return;
+    loadSubscriptionStatus();
+    const onFocus = () => loadSubscriptionStatus();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [pathname, isLoginPage, token, loadSubscriptionStatus]);
 
   // Dynamically ensure Admin PWA manifest and title are active when in /admin
   useEffect(() => {
@@ -76,6 +114,30 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
 
   if (pathname === "/admin/login") return <>{children}</>;
   if (!token) return null;
+
+  // ── Subscription lockout: the salon was set to 'expired' by the platform
+  // owner. Every admin page is replaced by the configurable Arabic lockout
+  // message. Cleared automatically once the salon is reactivated (the next
+  // status fetch succeeds and the panel renders again).
+  if (lockoutMessage) {
+    return (
+      <div className="bs-skin w-full">
+        <div className="mx-auto max-w-lg py-14">
+          <div className="bs-panel p-8 text-center sm:p-10">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] text-3xl">
+              🔒
+            </div>
+            <h1 className="mt-6 text-2xl font-black text-[var(--bs-text)]">لوحة التحكم موقوفة مؤقتاً</h1>
+            <p className="mt-4 text-sm leading-relaxed text-[var(--bs-text-muted)]">{lockoutMessage}</p>
+            <div className="bs-hairline mx-auto mt-8 max-w-[10rem]" />
+            <p className="mt-6 text-xs text-[var(--bs-text-faint)]">
+              سيتم استعادة الوصول تلقائياً فور تجديد الاشتراك
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const isItemActive = (href: string) => {
     return pathname === href || (href !== "/admin" && pathname.startsWith(href));
@@ -144,6 +206,8 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
 
       {/* ── Main Content (Extra bottom padding on mobile for the fixed nav bar) ── */}
       <div className="min-w-0 flex-1 space-y-6 pb-24 lg:pb-8">
+        {/* Renewal reminder — persistent, non-dismissible, computed per salon */}
+        {renewalBanner && <RenewalBanner message={renewalBanner} />}
         {/* PWA install (Android/Chrome) + iOS install guide */}
         <InstallPrompt />
         <IOSInstallGuide />

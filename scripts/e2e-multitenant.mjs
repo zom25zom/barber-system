@@ -50,6 +50,11 @@ async function main() {
   const passA = `secret-${RUN}`;
   const passB = `otherpass-${RUN}`;
 
+  // Tokens/ids hoisted from later stages for the stage-18 race tests:
+  let breakCustomerToken = null;   // stage 17 — break/time-off test customer
+  let breakRebookId = null;        // stage 17 — that customer's confirmed booking id
+  let customerAToken = null;       // stage 15 — customer A's latest (post-rotation) token
+
   console.log("\n══════════════════════════════════════════════════");
   console.log(" مرحلة 1: إنشاء صالونين بنفس اسم مستخدم الأدمن «admin»");
   console.log("══════════════════════════════════════════════════");
@@ -315,6 +320,18 @@ async function main() {
   check("حجز يدوي بأدمن A لزبون من صالون B → مرفوض 404", manualCross.status === 404, `status=${manualCross.status}`);
 
   const custAId = searchA.data.customers.find(c => c.phone === "+962791111111")?.id;
+
+  // NEW (migration 0013): manual booking for a customer who ALREADY has an
+  // active booking must now be rejected by the DB-level customer-active index.
+  const manualWhileActive = await http("POST", "/api/owner/bookings", {
+    token: tokenA, body: { customer_id: custAId, barber_id: barberA, service_ids: [svA[0].id], date: tomorrowISO(), start_time: "18:00" },
+  });
+  check("حجز يدوي لزبون لديه حجز نشط بالفعل → 400 (سياسة الحجز الواحد مفروضة على مستوى DB)",
+    manualWhileActive.status === 400 && (manualWhileActive.data?.error ?? "").includes("حجز نشط"),
+    `status=${manualWhileActive.status} msg=${manualWhileActive.data?.error}`);
+
+  // Free customer A (cancel the 16:30 rebooking), then the manual booking succeeds
+  await http("POST", `/api/owner/bookings/${rebookA.data.id}/cancel`, { token: tokenA });
   const manualOkA = await http("POST", "/api/owner/bookings", {
     token: tokenA, body: { customer_id: custAId, barber_id: barberA, service_ids: [svA[0].id], date: tomorrowISO(), start_time: "18:00" },
   });
@@ -517,6 +534,9 @@ async function main() {
       `salon_ids=${[...new Set((cNotif.data?.notifications ?? []).map(n => n.salon_id))].join(",") || "empty"}`);
 
     // ── 3) Forged salon_id in the BODY of a write → must be ignored ──
+    // Free customer A first (cancel the stage-9 manual booking) — the
+    // customer-active unique index (migration 0013) would otherwise reject.
+    await http("POST", `/api/owner/bookings/${manualOkA.data.booking_id}/cancel`, { token: tokenA });
     const forged = await http("POST", "/api/owner/bookings", {
       token: tokenA,
       body: { customer_id: custAId, barber_id: barberA, service_ids: [svA[0].id], date: tomorrowISO(), start_time: "19:30", salon_id: idB, salonSlug: slugB },
@@ -564,6 +584,7 @@ async function main() {
     check("SESSION: دخول زبون A من جهاز جديد → نجاح ورمز جديد",
       reCustA.status === 200 && !!reCustA.data?.token && reCustA.data.token !== tokA);
     const newTokA = reCustA.data.token;
+    customerAToken = newTokA; // hoisted for stage 18
 
     const oldCustCheck = await http("GET", "/api/customer/bookings", { token: tokA });
     check("SESSION: رمز زبون A القديم بعد الدخول الجديد → 401 مع code=SESSION_EXPIRED",
@@ -626,11 +647,189 @@ async function main() {
     check("REG-CTX: حساب A يعمل طبيعياً بعد محاولة الدخول عبر B", stillWorksA.status === 200);
   } // نهاية مرحلة 16
 
+  console.log("\n══════════════════════════════════════════════════");
+  console.log(" مرحلة 17: منع الحجز أثناء الاستراحة/الإجازة (validateBookingSlot)");
+  console.log("══════════════════════════════════════════════════");
+
+  // All three booking write paths (customer POST, customer PATCH, owner manual)
+  // share one validator — a customer with a stale tab or a crafted request must
+  // NOT be able to book during a barber break or a time-off day.
+  {
+    // Fresh customer for salon A (unique phone per run)
+    const custBreak = await registerCustomer(
+      slugA,
+      `زبون-استراحة-${RUN}`,
+      `+96279${Math.floor(1000000 + Math.random() * 8999999)}`,
+      "custbreak1",
+    );
+    const tokBreak = custBreak.login.data?.token;
+    breakCustomerToken = tokBreak; // hoisted for stage 18
+    check("BREAK-إعداد: تسجيل زبون جديد لصالون A", !!tokBreak);
+
+    // NOTE: we reuse tokenA — salon C (stage 2) shares A's username+password,
+    // so a fresh owner login for A would hit the 409 ambiguity guard.
+    const tokABreak = tokenA;
+    check("BREAK-إعداد: جلسة أدمن صالون A", !!tokABreak);
+
+    const dow = new Date(tDate + "T00:00:00Z").getUTCDay();
+
+    // 1) Owner adds a weekly break 12:00-13:00 on that day of week
+    const brk = await http("POST", `/api/owner/barbers/${barberA}/breaks`, {
+      token: tokABreak,
+      body: { day_of_week: dow, start_time: "12:00", end_time: "13:00" },
+    });
+    check("BREAK-إعداد: إضافة استراحة 12:00-13:00 للحلاق", brk.status === 200 || brk.status === 201, `msg=${JSON.stringify(brk.data)}`);
+
+    // 2) Customer POST during the break → must be rejected (was accepted before the fix)
+    const inBreak = await http("POST", "/api/customer/bookings", {
+      token: tokBreak,
+      body: { barber_id: barberA, service_ids: [svA[0].id], date: tDate, start_time: "12:00" },
+    });
+    check("BREAK-1: حجز زبون داخل فترة استراحة الحلاق → 400", inBreak.status === 400, `msg=${inBreak.data?.error}`);
+
+    // 3) Customer PATCH (reschedule) into the break → must be rejected as well.
+    //    First get a confirmed booking at a free time (16:00 tomorrow).
+    const baseBook = await http("POST", "/api/customer/bookings", {
+      token: tokBreak,
+      body: { barber_id: barberA, service_ids: [svA[0].id], date: tDate, start_time: "16:00" },
+    });
+    check("BREAK-إعداد: حجز أساسي ساعة 16:00 نجح", baseBook.status === 201, `msg=${JSON.stringify(baseBook.data)}`);
+    const patchInBreak = await http("PATCH", `/api/customer/bookings/${baseBook.data?.id}`, {
+      token: tokBreak,
+      body: { date: tDate, start_time: "12:00" },
+    });
+    check("BREAK-2: تعديل الحجز إلى داخل الاستراحة → 400", patchInBreak.status === 400, `msg=${patchInBreak.data?.error}`);
+
+    // 4) Owner manual booking inside the break → same rejection (same validator)
+    const manualInBreak = await http("POST", "/api/owner/bookings", {
+      token: tokABreak,
+      body: { customer_id: custBreak.login.data?.customer?.id, barber_id: barberA, service_ids: [svA[0].id], date: tDate, start_time: "12:30" },
+    });
+    check("BREAK-3: حجز يدوي للأدمن داخل الاستراحة → 400", manualInBreak.status === 400, `msg=${manualInBreak.data?.error}`);
+
+    // 5) Time-off: owner marks the day AFTER tomorrow as leave; customer POST/PATCH there → 400
+    const offDate = new Date(Date.now() + 3 * 3600_000 + 2 * 24 * 3600_000).toISOString().slice(0, 10);
+    const off = await http("POST", `/api/owner/barbers/${barberA}/time-off`, {
+      token: tokABreak,
+      body: { date: offDate, reason: "إجازة اختبار" },
+    });
+    check("TIMEOFF-إعداد: تعيين إجازة خاصة للتاريخ " + offDate, off.status === 200 || off.status === 201, `msg=${JSON.stringify(off.data)}`);
+
+    // Cancel the 16:00 booking first (single-active-booking policy would block a new POST)
+    await http("POST", `/api/customer/bookings/${baseBook.data?.id}/cancel`, { token: tokBreak });
+
+    const onLeave = await http("POST", "/api/customer/bookings", {
+      token: tokBreak,
+      body: { barber_id: barberA, service_ids: [svA[0].id], date: offDate, start_time: "15:00" },
+    });
+    check("TIMEOFF-1: حجز زبون في يوم إجازة الحلاق → 400", onLeave.status === 400, `msg=${onLeave.data?.error}`);
+
+    // PATCH into the leave day → 400 (and booking stays on its original slot)
+    const rebook = await http("POST", "/api/customer/bookings", {
+      token: tokBreak,
+      body: { barber_id: barberA, service_ids: [svA[0].id], date: tDate, start_time: "17:00" },
+    });
+    check("TIMEOFF-إعداد: حجز بديل 17:00 نجح", rebook.status === 201, `msg=${JSON.stringify(rebook.data)}`);
+    breakRebookId = rebook.data?.id; // hoisted for stage 18
+    const patchOnLeave = await http("PATCH", `/api/customer/bookings/${rebook.data?.id}`, {
+      token: tokBreak,
+      body: { date: offDate, start_time: "15:00" },
+    });
+    check("TIMEOFF-2: تعديل الحجز إلى يوم الإجازة → 400", patchOnLeave.status === 400, `msg=${patchOnLeave.data?.error}`);
+
+    // Booking untouched after the rejected PATCH
+    const mine = await http("GET", "/api/customer/bookings", { token: tokBreak });
+    const stillIntact = (mine.data?.bookings ?? []).some((b) => b.id === rebook.data?.id && b.booking_date === tDate && b.status === "confirmed");
+    check("TIMEOFF-3: الحجز لم يتأثر بعد رفض التعديل", stillIntact);
+
+  // (stage 18 lives inside this block: it reuses tokBreak / rebook from above)
+
+  console.log("\n══════════════════════════════════════════════════");
+  console.log(" مرحلة 18: سباقات الحجز المتزامنة (فهارس UNIQUE — migration 0013)");
+  console.log("══════════════════════════════════════════════════");
+
+  // The app-level checks are separate SELECTs — only the DB-level partial
+  // unique indexes guarantee correctness when two requests race. Each test
+  // fires two booking requests SIMULTANEOUSLY and expects exactly one winner.
+  // NOTE: reuses existing customer tokens (tokBreak / tokA2) — the per-salon
+  // customer-register rate limit (5 / 5 min) is already consumed by earlier
+  // stages, and fresh registrations here would 429.
+  {
+    // Free both customers: cancel their active confirmed bookings.
+    // NOTE: reuses existing customers — earlier stages exhausted the per-salon
+    // customer register/login rate limits (5 / 5 min), so fresh accounts would 429.
+    await http("POST", `/api/customer/bookings/${breakRebookId}/cancel`, { token: breakCustomerToken }); // 17:00 tomorrow
+    // Customer A holds the stage-14 forged-salon_id booking (19:30) — cancel it
+    const custABookings = await http("GET", "/api/customer/bookings", { token: customerAToken });
+    const activeA = (custABookings.data?.bookings ?? []).find((b) => b.status === "confirmed");
+    if (activeA) await http("POST", `/api/customer/bookings/${activeA.id}/cancel`, { token: customerAToken });
+    const free1 = await http("GET", "/api/customer/bookings", { token: breakCustomerToken });
+    const free2 = await http("GET", "/api/customer/bookings", { token: customerAToken });
+    check("RACE-إعداد: الزبونان بلا حجز نشط",
+      !free1.data.bookings.some(b => b.status === "confirmed") && !free2.data.bookings.some(b => b.status === "confirmed"));
+
+    // 1) Slot race: two DIFFERENT customers, SAME slot (tomorrow 20:00),
+    //    fired simultaneously → exactly one 201; loser gets 409/400.
+    const slotBody = (tok) => ({
+      token: tok,
+      body: { barber_id: barberA, service_ids: [svA[0].id], date: tDate, start_time: "20:00" },
+    });
+    const [r1, r2] = await Promise.all([
+      http("POST", "/api/customer/bookings", slotBody(breakCustomerToken)),
+      http("POST", "/api/customer/bookings", slotBody(customerAToken)),
+    ]);
+    const st = [r1.status, r2.status].sort();
+    check(
+      "RACE-1: حجزان متزامنان لنفس الموعد → فائز واحد فقط",
+      st[0] === 201 && (st[1] === 409 || st[1] === 400),
+      `statuses=${r1.status}/${r2.status} errs=${r1.data?.error ?? ""} | ${r2.data?.error ?? ""}`,
+    );
+    const raceLoserTok = r1.status !== 201 ? breakCustomerToken : customerAToken;
+    const raceLoserRes = r1.status !== 201 ? r1 : r2;
+    const raceWinnerTok = r1.status === 201 ? breakCustomerToken : customerAToken;
+    check(
+      "RACE-2: رسالة الخاسر واضحة (الموعد حُجز للتو) وليست خطأ 500",
+      raceLoserRes.status !== 500 && typeof raceLoserRes.data?.error === "string",
+      `msg=${raceLoserRes.data?.error}`,
+    );
+
+    // 2) Single-active race: the slot-race LOSER (no active booking) fires two
+    //    simultaneous bookings at different slots (20:30 / 21:00) → exactly one 201.
+    const [s1, s2] = await Promise.all([
+      http("POST", "/api/customer/bookings", { token: raceLoserTok, body: { barber_id: barberA, service_ids: [svA[0].id], date: tDate, start_time: "20:30" } }),
+      http("POST", "/api/customer/bookings", { token: raceLoserTok, body: { barber_id: barberA, service_ids: [svA[0].id], date: tDate, start_time: "21:00" } }),
+    ]);
+    const st2 = [s1.status, s2.status].sort();
+    check(
+      "RACE-3: حجزان متزامنان من نفس الزبون → حجز نشط واحد فقط",
+      st2[0] === 201 && st2[1] === 400,
+      `statuses=${s1.status}/${s2.status} errs=${s1.data?.error ?? ""} | ${s2.data?.error ?? ""}`,
+    );
+    const sLoser = s1.status !== 201 ? s1 : s2;
+    check(
+      "RACE-4: رسالة الخاسر = سياسة الحجز النشط الواحد",
+      sLoser.status === 400 && (sLoser.data?.error ?? "").includes("حجز نشط"),
+      `msg=${sLoser.data?.error}`,
+    );
+
+    // 3) DB truth via each customer's booking list:
+    const mine1 = await http("GET", "/api/customer/bookings", { token: raceWinnerTok });
+    const confirmed1 = (mine1.data?.bookings ?? []).filter((b) => b.status === "confirmed");
+    check("RACE-5: الفائز بسباق الموعد لديه حجز مؤكد واحد فقط في DB", confirmed1.length === 1, `count=${confirmed1.length}`);
+    const mine2 = await http("GET", "/api/customer/bookings", { token: raceLoserTok });
+    const confirmed2 = (mine2.data?.bookings ?? []).filter((b) => b.status === "confirmed");
+    const totalConfirmed = confirmed1.length + confirmed2.length;
+    // Exactly 2 confirmed bookings across both customers: one from the slot
+    // race (20:00) + one from the single-active race (20:30 or 21:00).
+    check("RACE-6: مجموع الحجوزات المؤكدة = 2 (لا مكررات على مستوى DB)", totalConfirmed === 2, `total=${totalConfirmed}`);
+  } // نهاية مرحلة 17 + 18
+
   console.log("\n" + "═".repeat(52));
   console.log(` النتيجة النهائية: ✅ ${passCount} ناجح | ❌ ${failCount} فاشل`);
   if (failures.length) { console.log(" الاختبارات الفاشلة:"); failures.forEach(f => console.log(`   - ${f}`)); }
   console.log("═".repeat(52) + "\n");
   process.exit(failCount > 0 ? 1 : 0);
+}
 }
 
 main().catch((e) => { console.error("FATAL:", e); process.exit(2); });

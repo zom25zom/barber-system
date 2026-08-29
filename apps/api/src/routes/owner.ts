@@ -5,13 +5,10 @@ import { requireOwner } from './auth';
 import { sendNotification } from '../notify';
 import { scheduleBookingReminder } from '../reminders';
 import { deleteOldUpload } from '../cleanup';
-import { servicesDuration, computeBarberAvailability } from './public';
+import { servicesDuration, computeBarberAvailability, validateBookingSlot, mapBookingUniqueError } from './public';
 import {
   isValidDate,
   isValidTime,
-  toMinutes,
-  toHHMM,
-  dayOfWeek,
   formatTime12Ar,
   sha256,
   isPositiveInt,
@@ -643,65 +640,13 @@ ownerRoutes.post('/bookings', async (c) => {
   const totalDuration = await servicesDuration(c.env.DB, barber.id, ids);
   if (totalDuration == null) return c.json({ error: 'خدمات غير صالحة لهذا الحلاق' }, 400);
 
-  // Check specific date time-off (إجازة مخصصة بتاريخ محدد)
-  const timeOff = await c.env.DB.prepare(
-    'SELECT id, reason FROM barber_time_off WHERE barber_id = ? AND date = ? AND salon_id = ?',
-  )
-    .bind(barber.id, date, salonId)
-    .first<{ id: number; reason: string | null }>();
-  if (timeOff) {
-    return c.json(
-      { error: `الحلاق في إجازة خاصة بتاريخ ${date}${timeOff.reason ? ` (${timeOff.reason})` : ''}` },
-      400,
-    );
-  }
+  // Shared slot validation — time-off, weekly schedule, working hours, breaks
+  // and conflicts. One implementation for customer POST, customer PATCH and
+  // this manual-booking path, so the rules can never diverge again.
+  const slot = await validateBookingSlot(c.env.DB, salonId, barber.id, date, start_time, totalDuration);
+  if ('error' in slot) return c.json({ error: slot.error }, slot.status);
 
-  // Check weekly schedule
-  const schedule = await c.env.DB.prepare(
-    'SELECT start_time, end_time, is_day_off FROM work_schedules WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
-  )
-    .bind(barber.id, dayOfWeek(date), salonId)
-    .first<{ start_time: string; end_time: string; is_day_off: number }>();
-  if (!schedule || schedule.is_day_off) {
-    return c.json({ error: 'الحلاق في عطلة أسبوعية بهذا اليوم' }, 400);
-  }
-
-  const start = toMinutes(start_time);
-  const end = start + totalDuration;
-  if (start < toMinutes(schedule.start_time) || end > toMinutes(schedule.end_time)) {
-    return c.json({ error: 'الموعد المحدد يقع خارج ساعات دوام عمل الحلاق' }, 400);
-  }
-
-  // Check breaks for that day
-  const { results: breaks } = await c.env.DB.prepare(
-    'SELECT start_time, end_time FROM barber_breaks WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
-  )
-    .bind(barber.id, dayOfWeek(date), salonId)
-    .all<{ start_time: string; end_time: string }>();
-
-  const overlapsBreak = (breaks as any[]).some((br) => {
-    const bs = toMinutes(br.start_time);
-    const be = toMinutes(br.end_time);
-    return start < be && end > bs;
-  });
-  if (overlapsBreak) {
-    return c.json({ error: 'الموعد يتعارض مع فترة استراحة الحلاق' }, 400);
-  }
-
-  const endTime = toHHMM(end);
-
-  // Check conflict with other confirmed bookings
-  const conflict = await c.env.DB.prepare(
-    `SELECT id FROM bookings
-     WHERE barber_id = ? AND booking_date = ? AND status = 'confirmed' AND salon_id = ?
-       AND start_time < ? AND end_time > ?
-     LIMIT 1`,
-  )
-    .bind(barber.id, date, salonId, endTime, start_time)
-    .first();
-  if (conflict) {
-    return c.json({ error: 'هذا الموعد يتعارض مع حجز مؤكد آخر للحلاق' }, 409);
-  }
+  const endTime = slot.endTime;
 
   // Snapshot services and compute total price
   const placeholders = ids.map(() => '?').join(',');
@@ -712,12 +657,22 @@ ownerRoutes.post('/bookings', async (c) => {
     .all<any>();
   const totalPrice = (svcRows as any[]).reduce((s, r) => s + r.price, 0);
 
-  const booking = await c.env.DB.prepare(
-    `INSERT INTO bookings (customer_id, barber_id, booking_date, start_time, end_time, status, total_price, salon_id)
-     VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?) RETURNING id`,
-  )
-    .bind(customer!.id, barber.id, date, start_time, endTime, totalPrice, salonId)
-    .first<{ id: number }>();
+  let booking: { id: number } | null = null;
+  try {
+    booking = await c.env.DB.prepare(
+      `INSERT INTO bookings (customer_id, barber_id, booking_date, start_time, end_time, status, total_price, salon_id)
+       VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?) RETURNING id`,
+    )
+      .bind(customer!.id, barber.id, date, start_time, endTime, totalPrice, salonId)
+      .first<{ id: number }>();
+  } catch (err) {
+    // Same race backstop as the customer path (migration 0013): the slot may
+    // have been taken after our conflict check, or the customer already has
+    // an active booking created concurrently.
+    const mapped = mapBookingUniqueError(err);
+    if (mapped) return c.json({ error: mapped.error }, mapped.status);
+    throw err;
+  }
 
   const stmts = (svcRows as any[]).map((s) =>
     c.env.DB.prepare(

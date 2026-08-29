@@ -99,6 +99,6 @@ CREATE TABLE notifications (
 );
 CREATE INDEX idx_notifications_recipient ON notifications (recipient_type, recipient_id, is_read);
 
--- Default owner account (username: admin / password: admin123) -- change after first login.
-INSERT INTO owners (username, password_hash) VALUES
-  ('admin', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9');
+
+
+

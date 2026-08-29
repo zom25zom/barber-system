@@ -3,14 +3,13 @@ import type { Bindings, Customer, Variables } from '../types';
 import { requireCustomer } from './auth';
 import { sendNotification, formatNewBookingMessage } from '../notify';
 import { notifyWaitlist } from './owner';
-import { servicesDuration } from './public';
+import { servicesDuration, validateBookingSlot, mapBookingUniqueError } from './public';
 import { scheduleBookingReminder } from '../reminders';
 import {
   isValidDate,
   isValidTime,
   toMinutes,
   toHHMM,
-  dayOfWeek,
   todayISO,
   formatTime12Ar,
   isPositiveInt,
@@ -182,23 +181,12 @@ customerRoutes.post('/bookings', async (c) => {
   const totalDuration = await servicesDuration(c.env.DB, barber.id, ids);
   if (totalDuration == null) return c.json({ error: 'خدمات غير صالحة لهذا الحلاق' }, 400);
 
-  // Validate against the barber's schedule
-  const schedule = await c.env.DB.prepare(
-    'SELECT start_time, end_time, is_day_off FROM work_schedules WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
-  )
-    .bind(barber.id, dayOfWeek(date), salonId)
-    .first<{ start_time: string; end_time: string; is_day_off: number }>();
-  if (!schedule || schedule.is_day_off) return c.json({ error: 'الحلاق في إجازة بهذا اليوم' }, 400);
-
-  const start = toMinutes(start_time);
-  const end = start + totalDuration;
-  if (start < toMinutes(schedule.start_time) || end > toMinutes(schedule.end_time)) {
-    return c.json({ error: 'الموعد خارج ساعات عمل الحلاق' }, 400);
-  }
-
-  const endTime = toHHMM(end);
-  const conflictCheck = await checkConflict(c.env.DB, salonId, barber.id, date, start_time, endTime);
-  if (conflictCheck) return c.json({ error: 'هذا الموعد لم يعد متاحاً' }, 409);
+  // Shared slot validation — time-off, weekly schedule, working hours, breaks
+  // and conflicts (same rules as the owner manual-booking path; a stale tab or
+  // crafted request can no longer book during a break or a time-off day).
+  const slot = await validateBookingSlot(c.env.DB, salonId, barber.id, date, start_time, totalDuration);
+  if ('error' in slot) return c.json({ error: slot.error }, slot.status);
+  const endTime = slot.endTime;
 
   // Snapshot services and compute total price
   const placeholders = ids.map(() => '?').join(',');
@@ -209,12 +197,22 @@ customerRoutes.post('/bookings', async (c) => {
     .all<any>();
   const totalPrice = (svcRows as any[]).reduce((s, r) => s + r.price, 0);
 
-  const booking = await c.env.DB.prepare(
-    `INSERT INTO bookings (customer_id, barber_id, booking_date, start_time, end_time, status, total_price, salon_id)
-     VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?) RETURNING id`,
-  )
-    .bind(customer.id, barber.id, date, start_time, endTime, totalPrice, salonId)
-    .first<{ id: number }>();
+  let booking: { id: number } | null = null;
+  try {
+    booking = await c.env.DB.prepare(
+      `INSERT INTO bookings (customer_id, barber_id, booking_date, start_time, end_time, status, total_price, salon_id)
+       VALUES (?, ?, ?, ?, ?, 'confirmed', ?, ?) RETURNING id`,
+    )
+      .bind(customer.id, barber.id, date, start_time, endTime, totalPrice, salonId)
+      .first<{ id: number }>();
+  } catch (err) {
+    // Backstop for the check-then-insert race: the partial unique indexes
+    // (migration 0013) reject a slot taken or a second active booking between
+    // our SELECT and this INSERT.
+    const mapped = mapBookingUniqueError(err);
+    if (mapped) return c.json({ error: mapped.error }, mapped.status);
+    throw err;
+  }
 
   const stmts = (svcRows as any[]).map((s) =>
     c.env.DB.prepare(
@@ -333,40 +331,48 @@ customerRoutes.patch('/bookings/:id', async (c) => {
     totalDuration = svcRows.reduce((s, r) => s + r.duration_minutes, 0);
   }
 
-  const schedule = await c.env.DB.prepare(
-    'SELECT start_time, end_time, is_day_off FROM work_schedules WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
-  )
-    .bind(booking.barber_id, dayOfWeek(newDate), salonId)
-    .first<any>();
-  if (!schedule || schedule.is_day_off) return c.json({ error: 'الحلاق في إجازة بهذا اليوم' }, 400);
-
-  const start = toMinutes(newStart);
-  const end = start + totalDuration;
-  if (start < toMinutes(schedule.start_time) || end > toMinutes(schedule.end_time)) {
-    return c.json({ error: 'الموعد خارج ساعات عمل الحلاق' }, 400);
-  }
-  const newEnd = toHHMM(end);
-  if (await checkConflict(c.env.DB, salonId, booking.barber_id, newDate, newStart, newEnd, id)) {
-    return c.json({ error: 'هذا الموعد لم يعد متاحاً' }, 409);
-  }
+  // Shared slot validation (reschedule): same time-off/break/schedule rules
+  // as creation; the booking's own row is excluded from the conflict check.
+  const slot = await validateBookingSlot(c.env.DB, salonId, booking.barber_id, newDate, newStart, totalDuration, id);
+  if ('error' in slot) return c.json({ error: slot.error }, slot.status);
+  const newEnd = slot.endTime;
 
   const totalPrice = svcRows.reduce((s, r) => s + r.price, 0);
-  const stmts: any[] = [
-    c.env.DB.prepare(
-      'UPDATE bookings SET booking_date = ?, start_time = ?, end_time = ?, total_price = ? WHERE id = ?',
-    ).bind(newDate, newStart, newEnd, totalPrice, id),
-  ];
-  if (ids) {
-    stmts.push(c.env.DB.prepare('DELETE FROM booking_services WHERE booking_id = ?').bind(id));
-    for (const s of svcRows) {
-      stmts.push(
-        c.env.DB.prepare(
-          'INSERT INTO booking_services (booking_id, service_id, name, price, duration_minutes) VALUES (?, ?, ?, ?, ?)',
-        ).bind(id, s.id, s.name, s.price, s.duration_minutes),
-      );
+  try {
+    const stmts: any[] = [
+      c.env.DB.prepare(
+        'UPDATE bookings SET booking_date = ?, start_time = ?, end_time = ?, total_price = ? WHERE id = ?',
+      ).bind(newDate, newStart, newEnd, totalPrice, id),
+    ];
+    if (ids) {
+      stmts.push(c.env.DB.prepare('DELETE FROM booking_services WHERE booking_id = ?').bind(id));
+      for (const s of svcRows) {
+        stmts.push(
+          c.env.DB.prepare(
+            'INSERT INTO booking_services (booking_id, service_id, name, price, duration_minutes) VALUES (?, ?, ?, ?, ?)',
+          ).bind(id, s.id, s.name, s.price, s.duration_minutes),
+        );
+      }
     }
+    await c.env.DB.batch(stmts);
+  } catch (err) {
+    // Reschedule race backstop: another customer may have taken the target
+    // slot between our conflict check and this UPDATE (migration 0013).
+    const mapped = mapBookingUniqueError(err);
+    if (mapped) return c.json({ error: mapped.error }, mapped.status);
+    throw err;
   }
-  await c.env.DB.batch(stmts);
+
+  // Re-schedule the 20-minute reminder for the NEW time (mirrors the manual
+  // booking flow in owner.ts). The previously queued message for the old time
+  // is dropped as stale by the consumer (it compares start_time), so without
+  // this the rescheduled booking would never get a reminder at all.
+  // Only when the time actually changed — a services-only PATCH must not
+  // duplicate the still-valid reminder for the original slot.
+  if (newDate !== booking.booking_date || newStart !== booking.start_time) {
+    await scheduleBookingReminder(c.env, salonId, id, newDate, newStart);
+  }
+
   return c.json({ ok: true, end_time: newEnd, total_price: totalPrice });
 });
 
@@ -601,26 +607,5 @@ customerRoutes.post('/notifications/read-all', async (c) => {
 });
 
 // ---------- shared ----------
-
-async function checkConflict(
-  db: D1Database,
-  salonId: number,
-  barberId: number,
-  date: string,
-  startTime: string,
-  endTime: string,
-  excludeBookingId?: number,
-): Promise<boolean> {
-  const row = await db
-    .prepare(
-      `SELECT id FROM bookings
-       WHERE barber_id = ? AND booking_date = ? AND status = 'confirmed' AND salon_id = ?
-         AND start_time < ? AND end_time > ? ${excludeBookingId ? 'AND id != ?' : ''}
-       LIMIT 1`,
-    )
-    .bind(...(excludeBookingId
-      ? [barberId, date, salonId, endTime, startTime, excludeBookingId]
-      : [barberId, date, salonId, endTime, startTime]))
-    .first();
-  return row != null;
-}
+// (booking slot validation lives in public.ts → validateBookingSlot, shared
+// with the owner manual-booking path)

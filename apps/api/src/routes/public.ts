@@ -19,6 +19,7 @@ import {
   randomToken,
   sha256,
   slugifySalonName,
+  isReservedSlug,
   isPositiveInt,
 } from '../utils';
 
@@ -383,6 +384,132 @@ export async function servicesDuration(
   return (results as any[]).reduce((sum, s) => sum + s.duration_minutes, 0);
 }
 
+/**
+ * Maps a D1/SQLite UNIQUE-constraint failure on `bookings` (from the partial
+ * unique indexes in migration 0013) to a friendly API response, or returns
+ * null when the error is unrelated and should propagate.
+ *
+ *   ux_bookings_barber_slot    (barber_id, booking_date, start_time) → 409 slot taken
+ *   ux_bookings_customer_active (customer_id)                        → 400 active booking
+ */
+export function mapBookingUniqueError(err: unknown): BookingSlotError | null {
+  const msg = String((err as any)?.message ?? err);
+  if (!msg.includes('UNIQUE constraint failed')) return null;
+  if (msg.includes('bookings.customer_id')) {
+    return {
+      error: 'لديك حجز نشط بالفعل. لا يمكنك إجراء حجز جديد حتى يكتمل موعدك الحالي أو تقوم بإلغائه.',
+      status: 400,
+    };
+  }
+  if (msg.includes('bookings.barber_id')) {
+    return { error: 'هذا الموعد لم يعد متاحاً — تم حجزه للتو', status: 409 };
+  }
+  return null;
+}
+
+export interface BookingSlotOk {
+  start: number;
+  end: number;
+  endTime: string;
+}
+
+export interface BookingSlotError {
+  error: string;
+  status: 400 | 409;
+}
+
+/**
+ * Shared booking-slot validation used by ALL booking write paths:
+ *   • customer POST /api/customer/bookings
+ *   • customer PATCH /api/customer/bookings/:id (reschedule)
+ *   • owner manual booking POST /api/owner/bookings
+ *
+ * Checks, in order:
+ *   1. barber_time_off (specific-date leave)          → 400
+ *   2. work_schedules (weekly day-off / missing)      → 400
+ *   3. slot fits inside the day's working hours       → 400
+ *   4. barber_breaks overlap (weekly breaks)          → 400
+ *   5. conflict with a confirmed booking              → 409
+ *      (pass excludeBookingId when rescheduling)
+ *
+ * Extracted from owner.ts so the customer path can never bypass time-off or
+ * break validation with a crafted request / stale tab.
+ */
+export async function validateBookingSlot(
+  db: D1Database,
+  salonId: number,
+  barberId: number,
+  date: string,
+  startTime: string,
+  durationMinutes: number,
+  excludeBookingId?: number,
+): Promise<BookingSlotOk | BookingSlotError> {
+  // 1. Specific-date time-off (إجازة مخصصة بتاريخ محدد)
+  const timeOff = await db
+    .prepare('SELECT id, reason FROM barber_time_off WHERE barber_id = ? AND date = ? AND salon_id = ?')
+    .bind(barberId, date, salonId)
+    .first<{ id: number; reason: string | null }>();
+  if (timeOff) {
+    return {
+      error: `الحلاق في إجازة خاصة بتاريخ ${date}${timeOff.reason ? ` (${timeOff.reason})` : ''}`,
+      status: 400,
+    };
+  }
+
+  // 2. Weekly schedule
+  const schedule = await db
+    .prepare(
+      'SELECT start_time, end_time, is_day_off FROM work_schedules WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
+    )
+    .bind(barberId, dayOfWeek(date), salonId)
+    .first<{ start_time: string; end_time: string; is_day_off: number }>();
+  if (!schedule || schedule.is_day_off) {
+    return { error: 'الحلاق في عطلة أسبوعية بهذا اليوم', status: 400 };
+  }
+
+  // 3. Slot must fit inside the day's working hours
+  const start = toMinutes(startTime);
+  const end = start + durationMinutes;
+  if (start < toMinutes(schedule.start_time) || end > toMinutes(schedule.end_time)) {
+    return { error: 'الموعد المحدد يقع خارج ساعات دوام عمل الحلاق', status: 400 };
+  }
+
+  // 4. Breaks for that day of week
+  const { results: breaks } = await db
+    .prepare(
+      'SELECT start_time, end_time FROM barber_breaks WHERE barber_id = ? AND day_of_week = ? AND salon_id = ?',
+    )
+    .bind(barberId, dayOfWeek(date), salonId)
+    .all<{ start_time: string; end_time: string }>();
+  const overlapsBreak = (breaks as any[]).some((br) => {
+    const bs = toMinutes(br.start_time);
+    const be = toMinutes(br.end_time);
+    return start < be && end > bs;
+  });
+  if (overlapsBreak) {
+    return { error: 'الموعد يتعارض مع فترة استراحة الحلاق', status: 400 };
+  }
+
+  // 5. Conflict with other confirmed bookings
+  const endTime = toHHMM(end);
+  const conflict = await db
+    .prepare(
+      `SELECT id FROM bookings
+       WHERE barber_id = ? AND booking_date = ? AND status = 'confirmed' AND salon_id = ?
+         AND start_time < ? AND end_time > ? ${excludeBookingId ? 'AND id != ?' : ''}
+       LIMIT 1`,
+    )
+    .bind(...(excludeBookingId
+      ? [barberId, date, salonId, endTime, startTime, excludeBookingId]
+      : [barberId, date, salonId, endTime, startTime]))
+    .first();
+  if (conflict) {
+    return { error: 'هذا الموعد لم يعد متاحاً', status: 409 };
+  }
+
+  return { start, end, endTime };
+}
+
 
 // ---------- Self-service salon registration ----------
 
@@ -421,6 +548,17 @@ publicRoutes.post('/salons/register', async (c) => {
 
   // Generate a unique URL-friendly slug from the salon name (Arabic transliteration supported)
   let slug = slugifySalonName(cleanName);
+
+  // Reserved-word guard: a slug like "admin" or "signup" would collide with
+  // real app routes (route shadowing — /admin is critical). Reject BEFORE any
+  // DB writes so nothing needs rolling back.
+  if (isReservedSlug(slug)) {
+    return c.json(
+      { error: 'اسم الصالون هذا محجوز في النظام ويستخدم في روابط التطبيق، يرجى اختيار اسم مختلف للصالون.' },
+      400,
+    );
+  }
+
   for (let i = 2; ; i++) {
     const taken = await c.env.DB.prepare('SELECT id FROM salons WHERE slug = ?').bind(slug).first();
     if (!taken) break;

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Bindings, Variables } from '../types';
 import { VAPID_PUBLIC_KEY, dispatchWebPush } from '../webpush';
+import { requireOwner } from './auth';
 import { formatTime12Ar, resolvePublicSalonId } from '../utils';
 
 export const pushRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
@@ -85,11 +86,13 @@ pushRoutes.post('/unsubscribe', async (c) => {
  * Test endpoint — sends a test push notification and returns detailed results.
  * POST /api/push/test  { "userType": "owner" | "customer", "customerId": number | null }
  *
- * This lets you verify that web-push.sendNotification reaches the Push Service
- * and get back the HTTP status code from FCM/APNs/Mozilla Push.
+ * OWNER-ONLY (debug tool). Previously unauthenticated — anyone could fire
+ * arbitrary pushes to any salon. The tenant now comes strictly from the
+ * owner session (never from body/slug), so an owner can only test push
+ * for their own salon.
  */
-pushRoutes.post('/test', async (c) => {
-  const salonId = await resolvePublicSalonId(c);
+pushRoutes.post('/test', requireOwner, async (c) => {
+  const salonId = c.get('salonId');
   const body = await c.req.json().catch(() => ({} as any));
   const userType: 'owner' | 'customer' = body.userType === 'owner' ? 'owner' : 'customer';
   const customerId: number | null = body.customerId ?? null;
@@ -126,9 +129,9 @@ pushRoutes.post('/test', async (c) => {
   });
 });
 
-// Debug: list all subscriptions
-pushRoutes.get('/subscriptions', async (c) => {
-  const salonId = await resolvePublicSalonId(c);
+// Debug: list all subscriptions — OWNER-ONLY (was public info disclosure).
+pushRoutes.get('/subscriptions', requireOwner, async (c) => {
+  const salonId = c.get('salonId');
   const { results: subs } = await c.env.DB.prepare(
     'SELECT id, user_type, customer_id, endpoint, created_at FROM push_subscriptions WHERE salon_id = ? ORDER BY created_at DESC',
   )

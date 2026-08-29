@@ -23,6 +23,50 @@ const ARABIC_TO_LATIN: Record<string, string> = {
 };
 
 /**
+ * Slug generation
+ */
+
+/**
+ * Reserved slug words that must never be used as a salon slug.
+ * These mirror every top-level route segment in apps/web/app (admin, book,
+ * signup, …) plus platform paths (api, _next, uploads, …) — a salon with one
+ * of these slugs would collide with / shadow a real application route.
+ * Keep in sync with apps/web/app top-level folders and API paths.
+ */
+export const RESERVED_SLUGS = new Set([
+  // App routes (apps/web/app top-level segments)
+  'admin',
+  'book',
+  'login',
+  'register',
+  'signup',
+  'my-bookings',
+  'my-profile',
+  'notifications',
+  'theme-demo',
+  // Platform / API / framework paths that must stay reachable
+  'api',
+  '_next',
+  'static',
+  'uploads',
+  'manifest.json',
+  'manifest-admin.json',
+  'favicon.ico',
+  'robots.txt',
+  'sitemap.xml',
+  // Safety catch-alls
+  'salon',
+  'www',
+  'app',
+  'root',
+]);
+
+/** Case-insensitive check whether a candidate slug is reserved. */
+export function isReservedSlug(slug: string): boolean {
+  return RESERVED_SLUGS.has(slug.toLowerCase());
+}
+
+/**
  * Converts a salon name (Arabic or Latin) into a URL-friendly slug.
  * Arabic letters are transliterated; spaces/symbols become single dashes;
  * result is lowercased ASCII [a-z0-9-]. Falls back to "salon" if empty.
@@ -76,15 +120,19 @@ export async function resolvePublicSalonWithSource(
       if (typed?.id) return { id: typed.id, source: 'slug' };
     }
 
-    // 2) Host-based matching
+    // 2) Host-based matching — EXACT equality only (security: substring/LIKE
+    //    matching would let any salon whose slug happens to appear inside the
+    //    deployment host (e.g. "web", "barber", "workers") claim traffic —
+    //    including identity-critical login/register flows — meant for the
+    //    main domain. A host must equal the salon's registered custom domain
+    //    or its slug exactly.
     const host = (c.req.header('x-forwarded-host') || c.req.header('host') || '')
       .split(':')[0]
       .toLowerCase();
     if (!host) return { id: 0, source: null };
 
     const row = await c.env.DB.prepare(
-      `SELECT id FROM salons WHERE LOWER(domain) = ?
-         OR (? LIKE '%' || slug || '%')
+      `SELECT id FROM salons WHERE LOWER(domain) = ? OR LOWER(slug) = ?
        LIMIT 1`,
     )
       .bind(host, host)

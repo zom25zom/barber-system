@@ -42,7 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
+      <body className="min-h-screen bg-[var(--bs-bg)] text-[var(--bs-text)] antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

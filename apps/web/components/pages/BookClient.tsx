@@ -495,7 +495,7 @@ function BookContent() {
                       <p className="pt-1 text-xs text-[var(--bs-text-faint)]">يرجى اختيار يوم آخر.</p>
                     </div>
                   ) : (
-                    <p className="py-2 text-sm text-[var(--bs-text-faint)]">لا توجد مواعيد متاحة في هذا اليوم (قد يكون الحلاق في إجازة أو محجوز بالكامل).</p>
+                    <p className="py-2 text-sm text-[var(--bs-text-faint)]">لا تتوفر مواعيد في هذا اليوم حالياً — جرّب اختيار تاريخ آخر.</p>
                   )}
                 </div>
               )}

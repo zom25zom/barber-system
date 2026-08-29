@@ -236,7 +236,7 @@ export function HomeClient({ salonSlug }: { salonSlug?: string }) {
         {!loading && !error && barbers.length === 0 && (
           <div className="mt-8 rounded-2xl bg-[var(--bs-surface)]/50 p-12 text-center text-[var(--bs-text-muted)]">
             <span className="mb-3 block text-4xl">💈</span>
-            لا توجد خدمات متاحة حالياً، تابعنا قريباً.
+            لا يوجد حلاقون متاحون حالياً — يرجى المحاولة لاحقاً.
           </div>
         )}
 
@@ -436,7 +436,7 @@ export function HomeClient({ salonSlug }: { salonSlug?: string }) {
                       href={getSocialLink(salon.social_instagram, "instagram.com")}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-pink-500/25 bg-pink-500/10 text-pink-400 transition hover:-translate-y-0.5 hover:bg-pink-500/20 active:scale-95"
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-pink-500/25 bg-pink-500/10 text-pink-600 transition hover:-translate-y-0.5 hover:bg-pink-500/20 active:scale-95 dark:text-pink-400"
                       aria-label="إنستغرام"
                     >
                       <IconInstagram className="h-4 w-4" />
@@ -447,7 +447,7 @@ export function HomeClient({ salonSlug }: { salonSlug?: string }) {
                       href={getSocialLink(salon.social_facebook, "facebook.com")}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-500/25 bg-blue-500/10 text-blue-400 transition hover:-translate-y-0.5 hover:bg-blue-500/20 active:scale-95"
+                      className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-500/25 bg-blue-500/10 text-blue-600 transition hover:-translate-y-0.5 hover:bg-blue-500/20 active:scale-95 dark:text-blue-400"
                       aria-label="فيسبوك"
                     >
                       <IconFacebook className="h-4 w-4" />

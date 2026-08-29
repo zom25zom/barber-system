@@ -1047,11 +1047,26 @@ ownerRoutes.get('/reports', async (c) => {
 
 ownerRoutes.get('/notifications', async (c) => {
   const salonId: number = c.get('salonId');
+  // Offset-based pagination — latest first. limit clamped to [1,100].
+  const limit = Math.min(Math.max(Number.parseInt(c.req.query('limit') ?? '15', 10) || 15, 1), 100);
+  const offset = Math.max(Number.parseInt(c.req.query('offset') ?? '0', 10) || 0, 0);
+  // Fetch one extra row to compute hasMore without a COUNT query.
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM notifications WHERE recipient_type = 'owner' AND salon_id = ?
-     ORDER BY id DESC LIMIT 100`,
-  ).bind(salonId).all();
-  return c.json({ notifications: results });
+     ORDER BY id DESC LIMIT ? OFFSET ?`,
+  ).bind(salonId, limit + 1, offset).all();
+  const hasMore = results.length > limit;
+  return c.json({ notifications: results.slice(0, limit), hasMore, nextOffset: offset + limit });
+});
+
+// Clear (permanently delete) ALL of this salon's owner notifications.
+// Scoped strictly by salon_id from the owner session — no cross-tenant access.
+ownerRoutes.delete('/notifications', async (c) => {
+  const salonId: number = c.get('salonId');
+  await c.env.DB.prepare("DELETE FROM notifications WHERE recipient_type = 'owner' AND salon_id = ?")
+    .bind(salonId)
+    .run();
+  return c.json({ ok: true });
 });
 
 ownerRoutes.post('/notifications/read-all', async (c) => {

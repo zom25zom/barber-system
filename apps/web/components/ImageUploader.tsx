@@ -94,15 +94,15 @@ export default function ImageUploader({
 
   return (
     <div className="space-y-2">
-      {label && <label className="block text-sm font-semibold text-zinc-200">{label}</label>}
+      {label && <label className="block text-sm font-semibold text-[var(--bs-text)]">{label}</label>}
 
       {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-400 flex items-center justify-between">
+        <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-xs text-[var(--bs-error)] flex items-center justify-between">
           <span>⚠️ {error}</span>
           <button
             type="button"
             onClick={() => setError(null)}
-            className="text-[10px] text-red-300 hover:underline"
+            className="text-[10px] text-[var(--bs-error)] opacity-80 hover:underline"
           >
             إغلاق
           </button>
@@ -112,12 +112,12 @@ export default function ImageUploader({
       <div className="flex items-center gap-4">
         {/* Preview box */}
         <div
-          className={`relative flex h-20 w-20 shrink-0 items-center justify-center border-2 border-dashed border-zinc-700 bg-zinc-950 overflow-hidden shadow-inner ${
+          className={`relative flex h-20 w-20 shrink-0 items-center justify-center border-2 border-dashed border-[var(--bs-border-strong)] bg-[var(--bs-bg)] overflow-hidden shadow-inner ${
             shape === "circle" ? "rounded-full" : "rounded-2xl"
           }`}
         >
           {uploading ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/80 backdrop-blur-xs">
+            <div className="absolute inset-0 flex items-center justify-center bg-[var(--bs-overlay)] backdrop-blur-xs">
               <Spinner size="sm" color="amber" />
             </div>
           ) : value ? (
@@ -141,7 +141,7 @@ export default function ImageUploader({
               type="button"
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
-              className="rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 hover:text-white transition disabled:opacity-50 inline-flex items-center gap-2 active:scale-95"
+              className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)] px-4 py-2 text-xs font-semibold text-[var(--bs-text)] hover:bg-[var(--bs-border-strong)] hover:text-[var(--bs-text)] transition disabled:opacity-50 inline-flex items-center gap-2 active:scale-95"
             >
               {uploading ? (
                 <>
@@ -160,14 +160,14 @@ export default function ImageUploader({
               <button
                 type="button"
                 onClick={handleRemove}
-                className="rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/20 transition active:scale-95"
+                className="rounded-xl border border-[var(--bs-error)]/30 bg-[var(--bs-error-soft)] px-3.5 py-2 text-xs font-semibold text-[var(--bs-error)] hover:bg-[var(--bs-error)]/20 transition active:scale-95"
               >
                 🗑 حذف الصورة
               </button>
             )}
           </div>
 
-          {helperText && <p className="text-xs text-zinc-400">{helperText}</p>}
+          {helperText && <p className="text-xs text-[var(--bs-text-muted)]">{helperText}</p>}
         </div>
       </div>
     </div>

@@ -21,9 +21,9 @@ export default function Spinner({
   };
 
   const colorClasses = {
-    amber: "border-amber-400/20 border-t-amber-400",
+    amber: "border-[var(--bs-primary)]/20 border-t-[var(--bs-primary)]",
     white: "border-white/20 border-t-white",
-    zinc: "border-zinc-700 border-t-zinc-300",
+    zinc: "border-[var(--bs-border-strong)] border-t-[var(--bs-text-muted)]",
   };
 
   return (
@@ -33,7 +33,7 @@ export default function Spinner({
         role="status"
         aria-label="Loading"
       />
-      {label && <span className="text-sm font-medium text-zinc-300">{label}</span>}
+      {label && <span className="text-sm font-medium text-[var(--bs-text-muted)]">{label}</span>}
     </div>
   );
 }

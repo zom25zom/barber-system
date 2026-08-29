@@ -253,7 +253,7 @@ export default function AdminSettingsPage() {
                       style={{ backgroundColor: c.hex }}
                       className={`h-8 w-8 rounded-full border-2 transition-transform hover:scale-110 ${
                         primaryColor.toLowerCase() === c.hex.toLowerCase()
-                          ? "scale-105 border-white ring-2 ring-[var(--bs-primary)] ring-offset-2 ring-offset-[var(--bs-bg)]"
+                          ? "scale-105 border-[var(--bs-text)] ring-2 ring-[var(--bs-primary)] ring-offset-2 ring-offset-[var(--bs-bg)]"
                           : "border-[var(--bs-border)] opacity-80 hover:opacity-100"
                       }`}
                     />

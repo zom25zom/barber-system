@@ -34,7 +34,7 @@ export function ThemeToggle() {
     // Placeholder keeps layout stable before hydration (same box size).
     return (
       <span
-        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-700/60"
+        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--bs-border-strong)]/60"
         aria-hidden="true"
       />
     );
@@ -45,7 +45,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={() => withThemeTransition(() => setTheme(isDark ? "light" : "dark"))}
-      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-700/60 bg-zinc-900/60 text-zinc-300 transition hover:border-amber-500/40 hover:text-amber-400 active:scale-95"
+      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--bs-border-strong)]/60 bg-[var(--bs-surface-raised)]/60 text-[var(--bs-text-muted)] transition hover:border-[var(--bs-primary)]/40 hover:text-[var(--bs-primary)] active:scale-95"
       aria-label={isDark ? "التبديل إلى الوضع الفاتح" : "التبديل إلى الوضع الداكن"}
       title={isDark ? "الوضع الفاتح" : "الوضع الداكن"}
     >
@@ -74,7 +74,7 @@ export function ThemeModeSelector() {
     <div
       role="radiogroup"
       aria-label="اختيار وضع العرض"
-      className="inline-flex overflow-hidden rounded-xl border border-zinc-700/60"
+      className="inline-flex overflow-hidden rounded-xl border border-[var(--bs-border-strong)]/60"
     >
       {MODES.map(({ value, label, icon: Icon }) => {
         const active = theme === value;
@@ -87,8 +87,8 @@ export function ThemeModeSelector() {
             onClick={() => withThemeTransition(() => setTheme(value))}
             className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold transition sm:text-sm ${
               active
-                ? "bg-amber-500 text-zinc-950"
-                : "bg-zinc-900/60 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800/60"
+                ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)]"
+                : "bg-[var(--bs-surface-raised)]/60 text-[var(--bs-text-muted)] hover:text-[var(--bs-primary)] hover:bg-[var(--bs-surface)]"
             }`}
           >
             <Icon className="h-4 w-4" />

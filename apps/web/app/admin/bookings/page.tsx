@@ -7,6 +7,7 @@ import { formatTime12, formatDateTime, BOOKING_STATUS_AR, todayDateISO } from "@
 import { useLiveNotifications } from "@/lib/useNotifications";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { useToast } from "@/components/Toaster";
 import type { Booking, OwnerBarber, Customer, Service, Slot } from "@/lib/types";
 
@@ -367,7 +368,7 @@ export default function AdminBookingsPage() {
                       className={`rounded-lg px-3 py-1 font-semibold transition ${
                         customerMode === "existing"
                           ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)] font-bold"
-                          : "text-[var(--bs-text-muted)] hover:text-white"
+                          : "text-[var(--bs-text-muted)] hover:text-[var(--bs-text)]"
                       }`}
                     >
                       🔍 زبون مسجل
@@ -382,7 +383,7 @@ export default function AdminBookingsPage() {
                       className={`rounded-lg px-3 py-1 font-semibold transition ${
                         customerMode === "new"
                           ? "bg-[var(--bs-primary)] text-[var(--bs-on-primary)] font-bold"
-                          : "text-[var(--bs-text-muted)] hover:text-white"
+                          : "text-[var(--bs-text-muted)] hover:text-[var(--bs-text)]"
                       }`}
                     >
                       👤 زبون جديد
@@ -559,7 +560,7 @@ export default function AdminBookingsPage() {
 
                 {!manualSlotsLoading && !manualIsTimeOff && selectedServiceIds.length > 0 && manualSlots.length === 0 && (
                   <p className="text-xs text-[var(--bs-text-faint)] py-2 text-center">
-                    لا توجد فترات عمل متاحة بهذا اليوم (عطلة أو محجوز بالكامل).
+                    لا تتوفر مواعيد في هذا اليوم حالياً — جرّب اختيار تاريخ آخر.
                   </p>
                 )}
 
@@ -595,7 +596,7 @@ export default function AdminBookingsPage() {
                   type="button"
                   disabled={manualSubmitting}
                   onClick={() => setManualModalOpen(false)}
-                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-5 py-2.5 text-sm font-medium text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition disabled:opacity-50"
+                  className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-5 py-2.5 text-sm font-medium text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-[var(--bs-text)] transition disabled:opacity-50"
                 >
                   إلغاء
                 </button>
@@ -684,7 +685,7 @@ export default function AdminBookingsPage() {
               setFilterStatus("");
               setFilterDate("");
             }}
-            className="self-end rounded-xl border border-[var(--bs-border-strong)] px-3.5 py-2 text-xs font-semibold text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-white transition"
+            className="self-end rounded-xl border border-[var(--bs-border-strong)] px-3.5 py-2 text-xs font-semibold text-[var(--bs-text-muted)] hover:bg-[var(--bs-surface-raised)] hover:text-[var(--bs-text)] transition"
           >
             مسح الفلاتر ✕
           </button>
@@ -713,111 +714,146 @@ export default function AdminBookingsPage() {
         </div>
       )}
 
-      {/* ── bookings ledger — hairline-divided editorial rows ── */}
+      {/* ── bookings ledger — professional detail cards ── */}
       {!loading && bookings.length > 0 && (
-        <div className="divide-y divide-[var(--bs-border)] border-y border-[var(--bs-border)]">
+        <div className="space-y-4">
           {bookings.map((b) => (
-            <div key={b.id} className="py-5 transition-colors first:pt-3">
-              <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                    <p className="text-lg font-black text-[var(--bs-text)]">
-                      {b.customer_name}
-                    </p>
-                    {b.customer_phone && (
-                      <a
-                        href={`tel:${b.customer_phone}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--bs-success)]/30 bg-[var(--bs-success-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--bs-success)] hover:brightness-110 transition active:scale-95"
-                        title="اتصال مباشر بالعميل"
-                        dir="ltr"
-                      >
-                        <span>📞</span>
-                        <span>{b.customer_phone}</span>
-                      </a>
-                    )}
-                    <span
-                      className={`inline-flex items-center gap-1.5 text-xs font-bold ${
-                        b.status === "confirmed"
-                          ? "text-[var(--bs-primary)]"
-                          : b.status === "completed"
-                            ? "text-[var(--bs-success)]"
-                            : b.status === "no_show"
-                              ? "text-[var(--bs-warning)]"
-                              : "text-[var(--bs-text-muted)]"
-                      }`}
-                    >
-                      <span
-                        className={`h-2 w-2 rounded-full ${
-                          b.status === "confirmed"
-                            ? "bg-[var(--bs-primary)]"
-                            : b.status === "completed"
-                              ? "bg-[var(--bs-success)]"
-                              : b.status === "no_show"
-                                ? "bg-[var(--bs-warning)]"
-                                : "bg-[var(--bs-text-faint)]"
-                        }`}
-                      />
-                      {BOOKING_STATUS_AR[b.status] ?? b.status}
+            <Card key={b.id} className="overflow-hidden transition-shadow hover:shadow-xl">
+              {/* ── header: customer + status + summary sentence ── */}
+              <CardHeader className="gap-2 border-b border-[var(--bs-border)] bg-[var(--bs-surface-raised)]/50">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  <h3 className="flex min-w-0 items-center gap-2.5 text-lg font-black text-[var(--bs-text)]">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)] text-sm" aria-hidden="true">
+                      👤
                     </span>
-                  </div>
-                  <p className="mt-1.5 text-sm text-[var(--bs-text-muted)]">
-                    مع الحلاق <span className="font-bold text-[var(--bs-text)]">{b.barber_name}</span> — {b.booking_date}
-                    · ⏰ {formatTime12(b.start_time)} إلى {formatTime12(b.end_time)}
+                    <span className="truncate">{b.customer_name || "زبون"}</span>
+                  </h3>
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${
+                      b.status === "confirmed"
+                        ? "border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-[var(--bs-primary)]"
+                        : b.status === "completed"
+                          ? "border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] text-[var(--bs-success)]"
+                          : b.status === "no_show"
+                            ? "border-[var(--bs-warning)]/40 bg-[var(--bs-warning-soft)] text-[var(--bs-warning)]"
+                            : "border-[var(--bs-border-strong)] bg-transparent text-[var(--bs-text-muted)]"
+                    }`}
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        b.status === "confirmed"
+                          ? "bg-[var(--bs-primary)]"
+                          : b.status === "completed"
+                            ? "bg-[var(--bs-success)]"
+                            : b.status === "no_show"
+                              ? "bg-[var(--bs-warning)]"
+                              : "bg-[var(--bs-text-faint)]"
+                      }`}
+                    />
+                    {BOOKING_STATUS_AR[b.status] ?? b.status}
+                  </span>
+                </div>
+                {/* narrative summary line */}
+                <p className="text-sm text-[var(--bs-text-muted)]">
+                  قام الزبون <span className="font-bold text-[var(--bs-text)]">{b.customer_name || "زبون"}</span> بحجز موعد مع الحلاق{" "}
+                  <span className="font-bold text-[var(--bs-primary)]">{b.barber_name}</span>
+                </p>
+              </CardHeader>
+
+              {/* ── details: grouped grid (stacked on mobile, 3-col on desktop) ── */}
+              <CardContent className="grid gap-4 py-4 sm:grid-cols-2 lg:grid-cols-3">
+                {/* date & time */}
+                <div>
+                  <p className="text-[10px] font-bold tracking-[0.25em] text-[var(--bs-text-faint)]">الموعد</p>
+                  <p className="mt-1.5 text-sm font-bold text-[var(--bs-text)]">📅 {b.booking_date}</p>
+                  <p className="mt-0.5 text-sm text-[var(--bs-text-muted)]">
+                    ⏰ {formatTime12(b.start_time)} — {formatTime12(b.end_time)}
                   </p>
-                  {b.services?.length > 0 && (
-                    <p className="mt-1 text-xs text-[var(--bs-text-faint)]">
-                      {b.services.map((s) => `${s.name} (${s.price} د.أ)`).join(" · ")}
-                    </p>
-                  )}
-                  {b.created_at && (
-                    <p className="mt-1 text-[11px] text-[var(--bs-text-faint)]">
-                      تاريخ الإنشاء: {formatDateTime(b.created_at)}
-                    </p>
+                </div>
+
+                {/* services */}
+                <div>
+                  <p className="text-[10px] font-bold tracking-[0.25em] text-[var(--bs-text-faint)]">الخدمات</p>
+                  {b.services?.length > 0 ? (
+                    <ul className="mt-1.5 space-y-1">
+                      {b.services.map((s, i) => (
+                        <li key={i} className="flex items-baseline justify-between gap-2 text-sm">
+                          <span className="text-[var(--bs-text)]">✂️ {s.name}</span>
+                          <span className="shrink-0 tabular-nums text-[var(--bs-text-muted)]">{s.price} د.أ</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1.5 text-sm text-[var(--bs-text-muted)]">—</p>
                   )}
                 </div>
 
-                <div className="flex flex-col items-end gap-3">
-                  <p className="text-xl font-black tabular-nums text-[var(--bs-primary)]">{b.total_price} د.أ</p>
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {b.customer_phone && (
-                      <a
-                        href={`tel:${b.customer_phone}`}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--bs-success)] hover:brightness-110 active:scale-95 transition"
-                        title="اتصال هاتفي مباشر بالعميل"
-                      >
-                        <span>📞</span>
-                        <span>اتصال</span>
-                      </a>
-                    )}
-                    {b.status === "confirmed" && (
-                      <>
-                        <button
-                          onClick={() => markComplete(b.id)}
-                          disabled={actionLoadingId === b.id}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--bs-success)] hover:brightness-110 disabled:opacity-50 transition"
-                        >
-                          {actionLoadingId === b.id ? <Spinner size="sm" color="white" /> : "✓ مكتمل"}
-                        </button>
-                        <button
-                          onClick={() => markNoShow(b.id)}
-                          disabled={actionLoadingId === b.id}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--bs-warning)]/40 bg-[var(--bs-warning-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--bs-warning)] hover:brightness-110 disabled:opacity-50 transition"
-                        >
-                          {actionLoadingId === b.id ? <Spinner size="sm" color="white" /> : "لم يحضر"}
-                        </button>
-                        <button
-                          onClick={() => triggerCancel(b)}
-                          disabled={actionLoadingId === b.id}
-                          className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--bs-error)] hover:brightness-110 disabled:opacity-50 transition"
-                        >
-                          إلغاء
-                        </button>
-                      </>
-                    )}
-                  </div>
+                {/* phone + creation timestamp */}
+                <div>
+                  <p className="text-[10px] font-bold tracking-[0.25em] text-[var(--bs-text-faint)]">التواصل والسجل</p>
+                  {b.customer_phone && (
+                    <a
+                      href={`tel:${b.customer_phone}`}
+                      className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg border border-[var(--bs-success)]/30 bg-[var(--bs-success-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--bs-success)] transition hover:brightness-110 active:scale-95"
+                      title="اتصال هاتفي مباشر بالعميل"
+                      dir="ltr"
+                    >
+                      <span>📞</span>
+                      <span>{b.customer_phone}</span>
+                    </a>
+                  )}
+                  {b.created_at && (
+                    <p className="mt-1.5 text-[11px] text-[var(--bs-text-faint)]">
+                      أُنشئ الحجز: {formatDateTime(b.created_at)}
+                    </p>
+                  )}
                 </div>
-              </div>
-            </div>
+              </CardContent>
+
+              {/* ── footer: total + actions row ── */}
+              <CardFooter className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-[var(--bs-border)] bg-[var(--bs-surface-raised)]/30 py-3.5">
+                <p className="text-base font-black tabular-nums text-[var(--bs-text)]">
+                  الإجمالي: <span className="text-lg text-[var(--bs-primary)]">{b.total_price} د.أ</span>
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {b.customer_phone && (
+                    <a
+                      href={`tel:${b.customer_phone}`}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--bs-success)] transition hover:brightness-110 active:scale-95"
+                      title="اتصال هاتفي مباشر بالعميل"
+                    >
+                      <span>📞</span>
+                      <span>اتصال</span>
+                    </a>
+                  )}
+                  {b.status === "confirmed" && (
+                    <>
+                      <button
+                        onClick={() => markComplete(b.id)}
+                        disabled={actionLoadingId === b.id}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--bs-success)] transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+                      >
+                        {actionLoadingId === b.id ? <Spinner size="sm" color="zinc" /> : "✓ مكتمل"}
+                      </button>
+                      <button
+                        onClick={() => markNoShow(b.id)}
+                        disabled={actionLoadingId === b.id}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--bs-warning)]/40 bg-[var(--bs-warning-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--bs-warning)] transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+                      >
+                        {actionLoadingId === b.id ? <Spinner size="sm" color="zinc" /> : "لم يحضر"}
+                      </button>
+                      <button
+                        onClick={() => triggerCancel(b)}
+                        disabled={actionLoadingId === b.id}
+                        className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--bs-error)] transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+                      >
+                        إلغاء
+                      </button>
+                    </>
+                  )}
+                </div>
+              </CardFooter>
+            </Card>
           ))}
         </div>
       )}

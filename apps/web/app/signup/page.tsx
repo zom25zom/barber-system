@@ -71,20 +71,20 @@ export default function SignupPage() {
   }
 
   const inputCls =
-    "w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2.5 text-zinc-100 placeholder-zinc-600 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500";
+    "w-full rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-bg)] px-4 py-2.5 text-[var(--bs-text)] placeholder:text-[var(--bs-text-faint)] outline-none transition focus:border-[var(--bs-success)] focus:ring-1 focus:ring-[var(--bs-success)]";
 
   return (
     <div className="mx-auto max-w-md">
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-xl sm:p-8">
-        <h1 className="text-center text-2xl font-bold text-emerald-400">أنشئ صالونك — مجاناً</h1>
-        <p className="mt-2 text-center text-sm text-zinc-400">
+      <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/90 p-6 shadow-xl sm:p-8">
+        <h1 className="text-center text-2xl font-bold text-[var(--bs-success)]">أنشئ صالونك — مجاناً</h1>
+        <p className="mt-2 text-center text-sm text-[var(--bs-text-muted)]">
           سجّل صالونك واحصل على رابط حجز عام + لوحة تحكم كاملة خلال دقيقة
         </p>
 
         {!success ? (
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">اسم الصالون</label>
+              <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">اسم الصالون</label>
               <input
                 type="text"
                 required
@@ -97,7 +97,7 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">رقم التواصل (اختياري)</label>
+              <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">رقم التواصل (اختياري)</label>
               <input
                 type="tel"
                 dir="ltr"
@@ -109,7 +109,7 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">اسم مستخدم الأدمن</label>
+              <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">اسم مستخدم الأدمن</label>
               <input
                 type="text"
                 required
@@ -121,7 +121,7 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">كلمة المرور</label>
+              <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">كلمة المرور</label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -138,7 +138,7 @@ export default function SignupPage() {
                   onClick={() => setShowPassword((v) => !v)}
                   tabIndex={-1}
                   aria-label={showPassword ? "إخفاء" : "إظهار"}
-                  className="absolute left-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+                  className="absolute left-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--bs-text-muted)] transition hover:bg-[var(--bs-surface-raised)] hover:text-[var(--bs-text)]"
                 >
                   {showPassword ? (
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
@@ -158,7 +158,7 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-semibold text-zinc-200">تأكيد كلمة المرور</label>
+              <label className="mb-1.5 block text-sm font-semibold text-[var(--bs-text)]">تأكيد كلمة المرور</label>
               <input
                 type={showPassword ? "text" : "password"}
                 required
@@ -171,7 +171,7 @@ export default function SignupPage() {
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-400 sm:text-sm">
+              <div className="flex items-center gap-2 rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-xs text-[var(--bs-error)] sm:text-sm">
                 <span>⚠️</span>
                 <span>{error}</span>
               </div>
@@ -180,7 +180,7 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 font-bold text-zinc-950 shadow-md transition hover:bg-emerald-400 active:scale-95 disabled:opacity-50"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--bs-success)] py-3 font-bold text-[var(--bs-bg)] shadow-md transition hover:brightness-110 active:scale-95 disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -195,20 +195,20 @@ export default function SignupPage() {
         ) : (
           /* ── Success screen ── */
           <div className="mt-8 space-y-5 text-center">
-            <span className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-3xl text-emerald-400">✓</span>
+            <span className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--bs-success)]/30 bg-[var(--bs-success-soft)] text-3xl text-[var(--bs-success)]">✓</span>
 
             <div>
-              <h2 className="text-lg font-black text-zinc-100">تم إنشاء صالونك بنجاح! 🎉</h2>
-              <p className="mt-1 text-sm text-zinc-400">رابط صالونك العام الجاهز للمشاركة مع زبائنك:</p>
+              <h2 className="text-lg font-black text-[var(--bs-text)]">تم إنشاء صالونك بنجاح! 🎉</h2>
+              <p className="mt-1 text-sm text-[var(--bs-text-muted)]">رابط صالونك العام الجاهز للمشاركة مع زبائنك:</p>
             </div>
 
             {/* Public URL box */}
-            <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+            <div className="flex items-center justify-between gap-2 rounded-xl border border-[var(--bs-success)]/30 bg-[var(--bs-success-soft)] p-3">
               <a
                 href={success.publicUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="min-w-0 flex-1 truncate text-left font-mono text-xs font-bold text-emerald-300 hover:underline sm:text-sm"
+                className="min-w-0 flex-1 truncate text-left font-mono text-xs font-bold text-[var(--bs-success)] hover:underline sm:text-sm"
                 dir="ltr"
               >
                 {success.publicUrl}
@@ -216,20 +216,20 @@ export default function SignupPage() {
               <button
                 type="button"
                 onClick={copyLink}
-                className="shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-zinc-950 transition hover:bg-emerald-400 active:scale-95"
+                className="shrink-0 rounded-lg bg-[var(--bs-success)] px-3 py-1.5 text-xs font-bold text-[var(--bs-bg)] transition hover:brightness-110 active:scale-95"
               >
                 {copied ? "✓ تم النسخ" : "نسخ"}
               </button>
             </div>
 
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-[var(--bs-text-faint)]">
               احتفظ برابط صالونك — يمكنك نسخه ومشاركته مع زبائنك في أي وقت.
             </p>
 
             <button
               type="button"
               onClick={() => router.push("/admin")}
-              className="w-full rounded-xl bg-emerald-500 py-3 font-bold text-zinc-950 transition hover:bg-emerald-400 active:scale-95"
+              className="w-full rounded-xl bg-[var(--bs-success)] py-3 font-bold text-[var(--bs-bg)] transition hover:brightness-110 active:scale-95"
             >
               الانتقال إلى لوحة التحكم ←
             </button>
@@ -237,9 +237,9 @@ export default function SignupPage() {
         )}
       </div>
 
-      <p className="mt-5 text-center text-sm text-zinc-400">
+      <p className="mt-5 text-center text-sm text-[var(--bs-text-muted)]">
         لديك حساب مدير بالفعل؟{" "}
-        <a href="/admin/login" className="font-bold text-amber-400 hover:underline">
+        <a href="/admin/login" className="font-bold text-[var(--bs-primary)] hover:underline">
           دخول لوحة التحكم
         </a>
       </p>

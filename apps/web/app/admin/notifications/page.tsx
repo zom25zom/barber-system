@@ -8,10 +8,14 @@ import { formatDateTime } from "@/lib/time";
 import { useLiveNotifications } from "@/lib/useNotifications";
 import { enableWebPushNotifications } from "@/lib/push";
 import Spinner from "@/components/Spinner";
+import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/components/Toaster";
 import { Button } from "@/components/ui/button";
-import { BellRing } from "lucide-react";
+import { BellRing, Trash2 } from "lucide-react";
 import type { AppNotification } from "@/lib/types";
+
+// Pagination page size — latest notifications first
+const PAGE_SIZE = 15;
 
 export default function AdminNotificationsPage() {
   const router = useRouter();
@@ -19,6 +23,10 @@ export default function AdminNotificationsPage() {
   const toast = useToast();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [pushStatus, setPushStatus] = useState<string | null>(null);
   // Button only shows while push permission is not yet granted
   const [pushEnabled, setPushEnabled] = useState<boolean>(
@@ -29,27 +37,78 @@ export default function AdminNotificationsPage() {
     if (!token) router.replace("/admin/login");
   }, [token, router]);
 
-  const load = useCallback(() => {
+  // Reload from the top (offset 0) — used after clear-all / mark-all-read.
+  const reload = useCallback(async () => {
     if (!token) return;
-    apiFetch<{ notifications: AppNotification[] }>("/api/owner/notifications", { token })
-      .then((d) => setNotifications(d.notifications))
-      .finally(() => setLoading(false));
+    try {
+      const d = await apiFetch<{ notifications: AppNotification[]; hasMore: boolean }>(
+        `/api/owner/notifications?limit=${PAGE_SIZE}&offset=0`,
+        { token },
+      );
+      setNotifications(d.notifications);
+      setHasMore(d.hasMore);
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Append the next page to the currently loaded list.
+  const loadMore = useCallback(async () => {
+    if (!token || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const d = await apiFetch<{ notifications: AppNotification[]; hasMore: boolean }>(
+        `/api/owner/notifications?limit=${PAGE_SIZE}&offset=${notifications.length}`,
+        { token },
+      );
+      setNotifications((prev) => {
+        // Guard against overlaps if a live notification arrived mid-request
+        const seen = new Set(prev.map((n) => n.id));
+        return [...prev, ...d.notifications.filter((n) => !seen.has(n.id))];
+      });
+      setHasMore(d.hasMore);
+    } catch {
+      toast.error("تعذر تحميل المزيد من الإشعارات");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [token, notifications.length, loadingMore, toast]);
 
-  useLiveNotifications("owner", () => load());
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  // Live WS notifications: prepend to the top of the loaded list directly —
+  // NO full refetch, so pagination state (offset/hasMore) stays untouched.
+  useLiveNotifications("owner", (n) => {
+    setNotifications((prev) =>
+      prev.some((x) => x.id && n.id && x.id === n.id) ? prev : [n, ...prev],
+    );
+  });
 
   async function markAllRead() {
     if (!token) return;
     try {
       await apiFetch("/api/owner/notifications/read-all", { method: "POST", token });
       toast.success("تم تعليم جميع الإشعارات كمقروءة ✓");
-      load();
+      reload();
     } catch {
       toast.error("حدث خطأ أثناء تحديث حالة الإشعارات");
+    }
+  }
+
+  async function handleClearAll() {
+    if (!token) return;
+    setClearing(true);
+    try {
+      await apiFetch("/api/owner/notifications", { method: "DELETE", token });
+      toast.success("تم مسح جميع الإشعارات ✓");
+      setClearOpen(false);
+      await reload();
+    } catch {
+      toast.error("حدث خطأ أثناء مسح الإشعارات");
+    } finally {
+      setClearing(false);
     }
   }
 
@@ -99,6 +158,11 @@ export default function AdminNotificationsPage() {
           {unread > 0 && (
             <Button variant="outline" size="sm" onClick={markAllRead}>
               تعليم الكل كمقروء
+            </Button>
+          )}
+          {notifications.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => setClearOpen(true)} aria-label="مسح جميع الإشعارات">
+              <Trash2 className="h-4 w-4" /> مسح الكل
             </Button>
           )}
         </div>
@@ -169,6 +233,36 @@ export default function AdminNotificationsPage() {
           ))}
         </ol>
       )}
+
+      {/* ── load more (paginated) ── */}
+      {!loading && hasMore && (
+        <div className="mt-8 text-center">
+          <Button variant="outline" size="sm" disabled={loadingMore} onClick={loadMore}>
+            {loadingMore ? (
+              <>
+                <Spinner size="sm" color="zinc" />
+                <span>جاري التحميل…</span>
+              </>
+            ) : (
+              "تحميل المزيد ↓"
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* ── clear-all confirmation ── */}
+      <ConfirmModal
+        isOpen={clearOpen}
+        title="مسح جميع الإشعارات"
+        message="سيتم حذف جميع إشعارات الصالون نهائياً. هل أنت متأكد من رغبتك في المسح؟"
+        confirmText="نعم، مسح الكل"
+        cancelText="إلغاء"
+        variant="danger"
+        icon="🗑️"
+        isLoading={clearing}
+        onConfirm={handleClearAll}
+        onClose={() => setClearOpen(false)}
+      />
     </div>
   );
 }

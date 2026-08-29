@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Class-based dark variant — required so Tailwind's `dark:` utilities follow
+   the .dark class toggled by next-themes (not the OS media query). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ── Unified app-wide font ──
    Registers Tajawal as Tailwind v4's default sans font:
    • Preflight applies it at <html> level (--default-font-family)
@@ -18,8 +22,9 @@ html {
 }
 
 body {
-  background-color: #09090b;
-  color: #f4f4f5;
+  /* token-driven — adapts with the .light / .dark theme classes on <html> */
+  background-color: var(--bs-bg);
+  color: var(--bs-text);
   font-family: "Tajawal", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
@@ -44,11 +49,18 @@ html {
   flex-shrink: 0;
 }
 
-/* ── native input dark mode ── */
+/* ── native input dark mode ──
+   Follows the active theme class (never forces dark in light mode): */
 input[type="date"],
 input[type="time"],
 select {
   color-scheme: dark;
+}
+
+.light input[type="date"],
+.light input[type="time"],
+.light select {
+  color-scheme: light;
 }
 
 /* ── custom scrollbar ── */
@@ -60,11 +72,11 @@ select {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
+  background: var(--bs-border-strong);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
+  background: var(--bs-text-faint);
 }
 
 /* ── subtle animations ── */
@@ -92,7 +104,7 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: #f59e0b !important;
+  border-color: var(--bs-primary) !important;
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
 }
 
@@ -108,7 +120,7 @@ button:active:not(:disabled) {
 
 /* ── checkbox styling ── */
 input[type="checkbox"] {
-  accent-color: #f59e0b;
+  accent-color: var(--bs-primary);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -276,15 +288,17 @@ input[type="checkbox"] {
   --bs-surface-raised: #FFFFFF;
   --bs-overlay: rgba(21, 25, 29, 0.55);
 
-  /* same gold accents; strong variant darkened for contrast on light */
-  --bs-primary: #C9A227;
-  --bs-primary-strong: #8E741D;
+  /* deep gold for AA contrast of gold TEXT on cream surfaces;
+     fills pair with the near-white on-primary below (WCAG AA large/bold ≥3:1).
+     Dark mode keeps the brighter fill gold #C9A227 with charcoal text. */
+  --bs-primary: #8E741D;
+  --bs-primary-strong: #6E5812;
   --bs-primary-soft: rgba(201, 162, 39, 0.15);
-  --bs-on-primary: #15191D;
+  --bs-on-primary: #FFFDF7;
 
   --bs-text: #15191D;
   --bs-text-muted: #5B5F64;
-  --bs-text-faint: #8A8E93;
+  --bs-text-faint: #6B7076;
 
   --bs-border: #E2DCCE;
   --bs-border-strong: #CCC5B2;

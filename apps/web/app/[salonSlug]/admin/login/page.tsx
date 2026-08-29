@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { setOwnerToken } from "@/lib/auth";
@@ -136,6 +137,18 @@ export default function SalonAdminLoginPage() {
             )}
           </Button>
         </form>
+
+          {/* secondary: owners without an account → public signup.
+              Absolute /signup (a non-tenant route) — correct from any salon's login page. */}
+          <p className="mt-6 border-t border-[var(--bs-border)] pt-5 text-center text-sm text-[var(--bs-text-muted)]">
+            لا تملك صالوناً بعد؟{" "}
+            <Link
+              href="/signup"
+              className="font-bold text-[var(--bs-primary)] transition-colors hover:text-[var(--bs-primary-strong)] hover:underline"
+            >
+              أنشئ حسابك الآن ←
+            </Link>
+          </p>
         </section>
 
         {/* ── brand side — editorial statement panel (desktop only) ── */}

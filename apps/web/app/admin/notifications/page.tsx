@@ -10,6 +10,7 @@ import { enableWebPushNotifications } from "@/lib/push";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/components/Toaster";
+import { setUnreadBadgeCount } from "@/lib/unreadBadge";
 import { Button } from "@/components/ui/button";
 import { BellRing, Trash2 } from "lucide-react";
 import type { AppNotification } from "@/lib/types";
@@ -47,6 +48,8 @@ export default function AdminNotificationsPage() {
       );
       setNotifications(d.notifications);
       setHasMore(d.hasMore);
+      // Keep the sidebar/bottom-bar badge in sync with what we just fetched
+      setUnreadBadgeCount(d.notifications.filter((n) => !n.is_read).length);
     } finally {
       setLoading(false);
     }
@@ -91,6 +94,7 @@ export default function AdminNotificationsPage() {
     try {
       await apiFetch("/api/owner/notifications/read-all", { method: "POST", token });
       toast.success("تم تعليم جميع الإشعارات كمقروءة ✓");
+      setUnreadBadgeCount(0); // badge updates instantly — no reload needed
       reload();
     } catch {
       toast.error("حدث خطأ أثناء تحديث حالة الإشعارات");
@@ -104,6 +108,7 @@ export default function AdminNotificationsPage() {
       await apiFetch("/api/owner/notifications", { method: "DELETE", token });
       toast.success("تم مسح جميع الإشعارات ✓");
       setClearOpen(false);
+      setUnreadBadgeCount(0); // badge updates instantly — no reload needed
       await reload();
     } catch {
       toast.error("حدث خطأ أثناء مسح الإشعارات");

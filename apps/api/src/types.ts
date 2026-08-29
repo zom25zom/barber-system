@@ -14,6 +14,12 @@ export type Bindings = {
   BUCKET?: R2Bucket;
   ASSETS?: Fetcher;
   REMINDER_QUEUE?: Queue<ReminderMessage>;
+  /** VAPID private key — MUST come from a Worker secret (wrangler secret put).
+   *  Never hardcode it in source: the previous key was leaked in git history
+   *  and has been rotated. Local dev reads it from .dev.vars (gitignored). */
+  VAPID_PRIVATE_KEY?: string;
+  /** VAPID public key — not secret; optional override for the built-in constant. */
+  VAPID_PUBLIC_KEY?: string;
 };
 
 export type { MessageBatch };

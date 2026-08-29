@@ -82,6 +82,13 @@ authRoutes.post('/owner/login', async (c) => {
   const token = randomToken();
   const expires = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
 
+  // SINGLE ACTIVE SESSION: any previous session for THIS owner account is
+  // revoked on a new login. owners.owner rows belong to exactly one salon,
+  // so deleting by owner_id is naturally per-salon scoped (multi-tenant
+  // isolation preserved). The superseded device gets a clear
+  // code=SESSION_EXPIRED 401 on its next call (see requireOwner below).
+  await c.env.DB.prepare('DELETE FROM sessions WHERE owner_id = ?').bind(owner.id).run();
+
   // Tenant is bound INTO the session at creation time — every later request
   // reads salon_id from this row, never from client input.
   await c.env.DB.prepare(
@@ -257,10 +264,37 @@ authRoutes.post('/customer/login', async (c) => {
     !customer.password_hash ||
     customer.password_hash !== (await sha256(password))
   ) {
+    // Distinguish "wrong password for an existing THIS-salon account" from
+    // "phone not registered at THIS salon" — WITHOUT querying or revealing
+    // anything about other salons (strict per-salon isolation, architecture §4).
+    // The salon name returned below is this salon's own public branding only.
+    if (!customer) {
+      const existsHere = await c.env.DB.prepare(
+        'SELECT id FROM customers WHERE salon_id = ? AND phone = ?',
+      )
+        .bind(salonId, cleanPhone)
+        .first();
+      if (!existsHere) {
+        const thisSalon = await c.env.DB.prepare('SELECT name FROM salons WHERE id = ?')
+          .bind(salonId)
+          .first<{ name: string }>();
+        return c.json(
+          {
+            error: 'هذا الرقم غير مسجل لدى هذا الصالون. الرجاء إنشاء حساب جديد للمتابعة.',
+            code: 'NOT_REGISTERED_THIS_SALON',
+            salon_name: thisSalon?.name ?? '',
+          },
+          404,
+        );
+      }
+    }
     return c.json({ error: 'رقم الهاتف أو كلمة المرور غير صحيحة' }, 401);
   }
 
-  // Rotate the token on each login to keep sessions fresh.
+  // Rotate the token on each login → SINGLE ACTIVE SESSION per customer
+  // account (within the resolved salon; phones are unique per salon only).
+  // The superseded device's token is immediately dead: its next call gets a
+  // structured code=SESSION_EXPIRED 401 from requireCustomer (see below).
   const token = randomToken();
   await c.env.DB.prepare('UPDATE customers SET token = ? WHERE id = ?').bind(token, customer.id).run();
   return c.json({ token, customer: { id: customer.id, username: customer.username, phone: customer.phone } });
@@ -288,7 +322,11 @@ export const requireOwner = createMiddleware<{ Bindings: Bindings; Variables: Va
   )
     .bind(token)
     .first<{ id: number; username: string; salon_id: number }>();
-  if (!row) return c.json({ error: 'غير مصرح' }, 401);
+  if (!row) {
+    // Structured 401: lets the frontend distinguish "your session was
+    // revoked/superseded" from "bad credentials" and auto-redirect to login.
+    return c.json({ error: 'انتهت صلاحية جلستك، يرجى تسجيل الدخول من جديد', code: 'SESSION_EXPIRED' }, 401);
+  }
   c.set('owner', { id: row.id, username: row.username });
   c.set('salonId', row.salon_id);
   await next();
@@ -305,7 +343,11 @@ export const requireCustomer = createMiddleware<{ Bindings: Bindings; Variables:
   )
     .bind(token)
     .first<Customer & { salon_id: number }>();
-  if (!row) return c.json({ error: 'غير مصرح' }, 401);
+  if (!row) {
+    // Single active session per customer: login rotates customers.token, so a
+    // token from a superseded device lands here → structured 401 (see above).
+    return c.json({ error: 'انتهت صلاحية جلستك، يرجى تسجيل الدخول من جديد', code: 'SESSION_EXPIRED' }, 401);
+  }
   c.set('customer', { id: row.id, username: row.username, phone: row.phone });
   c.set('salonId', row.salon_id);
   await next();

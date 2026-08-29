@@ -90,7 +90,7 @@ export async function sendNotification(
   const webPushPromise = (async () => {
     try {
       console.log(`[Notify] Dispatching Web Push → ${recipientType}${recipientId != null ? ` (id=${recipientId})` : ''} | type=${type} | salon=${salonId}`);
-      const results = await dispatchWebPush(c.env.DB, recipientType, recipientId, salonId, {
+      const results = await dispatchWebPush(c.env, recipientType, recipientId, salonId, {
         title,
         message,
         url,

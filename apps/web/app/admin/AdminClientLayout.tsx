@@ -7,6 +7,7 @@ import { getOwnerToken, clearOwnerToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/api";
 import { useLiveNotifications } from "@/lib/useNotifications";
 import { useOwnerSalonSettings } from "@/lib/salon";
+import { useUnreadBadge } from "@/lib/unreadBadge";
 import ConfirmModal from "@/components/ConfirmModal";
 import InstallPrompt from "@/components/InstallPrompt";
 import IOSInstallGuide from "@/components/IOSInstallGuide";
@@ -35,7 +36,10 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const token = getOwnerToken();
-  const [unread, setUnread] = useState(0);
+  // Unread badge is SHARED state (lib/unreadBadge.ts): the notifications page
+  // updates it instantly after mark-all-read / clear-all, and live WebSocket
+  // notifications bump it here — no page reload needed anywhere.
+  const [unread, setUnread, bumpUnread] = useUnreadBadge();
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   // Owner-session-scoped branding. Disabled on the login page (no session yet
   // → previously fired a pointless GET /api/salon-settings that 404'd).
@@ -60,13 +64,15 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
     apiFetch<{ notifications: { is_read: number }[] }>("/api/owner/notifications", { token })
       .then((d) => setUnread(d.notifications.filter((n) => !n.is_read).length))
       .catch(() => {});
-  }, [token]);
+  }, [token, setUnread]);
 
   useEffect(() => {
     loadUnread();
   }, [loadUnread]);
 
-  useLiveNotifications("owner", () => loadUnread());
+  // Live WebSocket notifications are unread by definition → bump the shared
+  // badge immediately (the notifications page prepends them to its own list).
+  useLiveNotifications("owner", () => bumpUnread());
 
   if (pathname === "/admin/login") return <>{children}</>;
   if (!token) return null;

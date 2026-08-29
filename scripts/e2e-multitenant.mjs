@@ -101,7 +101,9 @@ async function main() {
   const loginBAgain = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: passB } });
   check("دخول صالون B بعد تسجيل C → ما زال يعمل ويُرجع B", loginBAgain.status === 200 && loginBAgain.data?.salon?.id === idB, "");
 
-  const tokenA = loginA.data.token, tokenB = loginB.data.token;
+  // NOTE: owner re-login revokes the previous session (single active session
+  // enforcement) — so B's live token is the one from loginBAgain, not loginB.
+  const tokenA = loginA.data.token, tokenB = loginBAgain.data.token;
 
   // Verify session binding via the new session-scoped settings endpoint
   const setA = await http("GET", "/api/owner/salon-settings", { token: tokenA });
@@ -466,6 +468,163 @@ async function main() {
   check("BUG1: الهوية المرئية على طول الرحلة تعود لصالون A فقط", settingsDuringFlow.data?.salon?.name?.includes("النخبة"));
 
   } // نهاية مرحلة 13
+
+  console.log("\n" + "═".repeat(52));
+  console.log(" مرحلة 14: تلاعب يدوي بالسلوغ — جلسة صالون A + salonSlug=B في الرابط");
+  console.log("═".repeat(52));
+  {
+    // Scenario: a user with an authenticated session for salon A manually edits
+    // the URL slug to salon B. The frontend (withSlug()) then appends
+    // ?salonSlug=<B> to EVERY API call — including private owner/customer ones.
+    // SECURITY CONTRACT: private endpoints must IGNORE the client-supplied
+    // slug entirely and scope every query to the server-side session salon.
+
+    // ── 1) Owner of A + slug B ──
+    const sBk = await http("GET", `/api/owner/bookings?salonSlug=${slugB}`, { token: tokenA });
+    check("OWNER-SLUG: حجوزات أدمن A مع سلوغ B → حجوزات A فقط (بلا أي صف من B)",
+      sBk.status === 200 && sBk.data.bookings.length >= 1 && sBk.data.bookings.every(b => b.salon_id === idA && b.barber_id !== barberB),
+      `salon_ids=${[...new Set((sBk.data?.bookings ?? []).map(b => b.salon_id))].join(",")}`);
+
+    const sCust = await http("GET", `/api/owner/customers?q=${encodeURIComponent("زبون")}&salonSlug=${slugB}`, { token: tokenA });
+    check("OWNER-SLUG: بحث الزبائن لأدمن A مع سلوغ B → زبائن A فقط (بلا زبائن B)",
+      sCust.status === 200 && sCust.data.customers.length >= 1 && sCust.data.customers.every(c => c.id !== custBId),
+      `count=${sCust.data?.customers?.length}`);
+
+    const sRep = await http("GET", `/api/owner/reports?from=${tDate}&to=${tDate}&salonSlug=${slugB}`, { token: tokenA });
+    check("OWNER-SLUG: تقارير أدمن A مع سلوغ B → إيراد A فقط (8/حجز، لا 12)",
+      sRep.status === 200 && sRep.data.summary.total_revenue === 8 * sRep.data.summary.confirmed_count,
+      `revenue=${sRep.data?.summary?.total_revenue}`);
+
+    const sSet = await http("GET", `/api/owner/salon-settings?salonSlug=${slugB}`, { token: tokenA });
+    check("OWNER-SLUG: إعدادات الصالون مع سلوغ B → صالون A وليس B",
+      sSet.status === 200 && sSet.data.salon.id === idA && sSet.data.salon.id !== idB,
+      `salon=${sSet.data?.salon?.id}`);
+
+    const sNotif = await http("GET", `/api/owner/notifications?salonSlug=${slugB}`, { token: tokenA });
+    check("OWNER-SLUG: إشعارات الأدمن مع سلوغ B → salon_id=A فقط",
+      sNotif.status === 200 && sNotif.data.notifications.every(n => n.salon_id === idA),
+      `salon_ids=${[...new Set((sNotif.data?.notifications ?? []).map(n => n.salon_id))].join(",") || "empty"}`);
+
+    // ── 2) Customer of A + slug B ──
+    const cBk = await http("GET", `/api/customer/bookings?salonSlug=${slugB}`, { token: tokA });
+    check("CUST-SLUG: حجوزات زبون A مع سلوغ B → حجوزات صالون A فقط",
+      cBk.status === 200 && cBk.data.bookings.every(b => b.barber_id !== barberB),
+      `barber_ids=${[...new Set((cBk.data?.bookings ?? []).map(b => b.barber_id))].join(",") || "empty"}`);
+
+    const cNotif = await http("GET", `/api/customer/notifications?salonSlug=${slugB}`, { token: tokA });
+    check("CUST-SLUG: إشعارات زبون A مع سلوغ B → salon_id=A فقط",
+      cNotif.status === 200 && cNotif.data.notifications.every(n => n.salon_id === idA),
+      `salon_ids=${[...new Set((cNotif.data?.notifications ?? []).map(n => n.salon_id))].join(",") || "empty"}`);
+
+    // ── 3) Forged salon_id in the BODY of a write → must be ignored ──
+    const forged = await http("POST", "/api/owner/bookings", {
+      token: tokenA,
+      body: { customer_id: custAId, barber_id: barberA, service_ids: [svA[0].id], date: tomorrowISO(), start_time: "19:30", salon_id: idB, salonSlug: slugB },
+    });
+    check("OWNER-SLUG: حجز يدوي مع salon_id مزوّر في الجسم → نجاح (الإنشاء بجلسة A)", forged.status === 201);
+    // Proof of binding: if the forged salon_id had been trusted, the booking
+    // would have been written into salon B and B's owner would now see a
+    // booking on barber A — which must never appear in B's list.
+    const bListAfter = await http("GET", "/api/owner/bookings", { token: tokenB });
+    check("OWNER-SLUG: الحجز المزوّر لم يُكتب في صالون B (لا حجز على حلاق A في قائمة B)",
+      bListAfter.status === 200 && bListAfter.data.bookings.every(b => b.barber_id !== barberA));
+  } // نهاية مرحلة 14
+
+  console.log("\n" + "═".repeat(52));
+  console.log(" مرحلة 15: جلسة واحدة نشطة — تسجيل الدخول يبطل الجلسات السابقة");
+  console.log("═".repeat(52));
+  {
+    // ── 1) Owner of B logs in from a "new device" → old token must die ──
+    // (A's credentials are intentionally ambiguous in this run — salon C was
+    // registered with the same username+password in stage 1 — so B's owner,
+    // whose credentials are unique, is used for the re-login scenario.)
+    const reLoginB = await http("POST", "/api/auth/owner/login", { body: { username: "admin", password: passB } });
+    check("SESSION: دخول أدمن B من جهاز جديد → نجاح ورمز جديد",
+      reLoginB.status === 200 && !!reLoginB.data?.token && reLoginB.data.token !== tokenB);
+    const newTokenB = reLoginB.data.token;
+
+    // NOTE: B's previous owner session was created at stage 2 (loginBAgain).
+    const oldTokenCheck = await http("GET", "/api/owner/bookings", { token: tokenB });
+    check("SESSION: الجلسة القديمة لأدمن B بعد الدخول الجديد → 401 مع code=SESSION_EXPIRED",
+      oldTokenCheck.status === 401 && oldTokenCheck.data?.code === "SESSION_EXPIRED",
+      `status=${oldTokenCheck.status} code=${oldTokenCheck.data?.code}`);
+
+    const newTokenCheck = await http("GET", "/api/owner/bookings", { token: newTokenB });
+    check("SESSION: الجلسة الجديدة لأدمن B تعمل طبيعياً بعد الإبطال", newTokenCheck.status === 200);
+
+    // Owner isolation respected: B's re-login must NOT touch A's owner session
+    const aStillValidOwner = await http("GET", "/api/owner/salon-settings", { token: tokenA });
+    check("SESSION: إبطال جلسات أدمن B لم يمسّ جلسة أدمن A (عزل لكل حساب)",
+      aStillValidOwner.status === 200 && aStillValidOwner.data?.salon?.id === idA);
+
+    // ── 2) Customer of A logs in from a "new device" → old token must die ──
+    const reCustA = await http("POST", `/api/auth/customer/login?salonSlug=${slugA}`, {
+      body: { phone: "+962791111111", password: "custpass1" },
+    });
+    check("SESSION: دخول زبون A من جهاز جديد → نجاح ورمز جديد",
+      reCustA.status === 200 && !!reCustA.data?.token && reCustA.data.token !== tokA);
+    const newTokA = reCustA.data.token;
+
+    const oldCustCheck = await http("GET", "/api/customer/bookings", { token: tokA });
+    check("SESSION: رمز زبون A القديم بعد الدخول الجديد → 401 مع code=SESSION_EXPIRED",
+      oldCustCheck.status === 401 && oldCustCheck.data?.code === "SESSION_EXPIRED",
+      `status=${oldCustCheck.status} code=${oldCustCheck.data?.code}`);
+
+    const newCustCheck = await http("GET", "/api/customer/bookings", { token: newTokA });
+    check("SESSION: رمز زبون A الجديد يعمل طبيعياً", newCustCheck.status === 200);
+
+    // ── 3) Role separation: customer re-login must NOT touch owner sessions ──
+    const ownerAfterCust = await http("GET", "/api/owner/salon-settings", { token: newTokenB });
+    check("SESSION: إبطال جلسة الزبون لم يمسّ جلسة الأدمن (فصل الأدوار سليم)",
+      ownerAfterCust.status === 200 && ownerAfterCust.data?.salon?.id === idB);
+
+    // ── 4) Per-salon scoping: same customer logging into salon B (if a
+    // customer with the same phone exists there) must NOT kill salon A session.
+    // Customer A2/B2 share the phone-per-salon model; use B's own customer.
+    const reCustB = await http("POST", `/api/auth/customer/login?salonSlug=${slugB}`, {
+      body: { phone: "+962792222222", password: "custpass2" },
+    });
+    check("SESSION: دخول زبون B من جهاز جديد → نجاح (حساب منفصل)", reCustB.status === 200);
+    const aStillValid = await http("GET", "/api/customer/bookings", { token: newTokA });
+    check("SESSION: دخول زبون صالون B لم يبطل جلسة زبون صالون A (الحسابات لكل صالون)",
+      aStillValid.status === 200);
+  } // نهاية مرحلة 15
+
+  console.log("\n" + "═".repeat(52));
+  console.log(" مرحلة 16: رقم هاتف مسجّل في صالون آخر → خطأ واضح بلا أي تسرب عابر");
+  console.log("═".repeat(52));
+  {
+    // custA2's phone (+962794444444) exists ONLY in salon A, never in B.
+    const notHere = await http("POST", `/api/auth/customer/login?salonSlug=${slugB}`, {
+      body: { phone: "+962794444444", password: "custpass4" },
+    });
+    check("REG-CTX: دخول برقم مسجّل في A فقط عبر رابط صالون B → 404 مع code=NOT_REGISTERED_THIS_SALON",
+      notHere.status === 404 && notHere.data?.code === "NOT_REGISTERED_THIS_SALON",
+      `status=${notHere.status} code=${notHere.data?.code}`);
+
+    check("REG-CTX: رسالة الخطأ تعيد اسم صالون B نفسه فقط (بيانات هذا الصالون العامة)",
+      typeof notHere.data?.salon_name === "string" && notHere.data.salon_name.length > 0,
+      `salon_name=${notHere.data?.salon_name}`);
+
+    // Cross-tenant leakage guard: the response must contain NO trace of salon A
+    const raw = JSON.stringify(notHere.data ?? {});
+    check("REG-CTX: لا أي تسرب لاسم أو معرّف الصالون A في الاستجابة",
+      !raw.includes("النخبة") && !raw.includes(String(idA)), raw);
+
+    // Same phone WITH an account in B but wrong password → generic 401, no code
+    const wrongPass = await http("POST", `/api/auth/customer/login?salonSlug=${slugB}`, {
+      body: { phone: "+962791111111", password: "wrong-password" },
+    });
+    check("REG-CTX: حساب موجود في B بكلمة مرور خاطئة → 401 عام (بدون code تسجيل)",
+      wrongPass.status === 401 && wrongPass.data?.error?.includes("غير صحيحة") && !wrongPass.data?.code,
+      `status=${wrongPass.status}`);
+
+    // The same phone registered in A still logs in normally at A (no side effects)
+    const stillWorksA = await http("POST", `/api/auth/customer/login?salonSlug=${slugA}`, {
+      body: { phone: "+962794444444", password: "custpass4" },
+    });
+    check("REG-CTX: حساب A يعمل طبيعياً بعد محاولة الدخول عبر B", stillWorksA.status === 200);
+  } // نهاية مرحلة 16
 
   console.log("\n" + "═".repeat(52));
   console.log(` النتيجة النهائية: ✅ ${passCount} ناجح | ❌ ${failCount} فاشل`);

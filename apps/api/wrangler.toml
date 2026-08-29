@@ -3,6 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+# ⚠️ REQUIRED SECRET (not set here — secrets never go in wrangler.toml):
+#   npx wrangler secret put VAPID_PRIVATE_KEY
+# Web Push fails loudly at runtime without it. Local dev: apps/api/.dev.vars
+# (gitignored). See DEPLOYMENT.md → "المتغيرات والأسرار المطلوبة".
+
 [assets]
 directory = "../web/dist"
 binding = "ASSETS"

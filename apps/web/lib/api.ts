@@ -25,6 +25,8 @@ type ApiOptions = {
   token?: string | null;
 };
 
+import { clearCustomerAuth, clearOwnerToken } from "./auth";
+
 /**
  * Fetch helper that calls the API using same-origin relative paths (/api/...)
  * with automatic translation to friendly Arabic error messages.
@@ -50,6 +52,39 @@ export async function apiFetch<T = unknown>(path: string, opts: ApiOptions = {})
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 
   if (!res.ok) {
+    // Single-active-session enforcement: the server told us this token was
+    // revoked/superseded (logged in from another device, password change…).
+    // Clear the stored auth for the matching role and notify SessionGuard —
+    // which redirects the user to the correct login page. Never silently
+    // keep the user on an authenticated-looking screen.
+    if (data.code === "SESSION_EXPIRED") {
+      const role = path.startsWith("/api/owner/") ? "owner" : path.startsWith("/api/customer/") ? "customer" : null;
+      if (role === "owner") clearOwnerToken();
+      else if (role === "customer") clearCustomerAuth();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("bs-session-expired", { detail: { role } }));
+      }
+      throw new Error(
+        typeof data.error === "string" && data.error
+          ? data.error
+          : "انتهت صلاحية جلستك، يرجى تسجيل الدخول من جديد.",
+      );
+    }
+
+    // Structured error: attach the server's machine-readable code (and any
+    // public, this-salon-only metadata like salon_name) to the thrown Error
+    // so pages can react (e.g. NOT_REGISTERED_THIS_SALON → register modal).
+    if (typeof data.code === "string" && data.code && data.code !== "SESSION_EXPIRED") {
+      const structured = new Error(
+        typeof data.error === "string" && data.error
+          ? data.error
+          : "حدث خطأ غير متوقع أثناء معالجة الطلب.",
+      ) as Error & { code?: string; salon_name?: string };
+      structured.code = data.code;
+      if (typeof data.salon_name === "string") structured.salon_name = data.salon_name;
+      throw structured;
+    }
+
     if (typeof data.error === "string" && data.error.trim().length > 0) {
       throw new Error(data.error);
     }

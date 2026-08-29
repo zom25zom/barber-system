@@ -498,7 +498,15 @@ customerRoutes.get('/queue', async (c) => {
 
     const uncompletedPrior = (priorBookings as any[]).filter((x) => x.status === 'confirmed');
     const peopleAhead = uncompletedPrior.length;
-    const isMyTurn = peopleAhead === 0 && b.booking_date === today;
+
+    const myStartMins = toMinutes(b.start_time);
+    // "دورك الآن" only when no one is ahead AND the appointment time has actually arrived
+    // (allow a small 3-minute early threshold) — never immediately after booking creation.
+    const TURN_EARLY_THRESHOLD_MIN = 3;
+    const isMyTurn =
+      peopleAhead === 0 &&
+      b.booking_date === today &&
+      currentMinutes >= myStartMins - TURN_EARLY_THRESHOLD_MIN;
 
     // Calculate total duration for uncompleted prior bookings
     const uncompletedIds = uncompletedPrior.map((x) => x.id);
@@ -514,7 +522,6 @@ customerRoutes.get('/queue', async (c) => {
     }
 
     // Calculate dynamic delay and expected finish time of uncompleted prior bookings
-    const myStartMins = toMinutes(b.start_time);
     let maxPriorEndMins = myStartMins;
 
     for (const ub of uncompletedPrior) {

@@ -100,7 +100,7 @@ async function processReminderBatch(batch: MessageBatch<ReminderMessage>, env: B
         .run();
 
       // Native Web Push — wakes the device even with the browser closed
-      const results = await dispatchWebPush(env.DB, 'customer', booking.customer_id, message.body.salonId, {
+      const results = await dispatchWebPush(env, 'customer', booking.customer_id, message.body.salonId, {
         title: 'تذكير بموعدك ⏰',
         message: text,
         url: deepLinkUrl,

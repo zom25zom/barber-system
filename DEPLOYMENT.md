@@ -13,6 +13,41 @@
 
 ---
 
+## 🔑 المتغيرات والأسرار المطلوبة (إلزامية قبل النشر)
+
+| المتغير | أين يُضبط | ملاحظات |
+|---|---|---|
+| `VAPID_PRIVATE_KEY` | **Worker Secret**: `npx wrangler secret put VAPID_PRIVATE_KEY` (من مجلد `apps/api`) | مفتاح Web Push خاص — **لا يُكتب في الكود أبداً**. محلياً: `apps/api/.dev.vars` (متجاهَل في git) |
+| `VAPID_PUBLIC_KEY` | ثابت في `apps/api/src/webpush.ts` (أو اختيارياً نفس الآلية أعلاه) | مفتاح عام غير سري — يستخدمه المتصفح للاشتراك |
+| `NEXT_PUBLIC_API_BASE_URL` | وقت بناء الويب: متغير بيئة Build (ملف `apps/web/.env.production` **محلي فقط** — غير مرفوع لـ git) | يُدمج في ملفات JS وقت البناء؛ أي تغيير يتطلب إعادة بناء الويب |
+
+### تدوير مفاتيح VAPID (تمت 2025)
+
+المفتاح الخاص القديم كان مكتوباً في الكود ومرفوعاً لـ git — اعتبره مكشوفاً وتم تدويره:
+
+```bash
+# توليد زوج مفاتيح P-256 جديد (base64url) — مثال:
+node -e "const {createECDH}=require('crypto');const e=createECDH('prime256v1');e.generateKeys();
+const b=(x)=>Buffer.from(x).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+console.log('PUBLIC :'+b(e.getPublicKey()));console.log('PRIVATE:'+b(e.getPrivateKey()));"
+
+# ضبط المفتاح الخاص كسر على الـ API Worker:
+cd apps/api
+npx wrangler secret put VAPID_PRIVATE_KEY
+
+# تطوير محلي:
+echo 'VAPID_PRIVATE_KEY=<المفتاح>' >> apps/api/.dev.vars
+```
+
+> ⚠️ **بعد التدوير**: كل اشتراكات Push القديمة موقّعة بالمفتاح القديم وستُرفض
+> (403) من خدمات Push — الـ API يحذفها تلقائياً ويُعاد اشتراك الأجهزة في المرة
+> القادمة التي يفتح فيها المستخدم التطبيق.
+>
+> المفتاح القديم ما زال في تاريخ git. الإزالة الكاملة تتطلب إعادة كتابة
+> التاريخ (git filter-repo / BFG) + تدوير إضافي — قرار منفصل.
+
+---
+
 ## الخطوات
 
 ### 1. إنشاء قاعدة بيانات D1 جديدة
@@ -127,7 +162,7 @@ wrangler deploy
 
 ## ملاحظات مهمة
 
-1. **VAPID Keys**: مفاتيح Web Push حالياً ثابتة في الكود (`webpush.ts`). إذا أردت مفاتيح مختلفة لكل صالون، انقلها لـ environment variables في `wrangler.toml`.
+1. **VAPID Keys**: المفتاح الخاص (`VAPID_PRIVATE_KEY`) يُضبط كـ **Worker Secret** وليس في الكود — انظر قسم «المتغيرات والأسرار المطلوبة» أعلاه. المفتاح العام ثابت في `webpush.ts` وهو غير سري.
 
 2. **النطاق (Domain)**: كل نسخة يمكن ربطها بنطاق فرعي مختلف:
    ```

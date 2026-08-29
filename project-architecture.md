@@ -107,7 +107,7 @@ barber system/
 │       └── wrangler.jsonc            # إعدادات نشر barber-web
 │
 ├── scripts/
-│   ├── e2e-multitenant.mjs           # 82 اختبار عزل متعدد المستأجرين (مقابل wrangler dev)
+│   ├── e2e-multitenant.mjs           # 110 اختبار عزل متعدد المستأجرين (مقابل wrangler dev)
 │   └── check-tenant-links.mjs        # فحص ثبات الروابط (منع الروابط الداخلية المكتوبة يدوياً)
 │
 ├── ARCHITECTURE.md · DEPLOYMENT.md · PRD-Barbershop-Booking-System.md · README.md
@@ -147,7 +147,7 @@ barber system/
 ### أدوات الجودة
 | الأداة | الوظيفة |
 |---|---|
-| `scripts/e2e-multitenant.mjs` | 82 اختبار عزل: جلسات، حجوزات متزامنة، WebSocket، تذكيرات، تقارير، رفع صور، هجمات عابرة للمستأجرين |
+| `scripts/e2e-multitenant.mjs` | 110 اختبار عزل: جلسات، حجوزات متزامنة، WebSocket، تذكيرات، تقارير، رفع صور، هجمات عابرة للمستأجرين |
 | `scripts/check-tenant-links.mjs` | فحص أستاتيكي يمنع الروابط الداخلية الثابتة خارج مساعدات `useTenantLink` |
 
 ---
@@ -212,7 +212,7 @@ cd apps/web  && npm run dev                                                     
 ### د) خطوة التحقق قبل/بعد أي نشر واجهة (إلزامية)
 ```bash
 node scripts/check-tenant-links.mjs    # فحص ثبات الروابط
-node scripts/e2e-multitenant.mjs       # 82/82 اختبار عزل — يجب أن ينجح بالكامل (يتطلب wrangler dev شغّالاً)
+node scripts/e2e-multitenant.mjs       # 95/110 اختبار عزل — يجب أن ينجح بالكامل (يتطلب wrangler dev شغّالاً)
 ```
 
 ### هـ) إضافة صالون جديد (SaaS)

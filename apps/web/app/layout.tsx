@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import CustomerBottomBar from "@/components/CustomerBottomBar";
 import { ToasterProvider } from "@/components/Toaster";
+import SessionGuard from "@/components/SessionGuard";
 
 export const metadata: Metadata = {
   title: "صالون الحلاقة — احجز موعدك",
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           disableTransitionOnChange
         >
           <ToasterProvider>
+            <SessionGuard />
             <Navbar />
             <main className="w-full px-4 py-6">
               {children}

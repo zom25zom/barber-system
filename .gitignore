@@ -29,3 +29,6 @@ lerna-debug.log*
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local Worker secrets (wrangler dev) — never commit
+.dev.vars

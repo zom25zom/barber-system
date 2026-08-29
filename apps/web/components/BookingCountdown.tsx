@@ -98,6 +98,16 @@ export default function BookingCountdown({
         )}
       </div>
 
+      {/* Live human-readable summary — replaces "your turn now" until time actually arrives */}
+      <div className="text-center">
+        <span className="text-sm font-bold text-[var(--bs-text)] sm:text-base">
+          دورك خلال{" "}
+          <span className="font-black text-[var(--bs-primary)]">
+            {humanizeRemaining(totalSeconds)}
+          </span>
+        </span>
+      </div>
+
       {/* Countdown Digits Grid */}
       <div className="flex items-center justify-center gap-2 py-1 sm:gap-3" dir="ltr">
         {days > 0 && (
@@ -130,6 +140,22 @@ export default function BookingCountdown({
       )}
     </div>
   );
+}
+
+/** "2155" -> "35 دقيقة و55 ثانية" (Arabic humanized remaining time) */
+function humanizeRemaining(totalSeconds: number): string {
+  if (totalSeconds <= 0) return "الآن";
+  const d = Math.floor(totalSeconds / 86400);
+  const h = Math.floor((totalSeconds % 86400) / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+
+  const parts: string[] = [];
+  if (d > 0) parts.push(`${d} يوم`);
+  if (h > 0) parts.push(`${h} ساعة`);
+  if (m > 0) parts.push(`${m} دقيقة`);
+  if (d === 0 && h === 0) parts.push(`${s} ثانية`);
+  return parts.join(" و");
 }
 
 function DigitBlock({ value, label, pulse }: { value: string; label: string; pulse?: boolean }) {

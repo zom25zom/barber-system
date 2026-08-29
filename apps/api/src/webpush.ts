@@ -1,12 +1,46 @@
 import { buildPushPayload } from '@block65/webcrypto-web-push';
+import type { Bindings } from './types';
 
+/**
+ * SECURITY (rotated keypair):
+ * The previous VAPID private key was hardcoded in this file and committed to
+ * git — it must be considered compromised. The keypair below was rotated:
+ *
+ *   • PRIVATE key lives ONLY in a Worker secret:  npx wrangler secret put VAPID_PRIVATE_KEY
+ *     (local dev: apps/api/.dev.vars, which is gitignored)
+ *   • The PUBLIC key is not secret and is safe in source — browsers need it
+ *     to subscribe (served via GET /api/push/vapid-public-key).
+ *
+ * ⚠️ Because the keypair changed, all existing push subscriptions were signed
+ * for the old key and are rejected (403) by push services. dispatchWebPush()
+ * now purges subscriptions on 403 as well so clients silently re-subscribe.
+ */
 export const VAPID_PUBLIC_KEY =
-  'BI50Mcwva1NNFDZahPtIZQRP8GBOl32NBP9P2TXY42_NTCbuIU8gGatRKyUDPJJnkxzJ0XK8dXqiQVrCP8arsjQ';
-
-const VAPID_PRIVATE_KEY =
-  'sxq0yDR5kpwesbDh8xryc00O8dZJuZLhMXF0LqNBm7A';
+  'BDbLBgjyDprDJS_o3nRRHdTsd_arg3l0jIp3L3G2SLDAig786GceXdIFSRgprLenxwpdcCGm5T3uFs7S-uPEaG0';
 
 const VAPID_SUBJECT = 'mailto:support@barbershop.jo';
+
+export interface VapidKeys {
+  publicKey: string;
+  privateKey: string;
+}
+
+/**
+ * Resolves the VAPID keys for this invocation. The private key MUST be
+ * provided via the environment binding (Worker secret) — there is no source
+ * fallback by design, so a missing secret fails loudly instead of silently
+ * reusing a compromised key.
+ */
+export function getVapidKeys(env: { VAPID_PRIVATE_KEY?: string; VAPID_PUBLIC_KEY?: string }): VapidKeys {
+  const privateKey = env.VAPID_PRIVATE_KEY;
+  if (!privateKey) {
+    throw new Error(
+      '[WebPush] VAPID_PRIVATE_KEY is not configured. ' +
+        'Set it with: npx wrangler secret put VAPID_PRIVATE_KEY (or apps/api/.dev.vars locally).',
+    );
+  }
+  return { publicKey: env.VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY, privateKey };
+}
 
 export interface PushPayload {
   title: string;
@@ -33,13 +67,17 @@ export interface PushResult {
  * Returns detailed results for logging / diagnostics.
  */
 export async function dispatchWebPush(
-  db: D1Database,
+  env: Pick<Bindings, 'DB' | 'VAPID_PRIVATE_KEY' | 'VAPID_PUBLIC_KEY'>,
   userType: 'owner' | 'customer',
   customerId: number | null,
   salonId: number,
   payload: PushPayload,
 ): Promise<PushResult[]> {
+  const db = env.DB;
   const results: PushResult[] = [];
+
+  // Fail fast (and loudly) when the secret is missing — before touching the DB.
+  const vapidKeys = getVapidKeys(env);
 
   try {
     let query = 'SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_type = ? AND salon_id = ?';
@@ -104,8 +142,8 @@ export async function dispatchWebPush(
           },
           {
             subject: VAPID_SUBJECT,
-            publicKey: VAPID_PUBLIC_KEY,
-            privateKey: VAPID_PRIVATE_KEY,
+            publicKey: vapidKeys.publicKey,
+            privateKey: vapidKeys.privateKey,
           },
         );
 
@@ -134,8 +172,10 @@ export async function dispatchWebPush(
           result.error = `${res.status} ${res.statusText}: ${responseBody}`;
         }
 
-        // If endpoint is expired or unsubscribed, remove from database
-        if (res.status === 404 || res.status === 410) {
+        // Expired (404), unsubscribed (410), or signed with the WRONG VAPID
+        // key (403 — expected once right after the key rotation): remove the
+        // dead subscription so the client re-subscribes with the new key.
+        if (res.status === 404 || res.status === 410 || res.status === 403) {
           console.log(`[WebPush] 🗑 Removing expired/gone subscription #${sub.id}`);
           await db.prepare('DELETE FROM push_subscriptions WHERE id = ?').bind(sub.id).run();
           result.removed = true;

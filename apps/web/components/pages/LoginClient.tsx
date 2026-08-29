@@ -9,6 +9,7 @@ import { apiFetch } from "@/lib/api";
 import { setCustomerAuth } from "@/lib/auth";
 import { getCurrentSalonSlug, withSlug } from "@/lib/salonTenant";
 import Spinner from "@/components/Spinner";
+import ConfirmModal from "@/components/ConfirmModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,10 +23,16 @@ export function LoginClient({ salonSlug }: { salonSlug?: string }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Set when the API reports code=NOT_REGISTERED_THIS_SALON: the phone is
+  // valid somewhere else but has no account for THIS salon → show the
+  // "create account here" modal instead of the generic error box.
+  const [notRegisteredHere, setNotRegisteredHere] = useState(false);
+  const [thisSalonName, setThisSalonName] = useState<string>("");
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setNotRegisteredHere(false);
     setLoading(true);
     try {
       const d = await apiFetch<{ token: string; customer: Customer }>(withSlug("/api/auth/customer/login"), {
@@ -35,7 +42,13 @@ export function LoginClient({ salonSlug }: { salonSlug?: string }) {
       setCustomerAuth(d.token, d.customer);
       tLink.push("/book");
     } catch (err) {
-      setError((err as Error).message);
+      const e = err as Error & { code?: string; salon_name?: string };
+      if (e.code === "NOT_REGISTERED_THIS_SALON") {
+        setThisSalonName(e.salon_name || "");
+        setNotRegisteredHere(true);
+      } else {
+        setError(e.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -113,6 +126,24 @@ export function LoginClient({ salonSlug }: { salonSlug?: string }) {
               سجل الآن
             </Link>
           </p>
+
+          {/* "phone not registered at THIS salon" → invite to register here.
+              The salon name is this salon's own public branding (server-side,
+              per-salon query) — never any other salon's data. */}
+          <ConfirmModal
+            isOpen={notRegisteredHere}
+            title="حسابك غير مسجل لدى هذا الصالون"
+            message={`أنت الآن تحاول تسجيل الدخول إلى صالون ${thisSalonName ? `«${thisSalonName}»` : "الحالي"} وحسابك غير مسجل لدى هذا الصالون. الرجاء إنشاء حساب جديد للمتابعة.`}
+            confirmText="الانتقال إلى إنشاء حساب جديد"
+            cancelText="إغلاق"
+            variant="primary"
+            icon="📝"
+            onConfirm={() => {
+              setNotRegisteredHere(false);
+              tLink.push("/register");
+            }}
+            onClose={() => setNotRegisteredHere(false)}
+          />
         </section>
 
         {/* ── brand side — editorial statement panel (desktop only) ── */}

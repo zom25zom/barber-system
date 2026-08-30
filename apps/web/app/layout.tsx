@@ -7,6 +7,7 @@ import { ToasterProvider } from "@/components/Toaster";
 import SessionGuard from "@/components/SessionGuard";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://barber-web.nawafzwd25.workers.dev"),
   title: "صالون الحلاقة — احجز موعدك",
   description: "نظام حجز مواعيد صالون حلاقة — اختر الحلاق والخدمة والموعد المناسب لك",
   manifest: "/manifest.json",
@@ -14,6 +15,28 @@ export const metadata: Metadata = {
     capable: true,
     title: "صالون الحلاقة",
     statusBarStyle: "black-translucent",
+  },
+  // Social sharing previews (WhatsApp/Facebook/Twitter). metadataBase above
+  // resolves these into the ABSOLUTE URLs social platforms require.
+  openGraph: {
+    type: "website",
+    siteName: "صالونك",
+    title: "صالونك — احجز موعدك",
+    description: "نظام حجز مواعيد صالون حلاقة — اختر الحلاق والخدمة والموعد المناسب لك",
+    images: [
+      {
+        url: "/og-salonak.png",
+        width: 1200,
+        height: 630,
+        alt: "صالونك — نظام حجز مواعيد صالونات الحلاقة",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "صالونك — احجز موعدك",
+    description: "نظام حجز مواعيد صالون حلاقة — اختر الحلاق والخدمة والموعد المناسب لك",
+    images: ["/og-salonak.png"],
   },
 };
 
@@ -29,7 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // via an inline pre-hydration script (FOUC prevention) — React must not warn.
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" href="/icon-512.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

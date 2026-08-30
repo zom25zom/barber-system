@@ -8,7 +8,7 @@ import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toaster";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Download, Table2, Flame } from "lucide-react";
+import { Download, Table2, Flame, Scissors, TriangleAlert } from "lucide-react";
 
 interface ReportSummary {
   total_revenue: number;
@@ -293,7 +293,8 @@ export default function AdminReportsPage() {
 
       {error && (
         <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
-          <span>⚠️ {error}</span>
+          <TriangleAlert className="h-4 w-4 shrink-0 self-center" aria-hidden="true" />
+          <span className="flex-1">{error}</span>
           <button onClick={() => setError(null)} className="text-xs text-[var(--bs-error)] underline opacity-80 hover:opacity-100">
             إغلاق
           </button>
@@ -402,8 +403,8 @@ export default function AdminReportsPage() {
                                 className="h-11 w-11 rounded-full border border-[var(--bs-border-strong)] object-cover"
                               />
                             ) : (
-                              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)] text-base">
-                                💈
+                              <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]">
+                                <Scissors className="h-4 w-4 text-[var(--bs-text-faint)]" aria-hidden="true" />
                               </div>
                             )}
                             <div className="min-w-0">
@@ -495,7 +496,7 @@ export default function AdminReportsPage() {
                   <span className="h-3.5 w-3.5 rounded border border-[var(--bs-primary)]/50 bg-[var(--bs-primary)]/40" />
                   <span className="h-3.5 w-3.5 rounded border border-[var(--bs-primary)] bg-[var(--bs-primary-strong)]" />
                 </div>
-                <span>أعلى ذروة 🔥</span>
+                <span className="inline-flex items-center gap-1"><Flame className="h-3.5 w-3.5" aria-hidden="true" /> أعلى ذروة</span>
               </div>
             </div>
 

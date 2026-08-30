@@ -9,6 +9,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 import ImageUploader from "@/components/ImageUploader";
 import { useToast } from "@/components/Toaster";
 import type { OwnerBarber } from "@/lib/types";
+import { AlertTriangle, CalendarDays, Pencil, Scissors, Trash2 } from "lucide-react";
 
 export default function AdminBarbersPage() {
   const token = getOwnerToken();
@@ -169,7 +170,8 @@ export default function AdminBarbersPage() {
 
       {error && (
         <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
-          <span>⚠️ {error}</span>
+          <AlertTriangle className="h-4 w-4 shrink-0 self-center" aria-hidden="true" />
+          <span className="flex-1">{error}</span>
           <button onClick={() => setError(null)} className="text-xs text-[var(--bs-error)] hover:underline">
             إغلاق
           </button>
@@ -179,7 +181,7 @@ export default function AdminBarbersPage() {
       {/* ── add / edit form — floating wizard panel ── */}
       {showAdd && (
         <div className="bs-panel relative overflow-hidden p-6 animate-in fade-in sm:p-8">
-          <span className="bs-ghost-numeral" dir="ltr" aria-hidden="true">✂</span>
+          <Scissors className="bs-ghost-numeral" aria-hidden="true" />
           <p className="text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
             {editId ? "تعديل بيانات" : "عضو جديد"}
           </p>
@@ -262,8 +264,8 @@ export default function AdminBarbersPage() {
                       className="h-14 w-14 rounded-2xl border border-[var(--bs-border-strong)] object-cover shadow-lg"
                     />
                   ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)] text-xl shadow-lg">
-                      💈
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)] shadow-lg">
+                      <Scissors className="h-5 w-5 text-[var(--bs-text-faint)]" aria-hidden="true" />
                     </div>
                   )}
                   <div className="min-w-0">
@@ -284,19 +286,19 @@ export default function AdminBarbersPage() {
                     href={`/admin/barbers/services?id=${b.id}`}
                     className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-text-muted)] transition hover:bg-[var(--bs-surface-raised)] hover:text-[var(--bs-text)]"
                   >
-                    ✂ الخدمات
+                    <Scissors className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" /> الخدمات
                   </Link>
                   <Link
                     href={`/admin/barbers/schedule?id=${b.id}`}
                     className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-text-muted)] transition hover:bg-[var(--bs-surface-raised)] hover:text-[var(--bs-text)]"
                   >
-                    📅 الجدول
+                    <CalendarDays className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" /> الجدول
                   </Link>
                   <button
                     onClick={() => openEdit(b)}
                     className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-primary)] transition hover:bg-[var(--bs-surface-raised)]"
                   >
-                    ✏️ تعديل
+                    <Pencil className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" /> تعديل
                   </button>
                   <button
                     onClick={() => toggleActive(b)}
@@ -312,7 +314,7 @@ export default function AdminBarbersPage() {
                     onClick={() => triggerDelete(b)}
                     className="rounded-xl border border-[var(--bs-error)]/40 px-3.5 py-1.5 text-xs sm:text-sm text-[var(--bs-error)] transition hover:bg-[var(--bs-error-soft)]"
                   >
-                    🗑 حذف
+                    <Trash2 className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" /> حذف
                   </button>
                 </div>
               </div>

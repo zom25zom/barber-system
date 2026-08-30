@@ -8,6 +8,7 @@ import { getOwnerToken } from "@/lib/auth";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/components/Toaster";
+import { AlertTriangle, Clock, Pencil, Scissors, Trash2 } from "lucide-react";
 import type { Service } from "@/lib/types";
 
 function ServicesContent() {
@@ -189,7 +190,8 @@ function ServicesContent() {
 
       {error && (
         <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
-          <span>⚠️ {error}</span>
+          <AlertTriangle className="h-4 w-4 shrink-0 self-center" aria-hidden="true" />
+          <span className="flex-1">{error}</span>
           <button onClick={() => setError(null)} className="text-xs text-[var(--bs-error)] hover:underline">
             إغلاق
           </button>
@@ -199,7 +201,7 @@ function ServicesContent() {
       {/* ── form — floating wizard panel ── */}
       {showForm && (
         <div className="bs-panel relative overflow-hidden p-6 animate-in fade-in sm:p-8">
-          <span className="bs-ghost-numeral" dir="ltr" aria-hidden="true">✂</span>
+          <Scissors className="bs-ghost-numeral" aria-hidden="true" />
           <p className="text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">
             {editId ? "تعديل خدمة" : "خدمة جديدة"}
           </p>
@@ -294,7 +296,7 @@ function ServicesContent() {
                 <span className="min-w-0">
                   <span className="block truncate text-base font-bold text-[var(--bs-text)]">{s.name}</span>
                   <span className="mt-0.5 block text-[11px] text-[var(--bs-text-faint)]">
-                    ⏱ المدة: {s.duration_minutes} دقيقة
+                    <Clock className="mr-0.5 inline h-3 w-3 align-[-1px]" aria-hidden="true" /> المدة: {s.duration_minutes} دقيقة
                   </span>
                 </span>
                 <span className="bs-leader-dots" aria-hidden="true" />
@@ -307,13 +309,13 @@ function ServicesContent() {
                   onClick={() => openEdit(s)}
                   className="rounded-xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)]/60 px-3 py-1.5 text-xs sm:text-sm text-[var(--bs-primary)] transition hover:bg-[var(--bs-surface-raised)]"
                 >
-                  ✏️ تعديل
+                  <Pencil className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" /> تعديل
                 </button>
                 <button
                   onClick={() => triggerDelete(s)}
                   className="rounded-xl border border-[var(--bs-error)]/40 px-3 py-1.5 text-xs sm:text-sm text-[var(--bs-error)] transition hover:bg-[var(--bs-error-soft)]"
                 >
-                  🗑 حذف
+                  <Trash2 className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" /> حذف
                 </button>
               </div>
             </div>

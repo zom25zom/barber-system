@@ -10,7 +10,7 @@ import { useLiveNotifications } from "@/lib/useNotifications";
 import { enableWebPushNotifications } from "@/lib/push";
 import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
-import { BellRing } from "lucide-react";
+import { BellRing, Bell } from "lucide-react";
 import type { AppNotification } from "@/lib/types";
 
 export function NotificationsClient({ salonSlug }: { salonSlug?: string }) {
@@ -110,7 +110,7 @@ export function NotificationsClient({ salonSlug }: { salonSlug?: string }) {
 
       {!loading && notifications.length === 0 && (
         <div className="py-14 text-center text-sm text-[var(--bs-text-muted)]">
-          <span className="mb-3 block text-4xl">🔔</span>
+          <Bell className="mx-auto mb-3 h-10 w-10 text-[var(--bs-text-faint)]" aria-hidden="true" />
           لا توجد إشعارات جديدة حالياً.
         </div>
       )}

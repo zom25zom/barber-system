@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Bell, Building2, CalendarDays, Clock, Scissors, Users, BarChart3, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -27,32 +28,32 @@ export const metadata: Metadata = {
 
 const FEATURES = [
   {
-    icon: "📅",
+    icon: CalendarDays,
     title: "حجز إلكتروني متكامل",
     body: "رابط حجز عام خاص بكل صالون — الزبون يختار الحلاق والخدمة والوقت في أقل من دقيقة، بدون مكالمات ولا انتظار.",
   },
   {
-    icon: "🔔",
+    icon: Bell,
     title: "إشعارات مباشرة",
     body: "تنبيهات فورية على لوحة التحكم وعلى هاتف الزبون مع كل حجز جديد أو تغيير في الدور.",
   },
   {
-    icon: "⏰",
+    icon: Clock,
     title: "تذكيرات تلقائية",
     body: "تذكيرات تُرسل تلقائياً قبل الموعد لتقليل الغياب وحفظ وقت فريقك.",
   },
   {
-    icon: "👥",
+    icon: Users,
     title: "إدارة فريق الحلاقين",
     body: "أضف الحلاقين وحدّد خدماتهم وأسعارها وأوقات عملهم — كل حلاق بصفحته الخاصة.",
   },
   {
-    icon: "📊",
+    icon: BarChart3,
     title: "تقارير وإحصائيات",
     body: "تابع الحجوزات والإيرادات وأكثر الخدمات طلباً بلوحات تقارير واضحة.",
   },
   {
-    icon: "🏢",
+    icon: Building2,
     title: "صالونات متعددة",
     body: "كل صالون يحصل على مساحته المستقلة برابطه الخاص — نظام واحد يخدم عدد لا نهائي من الصالونات.",
   },
@@ -101,7 +102,7 @@ export default function LandingPage() {
         <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-12 sm:pb-20 sm:pt-16">
           {/* eyebrow */}
           <div className="flex items-center gap-3">
-            <span className="text-2xl">💈</span>
+            <Scissors className="h-6 w-6 text-[var(--bs-primary)]" aria-hidden="true" />
             <span
               className="text-[11px] font-bold tracking-[0.35em] text-[var(--bs-primary)]"
               dir="ltr"
@@ -173,9 +174,7 @@ export default function LandingPage() {
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
             <div key={f.title} className="bs-panel p-6">
-              <span className="text-3xl" aria-hidden="true">
-                {f.icon}
-              </span>
+              <f.icon className="h-8 w-8 text-[var(--bs-primary)]" aria-hidden="true" />
               <h3 className="mt-4 text-lg font-black text-[var(--bs-text)]">
                 {f.title}
               </h3>
@@ -250,7 +249,7 @@ export default function LandingPage() {
       <footer className="mt-10 border-t border-[var(--bs-border)] py-10">
         <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
           <div className="flex items-center gap-2.5">
-            <span className="text-xl">💈</span>
+            <Scissors className="h-5 w-5 text-[var(--bs-primary)]" aria-hidden="true" />
             <span className="text-base font-black text-[var(--bs-text)]" dir="ltr">
               Barber Smart
             </span>

@@ -10,7 +10,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CircleAlert, CircleCheck, Eye, EyeOff, LogOut } from "lucide-react";
+import { CircleAlert, CircleCheck, Eye, EyeOff, LogOut, UserRound } from "lucide-react";
 import type { Customer } from "@/lib/types";
 
 export function MyProfileClient({ salonSlug }: { salonSlug?: string }) {
@@ -114,8 +114,12 @@ export function MyProfileClient({ salonSlug }: { salonSlug?: string }) {
     <div className="bs-skin mx-auto max-w-lg pb-4">
       {/* ── Profile header: the avatar letter is the focal point ── */}
       <header className="flex items-center gap-5">
-        <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-3xl font-black text-[var(--bs-primary)] shadow-lg">
-          {username.trim().charAt(0) || "👤"}
+        <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] shadow-lg">
+          {username.trim().charAt(0) ? (
+            <span className="text-3xl font-black text-[var(--bs-primary)]">{username.trim().charAt(0)}</span>
+          ) : (
+            <UserRound className="h-8 w-8 text-[var(--bs-primary)]" aria-hidden="true" />
+          )}
         </span>
         <div className="min-w-0">
           <p className="text-[11px] font-bold tracking-[0.25em] text-[var(--bs-primary)]">حسابي</p>
@@ -290,7 +294,7 @@ export function MyProfileClient({ salonSlug }: { salonSlug?: string }) {
         confirmText="نعم، تسجيل الخروج"
         cancelText="إلغاء"
         variant="warning"
-        icon="🚪"
+        icon={<LogOut className="h-5 w-5 text-[var(--bs-warning)]" aria-hidden="true" />}
         onConfirm={() => {
           clearCustomerAuth();
           tLink.push("/");

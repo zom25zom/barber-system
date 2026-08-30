@@ -8,7 +8,7 @@ import { useToast } from "@/components/Toaster";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CircleAlert, ClipboardList, RefreshCw } from "lucide-react";
+import { CircleAlert, CircleCheck, CircleX, ClipboardList, RefreshCw, TriangleAlert } from "lucide-react";
 
 interface ServiceHealth {
   name: string;
@@ -74,22 +74,22 @@ export default function AdminHealthPage() {
       case "healthy":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-3 py-1 text-xs font-bold text-[var(--bs-success)]">
-            <span className="h-2 w-2 rounded-full bg-[var(--bs-success)] animate-pulse" />
-            متصل ويعمل ✅
+            <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />
+            متصل ويعمل
           </span>
         );
       case "degraded":
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--bs-warning)]/40 bg-[var(--bs-warning-soft)] px-3 py-1 text-xs font-bold text-[var(--bs-warning)]">
-            <span className="h-2 w-2 rounded-full bg-[var(--bs-warning)]" />
-            أداء جزئي ⚠️
+            <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
+            أداء جزئي
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] px-3 py-1 text-xs font-bold text-[var(--bs-error)]">
-            <span className="h-2 w-2 rounded-full bg-[var(--bs-error)]" />
-            غير متصل ❌
+            <CircleX className="h-3.5 w-3.5" aria-hidden="true" />
+            غير متصل
           </span>
         );
     }

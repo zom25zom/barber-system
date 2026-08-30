@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { AlertTriangle, Camera, ImagePlus } from "lucide-react";
 import Spinner from "./Spinner";
 import { useToast } from "./Toaster";
 import { API_BASE } from "@/lib/api";
@@ -98,7 +99,8 @@ export default function ImageUploader({
 
       {error && (
         <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-xs text-[var(--bs-error)] flex items-center justify-between">
-          <span>⚠️ {error}</span>
+          <AlertTriangle className="h-4 w-4 shrink-0 self-center" aria-hidden="true" />
+          <span className="flex-1">{error}</span>
           <button
             type="button"
             onClick={() => setError(null)}
@@ -123,7 +125,7 @@ export default function ImageUploader({
           ) : value ? (
             <img src={value} alt="Preview" className="h-full w-full object-cover" />
           ) : (
-            <span className="text-3xl">📷</span>
+            <Camera className="h-7 w-7 text-[var(--bs-text-faint)]" aria-hidden="true" />
           )}
         </div>
 
@@ -150,7 +152,7 @@ export default function ImageUploader({
                 </>
               ) : (
                 <>
-                  <span>📁</span>
+                  <ImagePlus className="h-4 w-4" aria-hidden="true" />
                   <span>{value ? "تغيير الصورة" : "رفع صورة من الجهاز"}</span>
                 </>
               )}
@@ -162,7 +164,7 @@ export default function ImageUploader({
                 onClick={handleRemove}
                 className="rounded-xl border border-[var(--bs-error)]/30 bg-[var(--bs-error-soft)] px-3.5 py-2 text-xs font-semibold text-[var(--bs-error)] hover:bg-[var(--bs-error)]/20 transition active:scale-95"
               >
-                🗑 حذف الصورة
+                حذف الصورة
               </button>
             )}
           </div>

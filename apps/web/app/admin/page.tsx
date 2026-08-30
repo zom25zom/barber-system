@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { apiFetch } from "@/lib/api";
+import { CircleCheck } from "lucide-react";
 import { getOwnerToken } from "@/lib/auth";
 import type { OwnerStats } from "@/lib/types";
 
@@ -12,12 +13,51 @@ const STATUS_LABELS: Record<string, string> = {
   no_show: "لم يحضر",
 };
 
+// Dot colors mirror the booking status badges in admin/bookings exactly:
+// gold = confirmed · green = completed · amber = no-show · gray = cancelled
 const STATUS_DOT: Record<string, string> = {
   confirmed: "bg-[var(--bs-primary)]",
   cancelled: "bg-[var(--bs-text-faint)]",
   completed: "bg-[var(--bs-success)]",
-  no_show: "bg-[var(--bs-error)]",
+  no_show: "bg-[var(--bs-warning)]",
 };
+
+// Cell tint per status — same soft backgrounds the badges use, so the meaning
+// reads instantly without a legend.
+const STATUS_SOFT: Record<string, string> = {
+  confirmed: "border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)]",
+  cancelled: "border-[var(--bs-border)] bg-[var(--bs-surface-raised)]/40",
+  completed: "border-[var(--bs-success)]/30 bg-[var(--bs-success-soft)]",
+  no_show: "border-[var(--bs-warning)]/30 bg-[var(--bs-warning-soft)]",
+};
+
+const STATUS_TEXT: Record<string, string> = {
+  confirmed: "text-[var(--bs-primary)]",
+  cancelled: "text-[var(--bs-text-muted)]",
+  completed: "text-[var(--bs-success)]",
+  no_show: "text-[var(--bs-warning)]",
+};
+
+/** Shared card header for every section panel — one consistent pattern. */
+function PanelHeader({
+  title,
+  subtitle,
+  trailing,
+}: {
+  title: string;
+  subtitle: string;
+  trailing?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-[var(--bs-border)] px-5 py-4 sm:px-7 sm:py-5">
+      <div className="min-w-0">
+        <h2 className="truncate text-lg font-black text-[var(--bs-text)] sm:text-xl">{title}</h2>
+        <p className="mt-0.5 truncate text-xs text-[var(--bs-text-faint)]">{subtitle}</p>
+      </div>
+      {trailing}
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const token = getOwnerToken();
@@ -47,7 +87,6 @@ export default function AdminDashboard() {
   const confirmed = stats.totals.find((t) => t.status === "confirmed")?.count ?? 0;
   const noShow = stats.totals.find((t) => t.status === "no_show")?.count ?? 0;
   const maxDaily = Math.max(...stats.daily.map((d) => d.count), 1);
-  const maxServiceCount = Math.max(...stats.top_services.map((s) => s.count), 1);
 
   return (
     <div className="space-y-12">
@@ -99,7 +138,7 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-baseline justify-between gap-6 py-3.5 lg:justify-end">
               <span className="text-xs text-[var(--bs-text-muted)]">لم يحضروا</span>
-              <span className={`text-2xl font-black tabular-nums ${noShow > 0 ? "text-[var(--bs-error)]" : "text-[var(--bs-text)]"}`}>
+              <span className={`text-2xl font-black tabular-nums ${noShow > 0 ? "text-[var(--bs-warning)]" : "text-[var(--bs-text)]"}`}>
                 {noShow}
               </span>
             </div>
@@ -179,35 +218,30 @@ export default function AdminDashboard() {
       {/* ═══════════════════════════════════════════════════════════
           Top services × No-show log — asymmetric editorial pairing
           ═══════════════════════════════════════════════════════════ */}
-      <div className="grid gap-10 lg:grid-cols-2 lg:gap-8">
+      <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
         {/* Top services — numbered editorial ranking, hairline rows */}
-        <section>
-          <div className="border-b border-[var(--bs-border)] pb-4">
-            <h2 className="text-xl font-black text-[var(--bs-text)]">أكثر الخدمات طلباً</h2>
-            <p className="mt-1 text-xs text-[var(--bs-text-faint)]">الخدمات الأكثر إيراداً وحجوزات</p>
-          </div>
+        <section className="bs-panel overflow-hidden">
+          <PanelHeader
+            title="أكثر الخدمات طلباً"
+            subtitle="الخدمات الأكثر إيراداً وحجوزات"
+          />
 
           {stats.top_services.length === 0 ? (
-            <p className="py-10 text-center text-sm text-[var(--bs-text-faint)]">لا توجد بيانات بعد.</p>
+            <p className="px-5 py-10 text-center text-sm text-[var(--bs-text-faint)] sm:px-7">لا توجد بيانات بعد.</p>
           ) : (
-            <ol className="divide-y divide-[var(--bs-border)]">
+            <ol className="divide-y divide-[var(--bs-border)] px-5 sm:px-7">
               {stats.top_services.map((s, i) => {
-                const pct = Math.round((s.count / maxServiceCount) * 100);
                 return (
-                  <li key={s.name} className="relative overflow-hidden py-4">
-                    <div
-                      className="absolute inset-y-0 right-0 bg-[var(--bs-primary-soft)] transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
+                  <li key={s.name} className="relative py-4">
                     <div className="relative flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-4">
-                        <span className="w-7 shrink-0 text-sm font-black text-[var(--bs-text-faint)]" dir="ltr">
+                        <span className="w-7 shrink-0 text-sm font-black tabular-nums text-[var(--bs-text-muted)]" dir="ltr">
                           {String(i + 1).padStart(2, "0")}
                         </span>
                         <span className="truncate text-base font-bold text-[var(--bs-text)]">{s.name}</span>
                       </div>
                       <div className="shrink-0 text-left">
-                        <p className="text-base font-black text-[var(--bs-primary)]">{s.count} حجز</p>
+                        <p className="text-base font-black text-[var(--bs-text)]">{s.count} حجز</p>
                         <p className="text-xs text-[var(--bs-text-faint)]">{s.revenue} د.أ</p>
                       </div>
                     </div>
@@ -218,32 +252,36 @@ export default function AdminDashboard() {
           )}
         </section>
 
-        {/* No-show log — borderless tinted panel, deliberately quieter */}
-        <section className="rounded-3xl bg-[var(--bs-error-soft)]/40 p-6">
-          <div className="flex items-center justify-between border-b border-[var(--bs-error)]/20 pb-4">
-            <div>
-              <h2 className="text-xl font-black text-[var(--bs-text)]">سجل عدم الحضور</h2>
-              <p className="mt-1 text-xs text-[var(--bs-text-faint)]">العملاء الذين فاتتهم مواعيدهم — يُنصح بالمتابعة</p>
-            </div>
-            {stats.no_shows.length > 0 && (
-              <span className="text-sm font-bold text-[var(--bs-error)]">{stats.no_shows.length} عميل</span>
-            )}
-          </div>
+        {/* No-show log — same panel frame, warning-tinted accents to match
+            the no_show status badge used across the app */}
+        <section className="bs-panel overflow-hidden">
+          <PanelHeader
+            title="سجل عدم الحضور"
+            subtitle="العملاء الذين فاتتهم مواعيدهم — يُنصح بالمتابعة"
+            trailing={
+              stats.no_shows.length > 0 ? (
+                <span className="shrink-0 text-sm font-bold text-[var(--bs-error)]">{stats.no_shows.length} عميل</span>
+              ) : undefined
+            }
+          />
 
           {stats.no_shows.length === 0 ? (
-            <div className="py-10 text-center">
-              <span className="mb-2 block text-3xl">✅</span>
+            <div className="px-5 py-10 text-center sm:px-7">
+              <CircleCheck className="mx-auto mb-2 h-8 w-8 text-[var(--bs-success)]" aria-hidden="true" />
               <p className="text-sm text-[var(--bs-text-muted)]">ممتاز! لا يوجد سجل عدم حضور.</p>
             </div>
           ) : (
-            <ul className="divide-y divide-[var(--bs-error)]/10">
+            <ul className="divide-y divide-[var(--bs-border)]/60 px-5 sm:px-7">
               {stats.no_shows.map((n, i) => (
-                <li key={i} className="flex items-center justify-between py-3.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-[var(--bs-text)]">{n.customer_name}</p>
-                    <p className="text-xs text-[var(--bs-text-faint)]">مع {n.barber_name}</p>
+                <li key={i} className="flex items-center justify-between gap-3 py-3.5">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--bs-warning)]" aria-hidden="true" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-[var(--bs-text)]">{n.customer_name}</p>
+                      <p className="text-xs text-[var(--bs-text-faint)]">مع {n.barber_name}</p>
+                    </div>
                   </div>
-                  <span className="shrink-0 text-sm font-black text-[var(--bs-error)]">{n.count} مرة</span>
+                  <span className="shrink-0 text-sm font-black text-[var(--bs-warning)]">{n.count} مرة</span>
                 </li>
               ))}
             </ul>
@@ -251,29 +289,81 @@ export default function AdminDashboard() {
         </section>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════
-          Status breakdown — borderless stat blocks separated by hairlines
-          ═══════════════════════════════════════════════════════════ */}
-      <section>
-        <div className="border-b border-[var(--bs-border)] pb-4">
-          <h2 className="text-xl font-black text-[var(--bs-text)]">توزيع حالات الحجوزات</h2>
-          <p className="mt-1 text-xs text-[var(--bs-text-faint)]">ملخص شامل لجميع الحجوزات حسب الحالة</p>
-        </div>
+      {/* Status breakdown — adaptive grid: 3 items render as a true
+          3-column row on desktop and a clean 2+1 stack on mobile with no
+          dangling empty box; other counts adapt the same way. */}
+      <section className="bs-panel overflow-hidden">
+        <PanelHeader
+          title="توزيع حالات الحجوزات"
+          subtitle="ملخص شامل لجميع الحجوزات حسب الحالة"
+        />
 
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-[var(--bs-border)]/60 sm:grid-cols-4">
-          {stats.totals.map((t) => {
-            const pct = totalBookings > 0 ? Math.round((t.count / totalBookings) * 100) : 0;
-            return (
-              <div key={t.status} className="bg-[var(--bs-surface)] p-5 text-center">
-                <span className={`mx-auto mb-2 block h-2 w-2 rounded-full ${STATUS_DOT[t.status] ?? "bg-[var(--bs-border-strong)]"}`} />
-                <p className="text-4xl font-black tabular-nums text-[var(--bs-text)]">{t.count}</p>
-                <p className="mt-1.5 text-xs font-bold text-[var(--bs-text-muted)]">{STATUS_LABELS[t.status] ?? t.status}</p>
-                <p className="mt-0.5 text-[11px] text-[var(--bs-text-faint)]">{pct}% من الإجمالي</p>
-              </div>
-            );
-          })}
-        </div>
+        <StatusGrid totals={stats.totals} totalBookings={totalBookings} />
       </section>
+    </div>
+  );
+}
+
+/**
+ * Adaptive status grid — column count follows the data so there is never a
+ * dangling empty cell (the old fixed 2-col grid left a broken blank box when
+ * only 3 statuses existed):
+ *   1 → full width · 2 → stacked/pair · 3 → 2+1 on mobile, 3-up on desktop
+ *   4 → 2×2 on mobile, 4-up on desktop · >4 → 2-col mobile, extra cell spans.
+ * Each cell is tinted with the same soft badge colors used for booking
+ * status badges in admin/bookings, so the dot + color meaning is obvious.
+ */
+function StatusGrid({
+  totals,
+  totalBookings,
+}: {
+  totals: { status: string; count: number }[];
+  totalBookings: number;
+}) {
+  const n = totals.length;
+  const gridCls =
+    n <= 1
+      ? "grid-cols-1"
+      : n === 2
+        ? "grid-cols-1 sm:grid-cols-2"
+        : n === 3
+          ? "grid-cols-2 sm:grid-cols-3"
+          : "grid-cols-2 sm:grid-cols-4";
+  // odd count on the 2-col mobile grid → last cell spans the full row
+  const spanCls =
+    n === 3 ? "last:col-span-2 sm:last:col-span-1" : n > 4 && n % 2 === 1 ? "last:col-span-2" : "";
+
+  if (n === 0) {
+    return (
+      <p className="px-5 py-10 text-center text-sm text-[var(--bs-text-faint)] sm:px-7">لا توجد بيانات بعد.</p>
+    );
+  }
+
+  return (
+    <div className={`grid gap-3 p-5 sm:p-7 ${gridCls}`}>
+      {totals.map((t) => {
+        const pct = totalBookings > 0 ? Math.round((t.count / totalBookings) * 100) : 0;
+        return (
+          <div
+            key={t.status}
+            className={`rounded-2xl border p-5 text-center ${spanCls} ${
+              STATUS_SOFT[t.status] ?? "border-[var(--bs-border)] bg-[var(--bs-surface-raised)]/40"
+            }`}
+          >
+            <p className="mb-2 flex items-center justify-center gap-2">
+              <span
+                className={`h-2 w-2 rounded-full ${STATUS_DOT[t.status] ?? "bg-[var(--bs-border-strong)]"}`}
+                aria-hidden="true"
+              />
+              <span className={`text-xs font-bold ${STATUS_TEXT[t.status] ?? "text-[var(--bs-text-muted)]"}`}>
+                {STATUS_LABELS[t.status] ?? t.status}
+              </span>
+            </p>
+            <p className="text-4xl font-black tabular-nums leading-none text-[var(--bs-text)]">{t.count}</p>
+            <p className="mt-2 text-[11px] text-[var(--bs-text-faint)]">{pct}% من الإجمالي</p>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -119,7 +119,7 @@ export function HomeClient({ salonSlug }: { salonSlug?: string }) {
                 className="h-11 w-11 rounded-full border border-[var(--bs-border-strong)] object-cover shadow-lg"
               />
             ) : (
-              <span className="text-2xl">💈</span>
+              <Scissors className="h-6 w-6 text-[var(--bs-primary)]" aria-hidden="true" />
             )}
             <span className="text-[11px] font-bold tracking-[0.35em] text-[var(--bs-primary)]" dir="ltr">
               BARBERSHOP &amp; GROOMING
@@ -235,7 +235,7 @@ export function HomeClient({ salonSlug }: { salonSlug?: string }) {
 
         {!loading && !error && barbers.length === 0 && (
           <div className="mt-8 rounded-2xl bg-[var(--bs-surface)]/50 p-12 text-center text-[var(--bs-text-muted)]">
-            <span className="mb-3 block text-4xl">💈</span>
+            <Scissors className="mx-auto mb-3 h-10 w-10 text-[var(--bs-text-faint)]" aria-hidden="true" />
             لا يوجد حلاقون متاحون حالياً — يرجى المحاولة لاحقاً.
           </div>
         )}
@@ -265,8 +265,8 @@ export function HomeClient({ salonSlug }: { salonSlug?: string }) {
                       className="h-16 w-16 shrink-0 rounded-2xl border border-[var(--bs-border-strong)] object-cover shadow-lg transition-transform duration-300 group-hover:scale-105 sm:h-20 sm:w-20"
                     />
                   ) : (
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)] text-2xl shadow-lg sm:h-20 sm:w-20">
-                      💈
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[var(--bs-border-strong)] bg-[var(--bs-surface-raised)] shadow-lg sm:h-20 sm:w-20">
+                      <Scissors className="h-7 w-7 text-[var(--bs-text-faint)]" aria-hidden="true" />
                     </div>
                   )}
 

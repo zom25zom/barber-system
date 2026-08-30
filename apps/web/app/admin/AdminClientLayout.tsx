@@ -20,6 +20,8 @@ import {
   Bell,
   Settings,
   UserRound,
+  Lock,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 
@@ -124,8 +126,8 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
       <div className="bs-skin w-full">
         <div className="mx-auto max-w-lg py-14">
           <div className="bs-panel p-8 text-center sm:p-10">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] text-3xl">
-              🔒
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)]">
+              <Lock className="h-7 w-7 text-[var(--bs-error)]" aria-hidden="true" />
             </div>
             <h1 className="mt-6 text-2xl font-black text-[var(--bs-text)]">لوحة التحكم موقوفة مؤقتاً</h1>
             <p className="mt-4 text-sm leading-relaxed text-[var(--bs-text-muted)]">{lockoutMessage}</p>
@@ -162,7 +164,7 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
         confirmText="نعم، تسجيل الخروج"
         cancelText="إلغاء"
         variant="warning"
-        icon="🚪"
+        icon={<LogOut className="h-5 w-5 text-[var(--bs-warning)]" aria-hidden="true" />}
         onConfirm={() => {
           setLogoutModalOpen(false);
           clearOwnerToken();

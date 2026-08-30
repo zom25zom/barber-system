@@ -71,7 +71,7 @@ export default function InstallPrompt() {
             </svg>
           </span>
           <div>
-            <h3 className="text-sm font-bold text-[var(--bs-text)] sm:text-base">ثبّت التطبيق على جهازك 📲</h3>
+            <h3 className="text-sm font-bold text-[var(--bs-text)] sm:text-base">ثبّت التطبيق على جهازك</h3>
             <p className="mt-0.5 text-xs text-[var(--bs-text-muted)]">وصول أسرع للصالون وتنبيهات فورية بموعدك</p>
           </div>
         </div>

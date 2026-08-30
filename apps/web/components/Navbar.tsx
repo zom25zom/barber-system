@@ -11,7 +11,7 @@ import { buildTenantUrl } from "@/lib/salonTenant";
 import ConfirmModal from "@/components/ConfirmModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
-import { Phone, Globe } from "lucide-react";
+import { Phone, Globe, Scissors, LogOut, UserRound } from "lucide-react";
 import { shouldHideSharedChrome, isSuperAdminArea } from "@/lib/chrome";
 
 export default function Navbar() {
@@ -55,7 +55,7 @@ export default function Navbar() {
           confirmText="نعم، تسجيل الخروج"
           cancelText="إلغاء"
           variant="warning"
-          icon="🚪"
+          icon={<LogOut className="h-5 w-5 text-[var(--bs-warning)]" aria-hidden="true" />}
           onConfirm={() => {
             setOwnerLogoutOpen(false);
             clearOwnerToken();
@@ -73,7 +73,7 @@ export default function Navbar() {
                 className="h-8 w-8 rounded-full border border-[var(--bs-primary)]/40 object-cover shadow-sm"
               />
             ) : (
-              <span className="text-xl">💈</span>
+              <Scissors className="h-5 w-5 text-[var(--bs-primary)]" aria-hidden="true" />
             )}
             <span className="text-sm font-bold text-[var(--bs-primary)] sm:text-base">
               لوحة تحكم {salon.name}
@@ -114,7 +114,7 @@ export default function Navbar() {
               className="h-9 w-9 rounded-lg border border-[var(--bs-border-strong)] object-cover shadow-sm"
             />
           ) : (
-            <span className="text-xl">💈</span>
+            <Scissors className="h-5 w-5 text-[var(--bs-primary)]" aria-hidden="true" />
           )}
           <span className="text-base font-black tracking-tight text-[var(--bs-text)] sm:text-lg">
             {salon.name}
@@ -137,8 +137,9 @@ export default function Navbar() {
               <span>{salon.phone}</span>
             </a>
           ) : customerName ? (
-            <span className="rounded-xl bg-[var(--bs-surface)] px-3 py-1.5 text-xs text-[var(--bs-text-muted)] sm:text-sm">
-              👋 {customerName}
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--bs-surface)] px-3 py-1.5 text-xs text-[var(--bs-text-muted)] sm:text-sm">
+              <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
+              {customerName}
             </span>
           ) : (
             <Button asChild size="sm" className="shrink-0 whitespace-nowrap">

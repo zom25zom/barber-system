@@ -75,7 +75,7 @@ export default function IOSInstallGuide() {
             </svg>
           </span>
           <div className="flex-1 text-right">
-            <h3 className="text-lg font-bold text-[var(--bs-text)]">ثبّت التطبيق على شاشتك الرئيسية 📲</h3>
+            <h3 className="text-lg font-bold text-[var(--bs-text)]">ثبّت التطبيق على شاشتك الرئيسية</h3>
             <p className="mt-1 text-xs text-[var(--bs-text-muted)]">ثلاث خطوات بسيطة داخل متصفح سفاري:</p>
           </div>
         </div>

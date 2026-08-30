@@ -187,7 +187,7 @@ export default function AdminNotificationsPage() {
 
       {!loading && notifications.length === 0 && (
         <div className="py-14 text-center text-sm text-[var(--bs-text-muted)]">
-          <span className="mb-3 block text-4xl">🔔</span>
+          <BellRing className="mx-auto mb-3 h-10 w-10 text-[var(--bs-text-faint)]" aria-hidden="true" />
           لا توجد إشعارات حالياً.
         </div>
       )}
@@ -263,7 +263,7 @@ export default function AdminNotificationsPage() {
         confirmText="نعم، مسح الكل"
         cancelText="إلغاء"
         variant="danger"
-        icon="🗑️"
+        icon={<Trash2 className="h-5 w-5 text-[var(--bs-error)]" aria-hidden="true" />}
         isLoading={clearing}
         onConfirm={handleClearAll}
         onClose={() => setClearOpen(false)}

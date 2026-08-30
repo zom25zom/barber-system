@@ -13,7 +13,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TriangleAlert } from "lucide-react";
+import { TriangleAlert, ClipboardPen, Scissors } from "lucide-react";
 import type { Customer } from "@/lib/types";
 
 export function LoginClient({ salonSlug }: { salonSlug?: string }) {
@@ -61,7 +61,7 @@ export function LoginClient({ salonSlug }: { salonSlug?: string }) {
         <section className="p-7 sm:p-10">
           {/* compact brand header — mobile only, desktop has the brand panel */}
           <div className="mb-6 flex items-center gap-2 md:hidden">
-            <span className="text-xl">💈</span>
+            <Scissors className="h-5 w-5 text-[var(--bs-primary)]" aria-hidden="true" />
             <span className="text-[10px] font-bold tracking-[0.3em] text-[var(--bs-primary)]" dir="ltr">
               BARBERSHOP
             </span>
@@ -137,7 +137,7 @@ export function LoginClient({ salonSlug }: { salonSlug?: string }) {
             confirmText="الانتقال إلى إنشاء حساب جديد"
             cancelText="إغلاق"
             variant="primary"
-            icon="📝"
+            icon={<ClipboardPen className="h-5 w-5 text-[var(--bs-primary)]" aria-hidden="true" />}
             onConfirm={() => {
               setNotRegisteredHere(false);
               tLink.push("/register");
@@ -160,7 +160,7 @@ export function LoginClient({ salonSlug }: { salonSlug?: string }) {
 
           <div className="relative flex h-full flex-col justify-between p-10">
             <div className="flex items-center gap-3">
-              <span className="text-3xl">💈</span>
+              <Scissors className="h-7 w-7 text-[var(--bs-primary)]" aria-hidden="true" />
               <span className="text-[10px] font-bold tracking-[0.3em] text-[var(--bs-primary)]" dir="ltr">
                 BARBERSHOP &amp; GROOMING
               </span>

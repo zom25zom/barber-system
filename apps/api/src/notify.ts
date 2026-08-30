@@ -81,7 +81,7 @@ export async function sendNotification(
 
   // 2. Native Web Push (wakes up devices even when browser is completely closed)
   const title =
-    recipientType === 'owner' ? 'صالون الحلاقة — حجز جديد أو تعديل 💈' : 'صالون الحلاقة — إشعار جديد 💈';
+    recipientType === 'owner' ? 'صالون الحلاقة — حجز جديد أو تعديل' : 'صالون الحلاقة — إشعار جديد';
   const url =
     recipientType === 'owner'
       ? '/admin/bookings' // admin panel is session-global by design

@@ -9,7 +9,7 @@ import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CircleCheck, TriangleAlert } from "lucide-react";
+import { CircleCheck, Scissors, TriangleAlert } from "lucide-react";
 import { getCurrentSalonSlug, withSlug } from "@/lib/salonTenant";
 
 export function RegisterClient({ salonSlug }: { salonSlug?: string }) {
@@ -51,7 +51,7 @@ export function RegisterClient({ salonSlug }: { salonSlug?: string }) {
         <section className="p-7 sm:p-10">
           {/* compact brand header — mobile only */}
           <div className="mb-6 flex items-center gap-2 md:hidden">
-            <span className="text-xl">💈</span>
+            <Scissors className="h-5 w-5 text-[var(--bs-primary)]" aria-hidden="true" />
             <span className="text-[10px] font-bold tracking-[0.3em] text-[var(--bs-primary)]" dir="ltr">
               BARBERSHOP
             </span>
@@ -165,7 +165,7 @@ export function RegisterClient({ salonSlug }: { salonSlug?: string }) {
 
             <div className="relative flex h-full flex-col justify-between p-10">
               <div className="flex items-center gap-3">
-                <span className="text-3xl">💈</span>
+                <Scissors className="h-7 w-7 text-[var(--bs-primary)]" aria-hidden="true" />
                 <span className="text-[10px] font-bold tracking-[0.3em] text-[var(--bs-primary)]" dir="ltr">
                   BARBERSHOP &amp; GROOMING
                 </span>

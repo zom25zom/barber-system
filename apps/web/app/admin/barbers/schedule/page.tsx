@@ -9,6 +9,7 @@ import { WEEKDAYS_AR, formatTime12 } from "@/lib/time";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useToast } from "@/components/Toaster";
+import { AlertTriangle, CalendarDays, CircleCheck, ClipboardList, Coffee, Palmtree, Pin, Plus, Save, Trash2 } from "lucide-react";
 import type { ScheduleDay, BarberTimeOff, BarberBreak } from "@/lib/types";
 
 const defaultSchedule: ScheduleDay[] = Array.from({ length: 7 }, (_, i) => ({
@@ -269,10 +270,11 @@ function ScheduleContent() {
 
   /* ===== Tabs ===== */
   const tabs = [
-    { key: "schedule" as const, label: "📅 جدول العمل الأسبوعي" },
-    { key: "timeoff" as const, label: `🏖️ الإجازات (${futureTimeOffs.length})` },
-    { key: "breaks" as const, label: `☕ الاستراحات (${breaks.length})` },
+    { key: "schedule" as const, label: "جدول العمل الأسبوعي" },
+    { key: "timeoff" as const, label: `الإجازات (${futureTimeOffs.length})` },
+    { key: "breaks" as const, label: `الاستراحات (${breaks.length})` },
   ];
+  const tabIcons = { schedule: CalendarDays, timeoff: Palmtree, breaks: Coffee } as const;
 
   return (
     <div className="bs-skin space-y-8">
@@ -299,12 +301,16 @@ function ScheduleContent() {
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`-mb-px border-b-2 pb-3 text-sm transition-colors ${
+            className={`inline-flex cursor-pointer items-center gap-1.5 -mb-px border-b-2 pb-3 text-sm transition-colors ${
               activeTab === t.key
                 ? "border-[var(--bs-primary)] font-bold text-[var(--bs-primary)]"
                 : "border-transparent font-medium text-[var(--bs-text-muted)] hover:text-[var(--bs-text)]"
             }`}
           >
+            {(() => {
+              const Icon = tabIcons[t.key];
+              return <Icon className="h-4 w-4" aria-hidden="true" />;
+            })()}
             {t.label}
           </button>
         ))}
@@ -315,14 +321,15 @@ function ScheduleContent() {
         <div className="space-y-4">
           {error && (
             <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
-              <span>⚠️ {error}</span>
+              <AlertTriangle className="h-4 w-4 shrink-0 self-center" aria-hidden="true" />
+              <span className="flex-1">{error}</span>
               <button onClick={() => setError(null)} className="text-xs text-[var(--bs-error)] hover:underline">إغلاق</button>
             </div>
           )}
 
           {success && (
             <div className="rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] p-4 text-sm text-[var(--bs-success)] flex items-center justify-between">
-              <span>✨ تم حفظ وتحديث جدول العمل بنجاح!</span>
+              <span className="flex items-center gap-2"><CircleCheck className="h-4 w-4" aria-hidden="true" /> تم حفظ وتحديث جدول العمل بنجاح</span>
               <button onClick={() => setSuccess(false)} className="text-xs text-[var(--bs-success)] hover:underline">إغلاق</button>
             </div>
           )}
@@ -395,7 +402,10 @@ function ScheduleContent() {
                       <span>جاري حفظ الجدول…</span>
                     </>
                   ) : (
-                    "💾 حفظ جدول العمل"
+                    <>
+                      <Save className="h-4 w-4" aria-hidden="true" />
+                      <span>حفظ جدول العمل</span>
+                    </>
                   )}
                 </button>
               </div>
@@ -410,7 +420,8 @@ function ScheduleContent() {
           {/* Add Time Off Form */}
           <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-5 space-y-4">
             <h3 className="text-lg font-bold text-[var(--bs-text)] flex items-center gap-2">
-              🏖️ إضافة إجازة جديدة
+              <Palmtree className="h-5 w-5 text-[var(--bs-primary)]" aria-hidden="true" />
+              إضافة إجازة جديدة
             </h3>
             <p className="text-sm text-[var(--bs-text-muted)]">
               حدد تاريخ إجازة محدد للحلاق. سيتم حجب هذا اليوم تلقائياً من الحجوزات المتاحة.
@@ -418,7 +429,8 @@ function ScheduleContent() {
 
             {timeOffError && (
               <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-sm text-[var(--bs-error)] flex items-center justify-between">
-                <span>⚠️ {timeOffError}</span>
+                <AlertTriangle className="h-4 w-4 shrink-0 self-center" aria-hidden="true" />
+                <span className="flex-1">{timeOffError}</span>
                 <button onClick={() => setTimeOffError(null)} className="text-xs text-[var(--bs-error)] hover:underline">إغلاق</button>
               </div>
             )}
@@ -457,7 +469,10 @@ function ScheduleContent() {
                     <span>جاري الإضافة…</span>
                   </>
                 ) : (
-                  "➕ إضافة إجازة"
+                  <>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <span>إضافة إجازة</span>
+                  </>
                 )}
               </button>
             </form>
@@ -477,7 +492,7 @@ function ScheduleContent() {
               {/* Upcoming */}
               {futureTimeOffs.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-[var(--bs-primary)]">📌 إجازات قادمة ({futureTimeOffs.length})</h4>
+                  <h4 className="text-sm font-bold text-[var(--bs-primary)]"><Pin className="inline h-4 w-4 align-[-2px]" aria-hidden="true" /> إجازات قادمة ({futureTimeOffs.length})</h4>
                   <div className="space-y-2">
                     {futureTimeOffs.map((t) => (
                       <div
@@ -485,8 +500,8 @@ function ScheduleContent() {
                         className="flex items-center justify-between rounded-xl border border-[var(--bs-border)] bg-[var(--bs-surface)] p-3.5 hover:border-[var(--bs-border-strong)] transition"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bs-primary-soft)] border border-[var(--bs-primary)]/40 text-[var(--bs-primary)] text-lg">
-                            🏖️
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bs-primary-soft)] border border-[var(--bs-primary)]/40">
+                            <Palmtree className="h-4 w-4 text-[var(--bs-primary)]" aria-hidden="true" />
                           </div>
                           <div>
                             <p className="text-sm font-bold text-[var(--bs-text)]">{t.date}</p>
@@ -500,7 +515,7 @@ function ScheduleContent() {
                           onClick={() => setDeleteTimeOff(t)}
                           className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] px-3.5 py-1.5 text-xs font-bold text-[var(--bs-error)] hover:brightness-110 transition"
                         >
-                          🗑️ حذف
+                          <Trash2 className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" /> حذف
                         </button>
                       </div>
                     ))}
@@ -511,7 +526,7 @@ function ScheduleContent() {
               {/* Past */}
               {pastTimeOffs.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-sm font-bold text-[var(--bs-text-faint)]">📋 إجازات سابقة ({pastTimeOffs.length})</h4>
+                  <h4 className="text-sm font-bold text-[var(--bs-text-faint)]"><ClipboardList className="inline h-4 w-4 align-[-2px]" aria-hidden="true" /> إجازات سابقة ({pastTimeOffs.length})</h4>
                   <div className="space-y-1">
                     {pastTimeOffs.map((t) => (
                       <div
@@ -559,7 +574,8 @@ function ScheduleContent() {
           {/* Add Break Form */}
           <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/50 p-5 space-y-4">
             <h3 className="text-lg font-bold text-[var(--bs-text)] flex items-center gap-2">
-              ☕ إضافة فترة استراحة
+              <Coffee className="h-5 w-5 text-[var(--bs-primary)]" aria-hidden="true" />
+              إضافة فترة استراحة
             </h3>
             <p className="text-sm text-[var(--bs-text-muted)]">
               حدد فترات الاستراحة لكل يوم في الأسبوع. سيتم استثناء هذه الأوقات تلقائياً من المواعيد المتاحة للحجز.
@@ -567,7 +583,8 @@ function ScheduleContent() {
 
             {breakError && (
               <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-sm text-[var(--bs-error)] flex items-center justify-between">
-                <span>⚠️ {breakError}</span>
+                <AlertTriangle className="h-4 w-4 shrink-0 self-center" aria-hidden="true" />
+                <span className="flex-1">{breakError}</span>
                 <button onClick={() => setBreakError(null)} className="text-xs text-[var(--bs-error)] hover:underline">إغلاق</button>
               </div>
             )}
@@ -616,7 +633,10 @@ function ScheduleContent() {
                     <span>جاري الإضافة…</span>
                   </>
                 ) : (
-                  "➕ إضافة استراحة"
+                  <>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    <span>إضافة استراحة</span>
+                  </>
                 )}
               </button>
             </form>
@@ -643,8 +663,8 @@ function ScheduleContent() {
                     {breaksByDay[dow].map((b) => (
                       <div key={b.id} className="flex items-center justify-between px-4 py-3 hover:bg-[var(--bs-surface-raised)]/20 transition">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--bs-success-soft)] border border-[var(--bs-success)]/40 text-[var(--bs-success)] text-sm">
-                            ☕
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--bs-success-soft)] border border-[var(--bs-success)]/40">
+                            <Coffee className="h-4 w-4 text-[var(--bs-success)]" aria-hidden="true" />
                           </div>
                           <div>
                             <p className="text-sm font-bold text-[var(--bs-text)]">
@@ -656,7 +676,7 @@ function ScheduleContent() {
                           onClick={() => setDeleteBreak(b)}
                           className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] px-3.5 py-1.5 text-xs font-bold text-[var(--bs-error)] hover:brightness-110 transition"
                         >
-                          🗑️ حذف
+                          <Trash2 className="inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" /> حذف
                         </button>
                       </div>
                     ))}

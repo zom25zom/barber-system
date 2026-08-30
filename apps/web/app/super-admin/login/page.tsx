@@ -75,8 +75,8 @@ export default function SuperAdminLoginPage() {
 
         {/* ── form ── */}
         <section className="p-7 sm:p-9">
-          <h1 className="text-2xl font-black text-[var(--bs-text)]">دخول المالك العام</h1>
-          <p className="mt-1.5 text-sm text-[var(--bs-text-muted)]">
+          <h1 className="text-2xl font-black tracking-tight text-[var(--bs-text)] [text-wrap:balance] sm:text-[1.7rem]">دخول المالك العام</h1>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--bs-text-muted)]">
             بوابة مخصصة لإدارة الصالونات والاشتراكات — ليست لوحة الصالون
           </p>
 

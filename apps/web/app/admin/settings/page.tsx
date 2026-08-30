@@ -7,6 +7,8 @@ import { useOwnerSalonSettings, updateSalonSettingsClient, type SalonSettings } 
 import { useToast } from "@/components/Toaster";
 import ImageUploader from "@/components/ImageUploader";
 import { ThemeModeSelector } from "@/components/ThemeToggle";
+import { Camera, Globe, MapPin, MessageCircle, Music2, Save } from "lucide-react";
+import QrSalonCode from "@/components/QrSalonCode";
 
 const PRESET_COLORS = [
   { name: "ذهبي كهرماني", hex: "#f59e0b" },
@@ -304,7 +306,7 @@ export default function AdminSettingsPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--bs-text)]">
-                  <span>📘</span> رابط صفحة فيسبوك (Facebook)
+                  <Globe className="h-3.5 w-3.5" aria-hidden="true" /> رابط صفحة فيسبوك (Facebook)
                 </label>
                 <input
                   type="url"
@@ -318,7 +320,7 @@ export default function AdminSettingsPage() {
 
               <div>
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--bs-text)]">
-                  <span>📸</span> رابط حساب إنستغرام (Instagram)
+                  <Camera className="h-3.5 w-3.5" aria-hidden="true" /> رابط حساب إنستغرام (Instagram)
                 </label>
                 <input
                   type="url"
@@ -332,7 +334,7 @@ export default function AdminSettingsPage() {
 
               <div>
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--bs-text)]">
-                  <span>🎵</span> رابط حساب تيك توك (TikTok)
+                  <Music2 className="h-3.5 w-3.5" aria-hidden="true" /> رابط حساب تيك توك (TikTok)
                 </label>
                 <input
                   type="url"
@@ -346,7 +348,7 @@ export default function AdminSettingsPage() {
 
               <div>
                 <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--bs-text)]">
-                  <span>💬</span> رقم أو رابط واتساب (WhatsApp)
+                  <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" /> رقم أو رابط واتساب (WhatsApp)
                 </label>
                 <input
                   type="text"
@@ -361,7 +363,7 @@ export default function AdminSettingsPage() {
 
             <div>
               <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--bs-text)]">
-                <span>📍</span> رابط موقع الصالون على خرائط Google Maps
+                <MapPin className="h-3.5 w-3.5" aria-hidden="true" /> رابط موقع الصالون على خرائط Google Maps
               </label>
               <input
                 type="url"
@@ -388,11 +390,30 @@ export default function AdminSettingsPage() {
         )}
       </section>
 
-      {/* ══════════ Section 4: Appearance → light/dark mode (Phase 1 foundation) ══════════ */}
+      {/* ══════════ Section 4: Salon QR code (read-only, generated on demand) ══════════ */}
+      <section className="overflow-hidden rounded-3xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/70">
+        <div className="flex items-center gap-4 px-5 py-5">
+          <span className="text-sm font-black tracking-widest text-[var(--bs-primary)]" dir="ltr">04</span>
+          <div>
+            <h2 className="text-base font-black text-[var(--bs-text)]">رمز QR للصالون</h2>
+            <p className="mt-0.5 text-xs text-[var(--bs-text-faint)]">رمز قابل للطباعة يفتح صفحة حجز المواعيد العامة</p>
+          </div>
+        </div>
+        <div className="border-t border-[var(--bs-border)] p-5">
+          <QrSalonCode
+            salonName={salon.name}
+            logoUrl={salon.logo_url}
+            slug={salon.slug ?? null}
+            primaryColor={salon.primary_color || "#f59e0b"}
+          />
+        </div>
+      </section>
+
+      {/* ══════════ Section 5: Appearance → light/dark mode (Phase 1 foundation) ══════════ */}
       <section className="rounded-3xl border border-dashed border-[var(--bs-border-strong)] p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <span className="text-sm font-black tracking-widest text-[var(--bs-primary)]" dir="ltr">04</span>
+            <span className="text-sm font-black tracking-widest text-[var(--bs-primary)]" dir="ltr">05</span>
             <div>
               <h2 className="text-base font-black text-[var(--bs-text)]">وضع العرض</h2>
               <p className="mt-0.5 text-xs text-[var(--bs-text-faint)]">فاتح، داكن، أو حسب إعداد نظامك — يتم حفظ اختيارك تلقائياً</p>
@@ -434,7 +455,10 @@ function SaveButton({
           <span>جاري الحفظ…</span>
         </>
       ) : (
-        <>💾 {label}</>
+        <>
+          <Save className="h-4 w-4" aria-hidden="true" />
+          <span>{label}</span>
+        </>
       )}
     </button>
   );

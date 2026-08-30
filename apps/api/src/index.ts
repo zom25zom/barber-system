@@ -86,7 +86,7 @@ async function processReminderBatch(batch: MessageBatch<ReminderMessage>, env: B
       }
 
       const cleanBarber = booking.barber_name.startsWith('الحلاق') ? booking.barber_name : `الحلاق ${booking.barber_name}`;
-      const text = `موعدك مع ${cleanBarber} بعد ${REMINDER_LEAD_MINUTES} دقيقة! الساعة ${formatTime12Ar(startTime)} — نراك قريباً 💈`;
+      const text = `موعدك مع ${cleanBarber} بعد ${REMINDER_LEAD_MINUTES} دقيقة! الساعة ${formatTime12Ar(startTime)} — نراك قريباً`;
 
       // Deep-link the user inside THEIR salon (tenant-prefixed when slug exists)
       const slugRow = await env.DB.prepare('SELECT slug FROM salons WHERE id = ?')
@@ -104,7 +104,7 @@ async function processReminderBatch(batch: MessageBatch<ReminderMessage>, env: B
 
       // Native Web Push — wakes the device even with the browser closed
       const results = await dispatchWebPush(env, 'customer', booking.customer_id, message.body.salonId, {
-        title: 'تذكير بموعدك ⏰',
+        title: 'تذكير بموعدك',
         message: text,
         url: deepLinkUrl,
         id: bookingId,

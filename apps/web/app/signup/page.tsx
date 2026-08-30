@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { setOwnerToken } from "@/lib/auth";
+import { CircleCheck, PartyPopper, Rocket, TriangleAlert } from "lucide-react";
 import Spinner from "@/components/Spinner";
 
 interface SignupResponse {
@@ -172,7 +173,7 @@ export default function SignupPage() {
 
             {error && (
               <div className="flex items-center gap-2 rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-xs text-[var(--bs-error)] sm:text-sm">
-                <span>⚠️</span>
+                <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>{error}</span>
               </div>
             )}
@@ -188,17 +189,22 @@ export default function SignupPage() {
                   <span>جاري إنشاء صالونك…</span>
                 </>
               ) : (
-                "🚀 إنشاء الصالون الآن"
+                <span className="inline-flex items-center gap-2"><Rocket className="h-4 w-4" aria-hidden="true" /> إنشاء الصالون الآن</span>
               )}
             </button>
           </form>
         ) : (
           /* ── Success screen ── */
           <div className="mt-8 space-y-5 text-center">
-            <span className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--bs-success)]/30 bg-[var(--bs-success-soft)] text-3xl text-[var(--bs-success)]">✓</span>
+            <span className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--bs-success)]/30 bg-[var(--bs-success-soft)]">
+              <CircleCheck className="h-8 w-8 text-[var(--bs-success)]" aria-hidden="true" />
+            </span>
 
             <div>
-              <h2 className="text-lg font-black text-[var(--bs-text)]">تم إنشاء صالونك بنجاح! 🎉</h2>
+              <h2 className="flex items-center justify-center gap-2 text-lg font-black text-[var(--bs-text)]">
+                <PartyPopper className="h-5 w-5 text-[var(--bs-success)]" aria-hidden="true" />
+                تم إنشاء صالونك بنجاح
+              </h2>
               <p className="mt-1 text-sm text-[var(--bs-text-muted)]">رابط صالونك العام الجاهز للمشاركة مع زبائنك:</p>
             </div>
 

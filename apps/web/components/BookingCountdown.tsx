@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AlertTriangle, Zap } from "lucide-react";
 import { formatTime12 } from "@/lib/time";
 
 interface BookingCountdownProps {
@@ -54,7 +55,7 @@ export default function BookingCountdown({
     return (
       <div className="animate-pulse space-y-2 rounded-2xl border-2 border-[var(--bs-success)]/60 bg-[var(--bs-success-soft)] p-4 text-center shadow-lg sm:p-5">
         <div className="flex items-center justify-center gap-2">
-          <span className="text-2xl">⚡</span>
+          <Zap className="h-6 w-6 animate-pulse text-[var(--bs-success)]" aria-hidden="true" />
           <span className="text-base font-black text-[var(--bs-success)] sm:text-lg">
             حان وقت حجزك الآن!
           </span>
@@ -89,7 +90,8 @@ export default function BookingCountdown({
 
         {delayMinutes > 0 ? (
           <span className="rounded-full border border-[var(--bs-warning)]/40 bg-[var(--bs-warning-soft)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--bs-warning)]">
-            ⚠️ تأخير متوقع: +{delayMinutes} دقيقة
+            <AlertTriangle className="mr-1 inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" />
+            تأخير متوقع: +{delayMinutes} دقيقة
           </span>
         ) : (
           <span className="rounded-full border border-[var(--bs-success)]/30 bg-[var(--bs-success-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--bs-success)]">

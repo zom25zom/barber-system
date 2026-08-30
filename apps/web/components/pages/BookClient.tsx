@@ -9,7 +9,7 @@ import { formatTime12, next7Days } from "@/lib/time";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
 import { Button } from "@/components/ui/button";
-import { Armchair, CircleAlert, Info } from "lucide-react";
+import { Armchair, CircleAlert, Info, Palmtree, Scissors } from "lucide-react";
 import type { Barber, Service, Slot, Booking } from "@/lib/types";
 
 const steps = ["الحلاق", "الخدمات", "الموعد", "التأكيد"];
@@ -206,8 +206,8 @@ function BookContent() {
             className="absolute inset-x-0 top-0 h-1"
             style={{ background: "linear-gradient(to left, transparent, var(--bs-primary), transparent)" }}
           />
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] text-3xl">
-            💈
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)]">
+            <Scissors className="h-7 w-7 text-[var(--bs-primary)]" aria-hidden="true" />
           </div>
           <h2 className="mt-5 text-2xl font-black text-[var(--bs-text)]">لديك حجز نشط بالفعل</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[var(--bs-text-muted)]">
@@ -233,7 +233,7 @@ function BookContent() {
 
           {error && (
             <p className="mt-4 rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] px-4 py-2.5 text-xs text-[var(--bs-error)]">
-              ⚠️ {error}
+              {error}
             </p>
           )}
 
@@ -345,8 +345,8 @@ function BookContent() {
                       className="h-14 w-14 shrink-0 rounded-full border-2 border-[var(--bs-primary)]/40 object-cover"
                     />
                   ) : (
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-[var(--bs-primary)]/40 bg-[var(--bs-surface-raised)] text-xl">
-                      💈
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-[var(--bs-primary)]/40 bg-[var(--bs-surface-raised)]">
+                      <Scissors className="h-5 w-5 text-[var(--bs-text-faint)]" aria-hidden="true" />
                     </div>
                   )}
                   <span className="min-w-0 flex-1">
@@ -488,7 +488,10 @@ function BookContent() {
                 <div className="py-3 text-center">
                   {isTimeOff ? (
                     <div className="rounded-xl border border-[var(--bs-warning)]/30 bg-[var(--bs-warning-soft)] p-4 space-y-1">
-                      <p className="font-bold text-[var(--bs-warning)] text-sm">🏖️ الحلاق في إجازة هذا اليوم</p>
+                      <p className="flex items-center justify-center gap-1.5 font-bold text-[var(--bs-warning)] text-sm">
+                        <Palmtree className="h-4 w-4" aria-hidden="true" />
+                        الحلاق في إجازة هذا اليوم
+                      </p>
                       {timeOffReason && (
                         <p className="text-xs text-[var(--bs-text-muted)]">السبب: {timeOffReason}</p>
                       )}

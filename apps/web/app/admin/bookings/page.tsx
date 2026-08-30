@@ -8,6 +8,7 @@ import { useLiveNotifications } from "@/lib/useNotifications";
 import Spinner from "@/components/Spinner";
 import ConfirmModal from "@/components/ConfirmModal";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { AlertTriangle, CalendarDays, CheckCircle2, CircleCheck, Clock, Phone, Scissors, Search, User, UserRoundPlus } from "lucide-react";
 import { useToast } from "@/components/Toaster";
 import type { Booking, OwnerBarber, Customer, Service, Slot } from "@/lib/types";
 
@@ -345,7 +346,7 @@ export default function AdminBookingsPage() {
 
             {manualError && (
               <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3.5 text-xs sm:text-sm text-[var(--bs-error)] flex items-center gap-2">
-                <span>⚠️</span>
+                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>{manualError}</span>
               </div>
             )}
@@ -371,7 +372,7 @@ export default function AdminBookingsPage() {
                           : "text-[var(--bs-text-muted)] hover:text-[var(--bs-text)]"
                       }`}
                     >
-                      🔍 زبون مسجل
+                      <span className="inline-flex items-center gap-1.5"><Search className="h-3.5 w-3.5" aria-hidden="true" /> زبون مسجل</span>
                     </button>
                     <button
                       type="button"
@@ -386,7 +387,7 @@ export default function AdminBookingsPage() {
                           : "text-[var(--bs-text-muted)] hover:text-[var(--bs-text)]"
                       }`}
                     >
-                      👤 زبون جديد
+                      <span className="inline-flex items-center gap-1.5"><UserRoundPlus className="h-3.5 w-3.5" aria-hidden="true" /> زبون جديد</span>
                     </button>
                   </div>
                 </div>
@@ -396,7 +397,7 @@ export default function AdminBookingsPage() {
                     {selectedCustomer ? (
                       <div className="flex items-center justify-between rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-4 py-2.5 text-sm">
                         <div className="flex items-center gap-2">
-                          <span className="text-lg">✅</span>
+                          <CircleCheck className="h-5 w-5 text-[var(--bs-success)]" aria-hidden="true" />
                           <div>
                             <p className="font-bold text-[var(--bs-success)]">{selectedCustomer.username}</p>
                             <p className="text-xs text-[var(--bs-text-muted)]" dir="ltr">{selectedCustomer.phone}</p>
@@ -554,7 +555,10 @@ export default function AdminBookingsPage() {
 
                 {!manualSlotsLoading && manualIsTimeOff && (
                   <div className="rounded-xl border border-[var(--bs-warning)]/40 bg-[var(--bs-warning-soft)] p-3 text-xs text-[var(--bs-warning)]">
-                    ⚠️ الحلاق في إجازة خاصة بهذا اليوم{manualTimeOffReason ? ` (${manualTimeOffReason})` : ""}.
+                    <span className="inline-flex items-start gap-1.5">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span>الحلاق في إجازة خاصة بهذا اليوم{manualTimeOffReason ? ` (${manualTimeOffReason})` : ""}.</span>
+                    </span>
                   </div>
                 )}
 
@@ -633,7 +637,7 @@ export default function AdminBookingsPage() {
           onClick={openManualBooking}
           className="inline-flex items-center gap-2 rounded-xl bg-[var(--bs-primary)] px-5 py-2.5 text-sm font-bold text-[var(--bs-on-primary)] hover:bg-[var(--bs-primary-strong)] shadow-md shadow-[var(--bs-primary)]/20 active:scale-95 transition"
         >
-          <span>✂️</span>
+          <Scissors className="h-4 w-4" aria-hidden="true" />
           <span>+ إضافة حجز يدوي</span>
         </button>
       </header>
@@ -694,7 +698,8 @@ export default function AdminBookingsPage() {
 
       {error && (
         <div className="rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-4 text-sm text-[var(--bs-error)] flex items-center justify-between">
-          <span>⚠️ {error}</span>
+          <AlertTriangle className="h-4 w-4 shrink-0 self-center" aria-hidden="true" />
+          <span className="flex-1">{error}</span>
           <button onClick={() => setError(null)} className="text-xs text-[var(--bs-error)] hover:underline">
             إغلاق
           </button>
@@ -723,8 +728,8 @@ export default function AdminBookingsPage() {
               <CardHeader className="gap-2 border-b border-[var(--bs-border)] bg-[var(--bs-surface-raised)]/50">
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                   <h3 className="flex min-w-0 items-center gap-2.5 text-lg font-black text-[var(--bs-text)]">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)] text-sm" aria-hidden="true">
-                      👤
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--bs-primary)]/30 bg-[var(--bs-primary-soft)]" aria-hidden="true">
+                      <User className="h-4 w-4 text-[var(--bs-primary)]" />
                     </span>
                     <span className="truncate">{b.customer_name || "زبون"}</span>
                   </h3>
@@ -765,9 +770,13 @@ export default function AdminBookingsPage() {
                 {/* date & time */}
                 <div>
                   <p className="text-[10px] font-bold tracking-[0.25em] text-[var(--bs-text-faint)]">الموعد</p>
-                  <p className="mt-1.5 text-sm font-bold text-[var(--bs-text)]">📅 {b.booking_date}</p>
+                  <p className="mt-1.5 flex items-center gap-1.5 text-sm font-bold text-[var(--bs-text)]">
+                    <CalendarDays className="h-4 w-4 text-[var(--bs-text-faint)]" aria-hidden="true" />
+                    {b.booking_date}
+                  </p>
                   <p className="mt-0.5 text-sm text-[var(--bs-text-muted)]">
-                    ⏰ {formatTime12(b.start_time)} — {formatTime12(b.end_time)}
+                    <Clock className="mr-1 inline h-3.5 w-3.5 align-[-2px] text-[var(--bs-text-faint)]" aria-hidden="true" />
+                    {formatTime12(b.start_time)} — {formatTime12(b.end_time)}
                   </p>
                 </div>
 
@@ -778,7 +787,10 @@ export default function AdminBookingsPage() {
                     <ul className="mt-1.5 space-y-1">
                       {b.services.map((s, i) => (
                         <li key={i} className="flex items-baseline justify-between gap-2 text-sm">
-                          <span className="text-[var(--bs-text)]">✂️ {s.name}</span>
+                          <span className="inline-flex items-center gap-1 text-[var(--bs-text)]">
+                            <Scissors className="h-3 w-3 text-[var(--bs-text-faint)]" aria-hidden="true" />
+                            {s.name}
+                          </span>
                           <span className="shrink-0 tabular-nums text-[var(--bs-text-muted)]">{s.price} د.أ</span>
                         </li>
                       ))}
@@ -798,7 +810,7 @@ export default function AdminBookingsPage() {
                       title="اتصال هاتفي مباشر بالعميل"
                       dir="ltr"
                     >
-                      <span>📞</span>
+                      <Phone className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>{b.customer_phone}</span>
                     </a>
                   )}
@@ -822,7 +834,7 @@ export default function AdminBookingsPage() {
                       className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--bs-success)]/40 bg-[var(--bs-success-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--bs-success)] transition hover:brightness-110 active:scale-95"
                       title="اتصال هاتفي مباشر بالعميل"
                     >
-                      <span>📞</span>
+                      <Phone className="h-3.5 w-3.5" aria-hidden="true" />
                       <span>اتصال</span>
                     </a>
                   )}

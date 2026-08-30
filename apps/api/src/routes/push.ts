@@ -100,7 +100,7 @@ pushRoutes.post('/test', requireOwner, async (c) => {
   console.log(`[Push Test] ════ Starting test push for ${userType}${customerId != null ? ` (customer_id=${customerId})` : ''} ════`);
 
   const results = await dispatchWebPush(c.env, userType, customerId, salonId, {
-    title: '🧪 إشعار تجريبي — صالون الحلاقة',
+    title: 'إشعار تجريبي — صالون الحلاقة',
     message: `هذا إشعار تجريبي للتحقق من عمل Web Push. الوقت: ${formatTime12Ar(new Date())}`,
     url: userType === 'owner' ? '/admin/bookings' : '/my-bookings',
   });

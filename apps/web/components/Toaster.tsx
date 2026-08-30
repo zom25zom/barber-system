@@ -98,7 +98,7 @@ showToast.success = (message: string = "تم حفظ التغييرات بنجا�
 };
 
 showToast.error = (
-  message: string = "حدث خطأ، يرجى المحاولة مرة أخرى ⚠️",
+  message: string = "حدث خطأ، يرجى المحاولة مرة أخرى",
   duration: number = 5500,
 ) => {
   showToast(message, "error", duration);
@@ -162,7 +162,7 @@ export function ToasterProvider({ children }: { children: ReactNode }) {
   );
 
   toastFn.error = useCallback(
-    (message: string = "حدث خطأ، يرجى المحاولة مرة أخرى ⚠️", duration?: number) => {
+    (message: string = "حدث خطأ، يرجى المحاولة مرة أخرى", duration?: number) => {
       addToast(message, "error", duration);
     },
     [addToast],

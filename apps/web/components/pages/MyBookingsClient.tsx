@@ -12,7 +12,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 import BookingCountdown from "@/components/BookingCountdown";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/Toaster";
-import { CircleAlert, Hourglass, ClipboardList, CalendarClock } from "lucide-react";
+import { CircleAlert, Hourglass, ClipboardList, CalendarClock, PartyPopper, Scissors } from "lucide-react";
 import type { Booking, QueueItem } from "@/lib/types";
 
 /* status → colored dot + text (quiet, editorial — no pill boxes) */
@@ -258,7 +258,7 @@ export function MyBookingsClient({ salonSlug }: { salonSlug?: string }) {
         <div className="mt-6 space-y-5">
           {queue.length === 0 ? (
             <div className="py-14 text-center">
-              <span className="text-5xl">💈</span>
+              <Scissors className="mx-auto block h-14 w-14 text-[var(--bs-text-faint)]" aria-hidden="true" />
               <h3 className="mt-5 text-lg font-bold text-[var(--bs-text)]">لا يوجد لديك حجز نشط في الدور حالياً</h3>
               <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[var(--bs-text-muted)]">
                 عند قيامك بحجز موعد، سيظهر هنا ترتيبك المباشر في الدور والوقت المتوقع لدخولك.
@@ -288,9 +288,9 @@ export function MyBookingsClient({ salonSlug }: { salonSlug?: string }) {
                   {/* turn banner / queue position */}
                   {item.is_my_turn ? (
                     <div className="animate-pulse rounded-2xl border-2 border-[var(--bs-success)] bg-[var(--bs-success-soft)] p-5 text-center">
-                      <span className="mb-1 inline-block text-3xl">🎉</span>
+                      <PartyPopper className="mx-auto mb-1 block h-8 w-8 text-[var(--bs-success)]" aria-hidden="true" />
                       <h2 className="text-lg font-black text-[var(--bs-success)] sm:text-xl">
-                        دورك الآن! تفضل بالتوجه إلى كرسي الحلاق 💈✂️
+                        دورك الآن! تفضل بالتوجه إلى كرسي الحلاقة
                       </h2>
                       <p className="mt-1 text-xs text-[var(--bs-success)]/80">
                         الحلاق {item.barber_name} بانتظارك الآن
@@ -325,7 +325,7 @@ export function MyBookingsClient({ salonSlug }: { salonSlug?: string }) {
 
                   {item.people_ahead > 0 && !item.is_my_turn && (
                     <div className="mt-4 flex items-center justify-between border-t border-[var(--bs-border)] pt-3 text-xs">
-                      <span className="text-[var(--bs-text-muted)]">⏳ الوقت التقريبي المتبقي للبدء:</span>
+                      <span className="inline-flex items-center gap-1 text-[var(--bs-text-muted)]"><Hourglass className="h-3.5 w-3.5" aria-hidden="true" /> الوقت التقريبي المتبقي للبدء:</span>
                       <span className="rounded-lg bg-[var(--bs-primary-soft)] px-2.5 py-1 font-bold text-[var(--bs-primary)]">
                         حوالي {item.estimated_wait_minutes} دقيقة
                       </span>

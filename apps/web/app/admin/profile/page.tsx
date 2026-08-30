@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { getOwnerToken, clearOwnerToken } from "@/lib/auth";
 import { useSalonSettings } from "@/lib/salon";
+import { KeyRound, TriangleAlert } from "lucide-react";
 import Spinner from "@/components/Spinner";
 
 export default function AdminProfilePage() {
@@ -110,7 +111,7 @@ export default function AdminProfilePage() {
             }}
             className="mt-4 w-full rounded-xl border border-[var(--bs-primary)]/40 bg-[var(--bs-primary-soft)] px-4 py-2.5 text-xs font-bold text-[var(--bs-primary)] transition hover:brightness-110 active:scale-95 sm:text-sm"
           >
-            🔑 إعادة تعيين كلمة المرور
+            <KeyRound className="inline h-4 w-4 align-[-3px]" aria-hidden="true" /> إعادة تعيين كلمة المرور
           </button>
         ) : (
           <form onSubmit={onResetPassword} className="mt-5 space-y-4">
@@ -168,7 +169,7 @@ export default function AdminProfilePage() {
 
             {error && (
               <div className="flex items-center gap-2 rounded-xl border border-[var(--bs-error)]/40 bg-[var(--bs-error-soft)] p-3 text-xs text-[var(--bs-error)] sm:text-sm">
-                <span>⚠️</span>
+                <TriangleAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>{error}</span>
               </div>
             )}

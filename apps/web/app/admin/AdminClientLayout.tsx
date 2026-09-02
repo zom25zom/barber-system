@@ -155,7 +155,7 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
   };
 
   return (
-    <div className="bs-skin w-full lg:flex lg:gap-8">
+    <div className="bs-skin w-full">
       {/* ── Logout Confirmation Modal ── */}
       <ConfirmModal
         isOpen={logoutModalOpen}
@@ -173,9 +173,12 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
         onClose={() => setLogoutModalOpen(false)}
       />
 
-      {/* ── Desktop Sidebar (Visible only on lg screens) ── */}
-      <aside className="hidden lg:block shrink-0 space-y-1.5 lg:w-64 sticky top-20 h-fit">
-        <div className="rounded-2xl border border-[var(--bs-border)] bg-[var(--bs-surface)]/60 p-2 space-y-0.5">
+      {/* ── Desktop/Tablet Sidebar: fixed to the right edge, always visible ── */}
+      <aside
+        aria-label="التنقل الجانبي"
+        className="fixed inset-y-0 right-0 z-40 hidden w-60 flex-col border-e border-[var(--bs-border)] bg-[var(--bs-surface)]/95 backdrop-blur-lg md:flex"
+      >
+        <div className="flex-1 space-y-0.5 overflow-y-auto p-3 pt-6">
           {nav.map((item) => {
             const active = isItemActive(item.href);
             return (
@@ -206,8 +209,11 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
         </div>
       </aside>
 
-      {/* ── Main Content (Extra bottom padding on mobile for the fixed nav bar) ── */}
-      <div className="min-w-0 flex-1 space-y-6 pb-24 lg:pb-8">
+      {/* ── Main Content ──
+          • md+: ms-60 reserves space for the fixed right-edge sidebar
+            (logical property → margin-right under RTL).
+          • Extra bottom padding on mobile for the fixed bottom nav bar. ── */}
+      <div className="min-w-0 space-y-6 pb-24 md:pb-8 md:ms-60 md:me-6">
         {/* Renewal reminder — persistent, non-dismissible, computed per salon */}
         {renewalBanner && <RenewalBanner message={renewalBanner} />}
         {/* PWA install (Android/Chrome) + iOS install guide */}
@@ -219,7 +225,7 @@ export default function AdminClientLayout({ children }: { children: ReactNode })
       {/* ── Persistent Bottom Navigation Bar for Mobile (Visible on < lg screens) ── */}
       <nav
         aria-label="التنقل السفلي للهاتف"
-        className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--bs-border)] bg-[var(--bs-bg)]/95 px-2 py-1.5 shadow-2xl backdrop-blur-lg lg:hidden safe-area-pb"
+        className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--bs-border)] bg-[var(--bs-bg)]/95 px-2 py-1.5 shadow-2xl backdrop-blur-lg md:hidden safe-area-pb"
       >
         <div className="mx-auto flex max-w-md items-center justify-around">
           {nav.map((item) => {

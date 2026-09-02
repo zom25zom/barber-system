@@ -9,6 +9,15 @@
     "dev:api": "npm run dev -w apps/api",
     "dev:web": "npm run dev -w apps/web",
     "migrate:local": "npm run migrate:local -w apps/api",
+    "seed:local": "npm run seed:local -w apps/api",
+    "reset:local": "npm run reset:local -w apps/api",
     "build": "npm run build -w apps/api && npm run build -w apps/web"
+  },
+  "allowScripts": {
+    "esbuild@0.25.4": true,
+    "esbuild@0.28.1": true,
+    "workerd@1.20260825.1": true,
+    "sharp@0.34.5": true,
+    "sharp@0.35.2": true
   }
 }

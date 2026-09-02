@@ -3247,7 +3247,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/node_modules/next/dist/server/load-manifest.external.js": {
-      "bytes": 273572,
+      "bytes": 273570,
       "imports": [
         {
           "path": "path",
@@ -3673,7 +3673,7 @@
       "format": "cjs"
     },
     ".open-next/server-functions/default/apps/web/.next/server/chunks/561.js": {
-      "bytes": 11628,
+      "bytes": 11692,
       "imports": [],
       "format": "cjs"
     },
@@ -3997,8 +3997,8 @@
       ],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/apps/web/.next/server/app/admin/barbers/services/page.js": {
-      "bytes": 26266,
+    ".open-next/server-functions/default/apps/web/.next/server/app/admin/barbers/schedule/page.js": {
+      "bytes": 40874,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -4063,8 +4063,8 @@
       ],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/apps/web/.next/server/app/admin/barbers/schedule/page.js": {
-      "bytes": 40874,
+    ".open-next/server-functions/default/apps/web/.next/server/app/admin/barbers/services/page.js": {
+      "bytes": 26266,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -4723,8 +4723,8 @@
       ],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/apps/web/.next/server/app/admin/profile/page.js": {
-      "bytes": 22739,
+    ".open-next/server-functions/default/apps/web/.next/server/app/admin/reports/page.js": {
+      "bytes": 36413,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -4789,8 +4789,8 @@
       ],
       "format": "cjs"
     },
-    ".open-next/server-functions/default/apps/web/.next/server/app/admin/reports/page.js": {
-      "bytes": 36413,
+    ".open-next/server-functions/default/apps/web/.next/server/app/admin/profile/page.js": {
+      "bytes": 22739,
       "imports": [
         {
           "path": ".open-next/server-functions/default/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
@@ -5898,14 +5898,14 @@
           "original": "C:\\Users\\pc\\Desktop\\barber system\\apps\\web\\.open-next\\server-functions\\default\\apps\\web\\.next\\server\\app\\[salonSlug]\\my-profile\\page.js"
         },
         {
-          "path": ".open-next/server-functions/default/apps/web/.next/server/app/admin/barbers/services/page.js",
-          "kind": "require-call",
-          "original": "C:\\Users\\pc\\Desktop\\barber system\\apps\\web\\.open-next\\server-functions\\default\\apps\\web\\.next\\server\\app\\admin\\barbers\\services\\page.js"
-        },
-        {
           "path": ".open-next/server-functions/default/apps/web/.next/server/app/admin/barbers/schedule/page.js",
           "kind": "require-call",
           "original": "C:\\Users\\pc\\Desktop\\barber system\\apps\\web\\.open-next\\server-functions\\default\\apps\\web\\.next\\server\\app\\admin\\barbers\\schedule\\page.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/apps/web/.next/server/app/admin/barbers/services/page.js",
+          "kind": "require-call",
+          "original": "C:\\Users\\pc\\Desktop\\barber system\\apps\\web\\.open-next\\server-functions\\default\\apps\\web\\.next\\server\\app\\admin\\barbers\\services\\page.js"
         },
         {
           "path": ".open-next/server-functions/default/apps/web/.next/server/app/super-admin/dashboard/page.js",
@@ -5953,14 +5953,14 @@
           "original": "C:\\Users\\pc\\Desktop\\barber system\\apps\\web\\.open-next\\server-functions\\default\\apps\\web\\.next\\server\\app\\admin\\barbers\\page.js"
         },
         {
-          "path": ".open-next/server-functions/default/apps/web/.next/server/app/admin/profile/page.js",
-          "kind": "require-call",
-          "original": "C:\\Users\\pc\\Desktop\\barber system\\apps\\web\\.open-next\\server-functions\\default\\apps\\web\\.next\\server\\app\\admin\\profile\\page.js"
-        },
-        {
           "path": ".open-next/server-functions/default/apps/web/.next/server/app/admin/reports/page.js",
           "kind": "require-call",
           "original": "C:\\Users\\pc\\Desktop\\barber system\\apps\\web\\.open-next\\server-functions\\default\\apps\\web\\.next\\server\\app\\admin\\reports\\page.js"
+        },
+        {
+          "path": ".open-next/server-functions/default/apps/web/.next/server/app/admin/profile/page.js",
+          "kind": "require-call",
+          "original": "C:\\Users\\pc\\Desktop\\barber system\\apps\\web\\.open-next\\server-functions\\default\\apps\\web\\.next\\server\\app\\admin\\profile\\page.js"
         },
         {
           "path": ".open-next/server-functions/default/apps/web/.next/server/app/admin/health/page.js",
@@ -8252,7 +8252,7 @@
           "bytesInOutput": 586
         },
         ".open-next/server-functions/default/node_modules/next/dist/server/load-manifest.external.js": {
-          "bytesInOutput": 239879
+          "bytesInOutput": 239877
         },
         ".open-next/server-functions/default/node_modules/next/dist/server/app-render/action-async-storage-instance.js": {
           "bytesInOutput": 501
@@ -8324,7 +8324,7 @@
           "bytesInOutput": 461797
         },
         ".open-next/server-functions/default/apps/web/.next/server/chunks/561.js": {
-          "bytesInOutput": 13150
+          "bytesInOutput": 13266
         },
         ".open-next/server-functions/default/apps/web/.next/server/chunks/662.js": {
           "bytesInOutput": 8251
@@ -8350,11 +8350,11 @@
         ".open-next/server-functions/default/apps/web/.next/server/app/[salonSlug]/my-profile/page.js": {
           "bytesInOutput": 30345
         },
-        ".open-next/server-functions/default/apps/web/.next/server/app/admin/barbers/services/page.js": {
-          "bytesInOutput": 28893
-        },
         ".open-next/server-functions/default/apps/web/.next/server/app/admin/barbers/schedule/page.js": {
           "bytesInOutput": 45788
+        },
+        ".open-next/server-functions/default/apps/web/.next/server/app/admin/barbers/services/page.js": {
+          "bytesInOutput": 28893
         },
         ".open-next/server-functions/default/apps/web/.next/server/app/super-admin/dashboard/page.js": {
           "bytesInOutput": 45862
@@ -8383,11 +8383,11 @@
         ".open-next/server-functions/default/apps/web/.next/server/app/admin/barbers/page.js": {
           "bytesInOutput": 34753
         },
-        ".open-next/server-functions/default/apps/web/.next/server/app/admin/profile/page.js": {
-          "bytesInOutput": 23991
-        },
         ".open-next/server-functions/default/apps/web/.next/server/app/admin/reports/page.js": {
           "bytesInOutput": 41235
+        },
+        ".open-next/server-functions/default/apps/web/.next/server/app/admin/profile/page.js": {
+          "bytesInOutput": 23991
         },
         ".open-next/server-functions/default/apps/web/.next/server/app/admin/health/page.js": {
           "bytesInOutput": 32168
@@ -8579,7 +8579,7 @@
           "bytesInOutput": 67119
         }
       },
-      "bytes": 4294796
+      "bytes": 4294910
     }
   }
 }
